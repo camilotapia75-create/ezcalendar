@@ -46,7 +46,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
   const [analyzing, setAnalyzing] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [aiDetectedDate, setAiDetectedDate] = useState(false)
-  const [aiError, setAiError] = useState(false)
+  const [aiError, setAiError] = useState(null) // null | 'failed' | 'quota'
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraStream, setCameraStream] = useState(null)
   const videoRef = useRef()
@@ -100,7 +100,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
 
   const analyzeImage = async (dataUrl) => {
     setImagePreview(dataUrl)
-    setAiError(false)
+    setAiError(null)
     setAnalyzing(true)
     try {
       const compressed = await resizeImage(dataUrl)
@@ -110,7 +110,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
         body: JSON.stringify({ imageData: compressed, mediaType: 'image/jpeg' }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error()
+      if (res.status === 429) { setAiError('quota'); return }
+      if (!res.ok) { setAiError('failed'); return }
       if (data.title) setTitle(data.title)
       if (data.time_str) setTimeStr(data.time_str)
       if (data.location) setLocation(data.location)
@@ -119,10 +120,10 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
         setAiDetectedDate(true)
       }
       if (!data.title && !data.date && !data.time_str && !data.location) {
-        setAiError(true)
+        setAiError('failed')
       }
     } catch {
-      setAiError(true)
+      setAiError('failed')
     } finally {
       setAnalyzing(false)
     }
@@ -141,7 +142,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
     setImageFile(null)
     setImagePreview(null)
     setAiDetectedDate(false)
-    setAiError(false)
+    setAiError(null)
     setTitle('')
     setLocation('')
     setTimeStr('')
@@ -230,12 +231,18 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                     <p className="text-xs text-violet-300 font-medium">Reading flyer…</p>
                   </div>
                 ) : (
-                  <button type="button" onClick={reset} className="absolute top-2 right-2 text-xs text-white px-2.5 py-1.5 rounded-lg transition-colors" style={{ background: 'rgba(0,0,0,0.7)' }}>Retake</button>
+                  <button type="button" onClick={reset} className="absolute top-2 right-2 text-xs text-white px-2.5 py-1.5 rounded-lg" style={{ background: 'rgba(0,0,0,0.7)' }}>Retake</button>
                 )}
               </div>
               {aiError && !analyzing && (
-                <p className="text-xs text-amber-400/80 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.12)' }}>
-                  Couldn’t read this flyer automatically — fill in the details below
+                <p className="text-xs px-3 py-2.5 rounded-xl" style={{
+                  color: aiError === 'quota' ? 'rgba(248,113,113,0.9)' : 'rgba(251,191,36,0.8)',
+                  background: aiError === 'quota' ? 'rgba(239,68,68,0.06)' : 'rgba(251,191,36,0.06)',
+                  border: `1px solid ${aiError === 'quota' ? 'rgba(239,68,68,0.15)' : 'rgba(251,191,36,0.12)'}`,
+                }}>
+                  {aiError === 'quota'
+                    ? 'AI rate limit hit — wait a minute and try again'
+                    : 'Couldn’t read this flyer — fill in the details below'}
                 </p>
               )}
               {!analyzing && (
