@@ -13,7 +13,7 @@ export async function POST(request) {
     const imgMediaType = (mediaType && mediaType.startsWith('image/')) ? mediaType : 'image/jpeg'
 
     const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-sonnet-4-6',
       max_tokens: 512,
       messages: [
         {
@@ -21,20 +21,16 @@ export async function POST(request) {
           content: [
             {
               type: 'image',
-              source: {
-                type: 'base64',
-                media_type: imgMediaType,
-                data: base64,
-              },
+              source: { type: 'base64', media_type: imgMediaType, data: base64 },
             },
             {
               type: 'text',
-              text: `Extract event details from this flyer. Return ONLY a valid JSON object with these exact keys (use null for anything not found):
+              text: `Extract event details from this flyer. Return ONLY valid JSON with these exact keys (null for anything not found):
 {
-  "title": "event name or title",
-  "date": "date in YYYY-MM-DD format — if year is abbreviated like '26' treat it as 2026",
-  "time_str": "time range exactly as shown on the flyer",
-  "location": "venue name and/or city"
+  "title": "event name",
+  "date": "YYYY-MM-DD (if year is abbreviated like '26' use 2026)",
+  "time_str": "time range as shown",
+  "location": "venue and/or city"
 }`,
             },
           ],
@@ -48,6 +44,6 @@ export async function POST(request) {
     return NextResponse.json(data)
   } catch (err) {
     console.error('analyze-flyer error:', err)
-    return NextResponse.json({ error: 'Failed to analyze image' }, { status: 500 })
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

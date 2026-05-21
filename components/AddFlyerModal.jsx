@@ -27,12 +27,14 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [aiDetectedDate, setAiDetectedDate] = useState(false)
+  const [aiFailed, setAiFailed] = useState(false)
   const cameraRef = useRef()
   const fileRef = useRef()
 
   const handleFile = async (file) => {
     if (!file || !file.type.startsWith('image/')) return
     setImageFile(file)
+    setAiFailed(false)
     const reader = new FileReader()
     reader.onload = async (e) => {
       const dataUrl = e.target.result
@@ -45,6 +47,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
           body: JSON.stringify({ imageData: dataUrl, mediaType: file.type }),
         })
         const data = await res.json()
+        if (data.error) throw new Error(data.error)
         if (data.title) setTitle(data.title)
         if (data.time_str) setTimeStr(data.time_str)
         if (data.location) setLocation(data.location)
@@ -52,8 +55,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
           setEventDate(data.date)
           setAiDetectedDate(true)
         }
-      } catch {
-        // AI failed — user fills manually
+      } catch (err) {
+        console.error('AI failed:', err)
+        setAiFailed(true)
       } finally {
         setAnalyzing(false)
       }
@@ -65,6 +69,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
     setImageFile(null)
     setImagePreview(null)
     setAiDetectedDate(false)
+    setAiFailed(false)
     setTitle('')
     setLocation('')
     setTimeStr('')
@@ -94,6 +99,14 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
 
   const canSubmit = imageFile && eventDate && !analyzing
 
+  const headerText = () => {
+    if (!imagePreview) return 'Scan a flyer'
+    if (analyzing) return 'Reading flyer…'
+    if (aiDetectedDate) return `🧠 Placed on ${formatNice(eventDate)}`
+    if (aiFailed) return 'Fill in details manually'
+    return 'Confirm details'
+  }
+
   return (
     <div
       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center z-50"
@@ -103,26 +116,19 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
         className="bg-gray-900 border border-white/10 rounded-t-3xl md:rounded-2xl w-full md:max-w-md shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Handle bar on mobile */}
         <div className="flex justify-center pt-3 pb-1 md:hidden">
           <div className="w-10 h-1 bg-white/20 rounded-full" />
         </div>
 
         <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
-          <h3 className="font-semibold">
-            {imagePreview && !analyzing
-              ? aiDetectedDate ? `🧠 AI placed on ${formatNice(eventDate)}` : 'Confirm details'
-              : 'Scan a flyer'}
-          </h3>
+          <h3 className="font-semibold">{headerText()}</h3>
           <button onClick={onClose} className="text-gray-600 hover:text-white transition-colors text-xl">&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
           {!imagePreview ? (
-            // Step 1: capture or upload
             <>
               <div className="grid grid-cols-2 gap-3">
-                {/* Camera */}
                 <button
                   type="button"
                   onClick={() => cameraRef.current.click()}
@@ -131,17 +137,13 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                   <span className="text-4xl">📷</span>
                   <span className="text-sm text-gray-400 font-medium">Camera</span>
                 </button>
-
-                {/* Upload / drop */}
                 <div
                   onClick={() => fileRef.current.click()}
                   onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
                   onDragLeave={() => setDragging(false)}
                   onDrop={handleDrop}
                   className={`flex flex-col items-center justify-center gap-3 h-32 rounded-2xl border-2 cursor-pointer transition-all ${
-                    dragging
-                      ? 'border-indigo-400 bg-indigo-500/10'
-                      : 'border-white/10 hover:border-indigo-400 hover:bg-indigo-500/10'
+                    dragging ? 'border-indigo-400 bg-indigo-500/10' : 'border-white/10 hover:border-indigo-400 hover:bg-indigo-500/10'
                   }`}
                 >
                   <span className="text-4xl">🖼️</span>
@@ -151,14 +153,13 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
               <p className="text-center text-xs text-gray-600">AI reads the flyer and places it on the right date</p>
             </>
           ) : (
-            // Step 2: preview + AI results
             <>
               <div className="relative rounded-xl overflow-hidden h-52">
                 <img src={imagePreview} alt="flyer" className="w-full h-full object-contain bg-black/70" />
                 {analyzing && (
                   <div className="absolute inset-0 bg-black/65 flex flex-col items-center justify-center gap-3">
                     <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm text-indigo-300 font-semibold">AI reading flyer…</p>
+                    <p className="text-sm text-indigo-300 font-semibold">Reading flyer…</p>
                     <p className="text-xs text-gray-400">Extracting date, time & location</p>
                   </div>
                 )}
@@ -166,12 +167,18 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                   <button
                     type="button"
                     onClick={reset}
-                    className="absolute top-2 right-2 bg-black/70 hover:bg-black text-xs text-white px-3 py-1.5 rounded-lg transition-colors"
+                    className="absolute top-2 right-2 bg-black/70 hover:bg-black text-xs text-white px-3 py-1.5 rounded-lg"
                   >
                     Retake
                   </button>
                 )}
               </div>
+
+              {aiFailed && (
+                <p className="text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2">
+                  ⚠️ AI couldn’t read the flyer — fill in the details below
+                </p>
+              )}
 
               {!analyzing && (
                 <>
@@ -184,7 +191,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                       className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors text-gray-300"
                     />
                     {aiDetectedDate && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-indigo-400 font-medium uppercase tracking-wide">AI</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-indigo-400 font-semibold uppercase tracking-wide">AI</span>
                     )}
                   </div>
                   <input
@@ -215,34 +222,15 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                     disabled={!canSubmit || uploading}
                     className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-3 text-sm transition-colors"
                   >
-                    {uploading
-                      ? 'Saving…'
-                      : eventDate
-                      ? `Pin to ${formatNice(eventDate)}`
-                      : 'Pin to calendar'
-                    }
+                    {uploading ? 'Saving…' : eventDate ? `Pin to ${formatNice(eventDate)}` : 'Pick a date above'}
                   </button>
                 </>
               )}
             </>
           )}
 
-          {/* Hidden file inputs */}
-          <input
-            ref={cameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => handleFile(e.target.files[0])}
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => handleFile(e.target.files[0])}
-          />
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e.target.files[0])} />
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files[0])} />
         </form>
       </div>
     </div>
