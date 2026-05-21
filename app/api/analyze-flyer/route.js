@@ -9,17 +9,18 @@ const PROMPT = `Extract event details from this flyer. Return ONLY valid JSON wi
 }`
 
 const MODELS = [
-  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent',
+  { url: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent', label: 'v1/1.5-flash' },
+  { url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', label: 'v1beta/2.0-flash' },
+  { url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent', label: 'v1beta/1.5-flash-latest' },
 ]
 
 export async function POST(request) {
   const apiKey = process.env.GOOGLE_AI_API_KEY
   if (!apiKey) {
-    console.error('GOOGLE_AI_API_KEY is not set')
-    return NextResponse.json({ error: 'AI not configured' }, { status: 500 })
+    return NextResponse.json({ error: 'GOOGLE_AI_API_KEY env var is not set in Vercel' }, { status: 500 })
   }
+
+  const errors = []
 
   try {
     const { imageData, mediaType } = await request.json()
@@ -29,13 +30,13 @@ export async function POST(request) {
     const body = JSON.stringify({
       contents: [{
         parts: [
-          { inline_data: { mime_type: mimeType, data: base64 } },
+          { inlineData: { mimeType, data: base64 } },
           { text: PROMPT },
         ],
       }],
     })
 
-    for (const url of MODELS) {
+    for (const { url, label } of MODELS) {
       try {
         const res = await fetch(`${url}?key=${apiKey}`, {
           method: 'POST',
@@ -46,28 +47,39 @@ export async function POST(request) {
         const result = await res.json()
 
         if (!res.ok) {
-          console.error(`[analyze-flyer] ${url} → ${res.status}:`, result?.error?.message)
+          const msg = `${label}: HTTP ${res.status} — ${result?.error?.message ?? 'unknown'}`
+          errors.push(msg)
+          console.error('[analyze-flyer]', msg)
           continue
         }
 
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
         if (!text) {
-          console.error(`[analyze-flyer] ${url} → empty response`)
+          const msg = `${label}: empty response (finishReason: ${result.candidates?.[0]?.finishReason ?? 'none'})`
+          errors.push(msg)
+          console.error('[analyze-flyer]', msg)
           continue
         }
 
-        const match = text.match(/\{[\s\S]*\}/)
-        const data = JSON.parse(match ? match[0] : text)
-        console.log('[analyze-flyer] success via', url)
-        return NextResponse.json(data)
+        try {
+          const match = text.match(/\{[\s\S]*\}/)
+          const data = JSON.parse(match ? match[0] : text)
+          console.log('[analyze-flyer] success via', label)
+          return NextResponse.json(data)
+        } catch {
+          const msg = `${label}: JSON parse failed — response was: ${text.slice(0, 100)}`
+          errors.push(msg)
+          console.error('[analyze-flyer]', msg)
+        }
       } catch (err) {
-        console.error(`[analyze-flyer] ${url} threw:`, err.message)
+        const msg = `${label}: fetch threw — ${err.message}`
+        errors.push(msg)
+        console.error('[analyze-flyer]', msg)
       }
     }
-
-    return NextResponse.json({ error: 'All models failed' }, { status: 500 })
   } catch (err) {
-    console.error('[analyze-flyer] outer error:', err)
-    return NextResponse.json({ error: 'Failed to analyze image' }, { status: 500 })
+    return NextResponse.json({ error: `Request parse error: ${err.message}` }, { status: 500 })
   }
+
+  return NextResponse.json({ error: errors.join(' | ') }, { status: 500 })
 }
