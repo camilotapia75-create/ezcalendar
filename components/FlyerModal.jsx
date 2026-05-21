@@ -7,50 +7,65 @@ export default function FlyerModal({ event, onDelete, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)' }}
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl"
+        className="w-full md:max-w-sm rounded-t-3xl md:rounded-2xl overflow-hidden shadow-2xl"
+        style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.08)' }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 md:hidden">
+          <div className="w-8 h-[3px] rounded-full bg-white/10" />
+        </div>
+
         {event.image_url && (
-          <div className="bg-black flex items-center justify-center" style={{ maxHeight: '60vh' }}>
-            <img
-              src={event.image_url}
-              alt={event.title || 'flyer'}
-              className="w-full object-contain"
-              style={{ maxHeight: '60vh' }}
-            />
-          </div>
+          <img
+            src={event.image_url}
+            alt={event.title || 'flyer'}
+            className="w-full object-contain"
+            style={{ maxHeight: '55vh', background: '#000' }}
+          />
         )}
+
         <div className="p-5">
-          {event.title && <h3 className="font-bold text-lg leading-tight mb-3">{event.title}</h3>}
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2 text-gray-400">
-              <span>📅</span><span>{displayDate}</span>
+          {event.title && (
+            <h3 className="font-bold text-lg tracking-tight mb-3">{event.title}</h3>
+          )}
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5 text-sm text-zinc-400">
+              <span className="w-4 text-center opacity-60">&#128197;</span>
+              <span>{displayDate}</span>
             </div>
             {event.time_str && (
-              <div className="flex items-center gap-2 text-gray-400">
-                <span>🕐</span><span>{event.time_str}</span>
+              <div className="flex items-center gap-2.5 text-sm text-zinc-400">
+                <span className="w-4 text-center opacity-60">&#128336;</span>
+                <span>{event.time_str}</span>
               </div>
             )}
             {event.location && (
-              <div className="flex items-center gap-2 text-gray-400">
-                <span>📍</span><span>{event.location}</span>
+              <div className="flex items-center gap-2.5 text-sm text-zinc-400">
+                <span className="w-4 text-center opacity-60">&#128205;</span>
+                <span>{event.location}</span>
               </div>
             )}
           </div>
-          <div className="flex gap-2 mt-5">
+
+          <div className="flex gap-2.5 mt-5">
             <button
               onClick={onClose}
-              className="flex-1 bg-white/5 hover:bg-white/10 rounded-xl py-2.5 text-sm font-medium transition-colors"
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+              style={{ background: '#1a1a1e' }}
             >
               Close
             </button>
             <button
               onClick={() => onDelete(event.id)}
-              className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl py-2.5 text-sm font-medium transition-colors"
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
+              style={{ background: 'rgba(239,68,68,0.08)' }}
             >
               Remove
             </button>

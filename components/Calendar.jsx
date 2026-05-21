@@ -1,6 +1,6 @@
 import DayCell from './DayCell'
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 const MONTHS = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
@@ -37,41 +37,46 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div>
+      {/* Month nav */}
+      <div className="flex items-center justify-between py-5 px-1">
         <button
           onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-          className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors text-gray-400 hover:text-white text-xl"
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/5 transition-all text-lg"
         >
-          &#8249;
+          &#8592;
         </button>
-        <div className="flex items-center gap-4">
-          <h2 className="text-2xl md:text-3xl font-bold">
-            {MONTHS[month]}{' '}
-            <span className="text-gray-500 font-normal">{year}</span>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold tracking-tight">
+            {MONTHS[month]}
+            <span className="text-zinc-600 font-normal ml-2">{year}</span>
           </h2>
           <button
             onClick={() => setCurrentDate(new Date())}
-            className="text-xs px-3 py-1 rounded-full border border-white/10 text-gray-400 hover:text-white hover:border-white/30 transition-colors"
+            className="text-[11px] text-zinc-600 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600 px-2 py-0.5 rounded-md transition-all"
           >
-            Today
+            today
           </button>
         </div>
         <button
           onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-          className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors text-gray-400 hover:text-white text-xl"
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/5 transition-all text-lg"
         >
-          &#8250;
+          &#8594;
         </button>
       </div>
 
-      <div className="grid grid-cols-7 mb-2">
+      {/* Day headers */}
+      <div className="grid grid-cols-7 border-t border-l border-zinc-900">
         {DAYS.map(d => (
-          <div key={d} className="text-center text-xs font-semibold text-gray-600 uppercase py-2 tracking-wider">{d}</div>
+          <div key={d} className="border-r border-b border-zinc-900 py-2 text-center text-[10px] font-semibold text-zinc-700 tracking-widest">
+            {d}
+          </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      {/* Grid */}
+      <div className="grid grid-cols-7 border-l border-zinc-900">
         {cells.map((cell, i) => (
           <DayCell
             key={i}

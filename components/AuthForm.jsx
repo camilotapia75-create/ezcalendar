@@ -21,19 +21,16 @@ export default function AuthForm() {
 
   if (sent) {
     return (
-      <div className="text-center bg-white/5 border border-white/10 rounded-2xl p-8">
-        <div className="text-4xl mb-3">📬</div>
-        <h2 className="font-semibold text-lg mb-1">Check your email</h2>
-        <p className="text-sm text-gray-400">
-          We sent a magic link to{' '}
-          <span className="text-white font-medium">{email}</span>
-        </p>
+      <div className="text-center rounded-2xl p-8" style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="text-3xl mb-3">&#128140;</div>
+        <p className="font-semibold mb-1">Check your email</p>
+        <p className="text-sm text-zinc-500">Magic link sent to <span className="text-white">{email}</span></p>
       </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-2.5">
       <input
         type="email"
         placeholder="your@email.com"
@@ -41,16 +38,20 @@ export default function AuthForm() {
         onChange={(e) => setEmail(e.target.value)}
         required
         autoFocus
-        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+        className="w-full rounded-xl px-4 py-3 text-sm placeholder-zinc-600 focus:outline-none transition-colors"
+        style={{ background: '#111113', border: '1px solid #2a2a2a', color: '#f0f0f0' }}
+        onFocus={e => e.target.style.borderColor = '#7c3aed'}
+        onBlur={e => e.target.style.borderColor = '#2a2a2a'}
       />
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold rounded-xl py-3 text-sm transition-colors"
+        className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-40 transition-opacity"
+        style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
       >
-        {loading ? 'Sending…' : 'Continue with email'}
+        {loading ? 'Sending…' : 'Continue with email →'}
       </button>
-      <p className="text-center text-xs text-gray-600">No password — we'll email you a link</p>
+      <p className="text-center text-[11px] text-zinc-700 pt-1">No password — we’ll email you a link</p>
     </form>
   )
 }
