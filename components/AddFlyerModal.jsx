@@ -27,14 +27,14 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [aiDetectedDate, setAiDetectedDate] = useState(false)
-  const [aiFailed, setAiFailed] = useState(false)
+  const [aiError, setAiError] = useState(null)
   const cameraRef = useRef()
   const fileRef = useRef()
 
   const handleFile = async (file) => {
     if (!file || !file.type.startsWith('image/')) return
     setImageFile(file)
-    setAiFailed(false)
+    setAiError(null)
     const reader = new FileReader()
     reader.onload = async (e) => {
       const dataUrl = e.target.result
@@ -56,8 +56,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
           setAiDetectedDate(true)
         }
       } catch (err) {
-        console.error('AI failed:', err)
-        setAiFailed(true)
+        setAiError(err.message)
       } finally {
         setAnalyzing(false)
       }
@@ -69,7 +68,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
     setImageFile(null)
     setImagePreview(null)
     setAiDetectedDate(false)
-    setAiFailed(false)
+    setAiError(null)
     setTitle('')
     setLocation('')
     setTimeStr('')
@@ -103,7 +102,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
     if (!imagePreview) return 'Scan a flyer'
     if (analyzing) return 'Reading flyer…'
     if (aiDetectedDate) return `🧠 Placed on ${formatNice(eventDate)}`
-    if (aiFailed) return 'Fill in details manually'
+    if (aiError) return 'Fill in details manually'
     return 'Confirm details'
   }
 
@@ -174,9 +173,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                 )}
               </div>
 
-              {aiFailed && (
-                <p className="text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2">
-                  ⚠️ AI couldn’t read the flyer — fill in the details below
+              {aiError && (
+                <p className="text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2 break-all">
+                  ⚠️ {aiError}
                 </p>
               )}
 
