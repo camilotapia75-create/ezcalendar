@@ -16,6 +16,25 @@ function formatNice(dateStr) {
   })
 }
 
+function resizeImage(dataUrl, maxWidth = 1200) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      let { width, height } = img
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width)
+        width = maxWidth
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+      resolve(canvas.toDataURL('image/jpeg', 0.85))
+    }
+    img.src = dataUrl
+  })
+}
+
 export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
@@ -37,23 +56,27 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
     setAiError(null)
     const reader = new FileReader()
     reader.onload = async (e) => {
-      const dataUrl = e.target.result
-      setImagePreview(dataUrl)
+      const original = e.target.result
+      setImagePreview(original)
       setAnalyzing(true)
       try {
+        const compressed = await resizeImage(original)
         const res = await fetch('/api/analyze-flyer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageData: dataUrl, mediaType: file.type }),
+          body: JSON.stringify({ imageData: compressed, mediaType: 'image/jpeg' }),
         })
         const data = await res.json()
-        if (data.error) throw new Error(data.error)
+        if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
         if (data.title) setTitle(data.title)
         if (data.time_str) setTimeStr(data.time_str)
         if (data.location) setLocation(data.location)
         if (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
           setEventDate(data.date)
           setAiDetectedDate(true)
+        }
+        if (!data.title && !data.date && !data.time_str && !data.location) {
+          setAiError('AI couldn’t find event details — fill in below')
         }
       } catch (err) {
         setAiError(err.message)
@@ -102,7 +125,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
     if (!imagePreview) return 'Scan a flyer'
     if (analyzing) return 'Reading flyer…'
     if (aiDetectedDate) return `🧠 Placed on ${formatNice(eventDate)}`
-    if (aiError) return 'Fill in details manually'
+    if (aiError) return 'Fill in details'
     return 'Confirm details'
   }
 
@@ -174,7 +197,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
               </div>
 
               {aiError && (
-                <p className="text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2 break-all">
+                <p className="text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2">
                   ⚠️ {aiError}
                 </p>
               )}
