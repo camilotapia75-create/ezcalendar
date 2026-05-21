@@ -58,23 +58,19 @@ export default function CalendarClient({ initialEvents, user }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-5 py-4">
+    <div className="min-h-screen flex flex-col" style={{ background: '#0c0c0e' }}>
+      <header className="flex items-center justify-between px-5 h-14 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center text-xs font-black tracking-tighter">ez</div>
-          <span className="font-semibold text-[15px] tracking-tight">calendar</span>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black tracking-tight"
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}>ez</div>
+          <span className="text-sm font-semibold text-white/60">calendar</span>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors"
-        >
-          {user.email} &middot; sign out
+        <button onClick={handleSignOut} className="text-[11px] text-white/20 hover:text-white/50 transition-colors">
+          sign out
         </button>
       </header>
 
-      {/* Calendar */}
-      <main className="flex-1 px-3 pb-24">
+      <main className="flex-1 overflow-auto pb-28">
         <Calendar
           currentDate={currentDate}
           setCurrentDate={setCurrentDate}
@@ -84,18 +80,19 @@ export default function CalendarClient({ initialEvents, user }) {
         />
       </main>
 
-      {/* FAB */}
-      <button
-        onClick={() => { setAddingToDate(null); setShowAddModal(true) }}
-        className="fixed bottom-6 right-5 flex items-center gap-2 px-5 py-3.5 rounded-2xl font-semibold text-sm shadow-2xl transition-all active:scale-95 hover:scale-105"
-        style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', boxShadow: '0 0 30px rgba(124,58,237,0.4)' }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-          <circle cx="12" cy="13" r="4"/>
-        </svg>
-        Scan flyer
-      </button>
+      <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-8 pt-4" style={{ background: 'linear-gradient(to top, #0c0c0e 60%, transparent)' }}>
+        <button
+          onClick={() => { setAddingToDate(null); setShowAddModal(true) }}
+          className="flex items-center gap-2.5 px-6 py-3.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 hover:opacity-90"
+          style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', boxShadow: '0 4px 24px rgba(124,58,237,0.45)' }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          Scan flyer
+        </button>
+      </div>
 
       {showAddModal && (
         <AddFlyerModal
@@ -105,13 +102,8 @@ export default function CalendarClient({ initialEvents, user }) {
           uploadImage={uploadImage}
         />
       )}
-
       {viewingEvent && (
-        <FlyerModal
-          event={viewingEvent}
-          onDelete={deleteEvent}
-          onClose={() => setViewingEvent(null)}
-        />
+        <FlyerModal event={viewingEvent} onDelete={deleteEvent} onClose={() => setViewingEvent(null)} />
       )}
     </div>
   )

@@ -1,10 +1,7 @@
 import DayCell from './DayCell'
 
-const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
-const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-]
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick }) {
   const year = currentDate.getFullYear()
@@ -28,55 +25,49 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
     date.getFullYear() === today.getFullYear()
 
   const eventsForDate = (date) => {
-    const key = [
-      date.getFullYear(),
-      String(date.getMonth() + 1).padStart(2, '0'),
-      String(date.getDate()).padStart(2, '0'),
-    ].join('-')
+    const key = [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
     return events.filter(e => e.date === key)
   }
 
   return (
     <div>
-      {/* Month nav */}
-      <div className="flex items-center justify-between py-5 px-1">
+      <div className="flex items-center justify-between px-5 py-5">
         <button
           onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/5 transition-all text-lg"
+          className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-white/5 text-white/40 hover:text-white/80"
         >
-          &#8592;
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
         </button>
+
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold tracking-tight">
-            {MONTHS[month]}
-            <span className="text-zinc-600 font-normal ml-2">{year}</span>
+          <h2 className="text-lg font-bold tracking-tight">
+            {MONTHS[month]} <span className="text-white/30 font-normal">{year}</span>
           </h2>
           <button
             onClick={() => setCurrentDate(new Date())}
-            className="text-[11px] text-zinc-600 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600 px-2 py-0.5 rounded-md transition-all"
-          >
-            today
-          </button>
+            className="text-[11px] font-medium text-white/30 hover:text-white/60 border border-white/10 hover:border-white/20 px-2.5 py-1 rounded-lg transition-all"
+          >today</button>
         </div>
+
         <button
           onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/5 transition-all text-lg"
+          className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-white/5 text-white/40 hover:text-white/80"
         >
-          &#8594;
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
         </button>
       </div>
 
-      {/* Day headers */}
-      <div className="grid grid-cols-7 border-t border-l border-zinc-900">
+      <div className="grid grid-cols-7 px-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         {DAYS.map(d => (
-          <div key={d} className="border-r border-b border-zinc-900 py-2 text-center text-[10px] font-semibold text-zinc-700 tracking-widest">
-            {d}
-          </div>
+          <div key={d} className="py-2 text-center text-[11px] font-medium text-white/20 tracking-wide">{d}</div>
         ))}
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-7 border-l border-zinc-900">
+      <div className="grid grid-cols-7 px-2">
         {cells.map((cell, i) => (
           <DayCell
             key={i}
