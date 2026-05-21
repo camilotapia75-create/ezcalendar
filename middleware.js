@@ -23,6 +23,7 @@ export async function middleware(request) {
     }
   )
 
+  // Refresh session on every request so tokens never go stale
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user && request.nextUrl.pathname.startsWith('/calendar')) {
@@ -33,5 +34,6 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/calendar/:path*'],
+  // Run on all routes except Next.js internals and static files
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }
