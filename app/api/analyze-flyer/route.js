@@ -9,9 +9,9 @@ const PROMPT = `Extract event details from this flyer. Return ONLY valid JSON wi
 }`
 
 const MODELS = [
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent',
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent',
 ]
 
 export async function POST(request) {
