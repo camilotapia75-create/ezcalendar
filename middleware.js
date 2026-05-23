@@ -23,12 +23,28 @@ export async function middleware(request) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user && request.nextUrl.pathname.startsWith('/calendar')) {
-    return NextResponse.redirect(new URL('/', request.url))
+  // DO NOT put any logic between createServerClient and getUser().
+  // getUser() also refreshes the session and writes updated tokens via setAll above.
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data?.user ?? null
+  } catch {
+    // Network error talking to Supabase — allow the request through.
+    // The page will handle the missing session gracefully.
+    return supabaseResponse
   }
 
+  const isCalendarRoute = request.nextUrl.pathname.startsWith('/calendar')
+
+  if (!user && isCalendarRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
+  }
+
+  // MUST return supabaseResponse unmodified (or with cookies copied) so the
+  // browser receives any refreshed session tokens set in setAll above.
   return supabaseResponse
 }
 
