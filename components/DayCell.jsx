@@ -29,13 +29,18 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
     <div
       onClick={onClick}
       className={[
-        'relative flex flex-col border-r border-b transition-colors',
+        'relative flex flex-col',
         'min-h-[108px] md:min-h-[128px]',
         currentMonth ? 'cursor-pointer' : 'pointer-events-none',
       ].join(' ')}
       style={{
-        borderColor: '#f3f0ff',
-        background: !currentMonth ? '#faf9ff' : isWeekend ? '#fdf8ff' : '#fff',
+        borderRight: '3px solid #111',
+        borderBottom: '3px solid #111',
+        background: !currentMonth
+          ? 'rgba(150,100,45,0.30)'
+          : isWeekend
+          ? 'rgba(255,245,225,0.82)'
+          : 'rgba(255,250,238,0.90)',
       }}
     >
       {/* Day number */}
@@ -44,14 +49,17 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
           className="inline-flex w-6 h-6 text-[11px] items-center justify-center rounded-full font-semibold"
           style={{
             background: isToday ? '#7c3aed' : 'transparent',
-            color: isToday ? '#fff' : !currentMonth ? '#d8b4fe' : isWeekend ? '#7c3aed' : '#374151',
+            color: isToday ? '#fff'
+              : !currentMonth ? 'rgba(110,70,20,0.45)'
+              : isWeekend ? '#92400e'
+              : '#374151',
           }}
         >
           {day}
         </span>
       </div>
 
-      {/* Fanned flyers */}
+      {/* Fanned flyers with pins */}
       {count > 0 && (
         <div className="flex-1 relative">
           <button
@@ -80,10 +88,7 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
                       src={event.image_url}
                       alt={event.title || ''}
                       className="w-full h-full object-cover rounded"
-                      style={{
-                        border: '2.5px solid white',
-                        boxShadow: '0 3px 12px rgba(0,0,0,0.18)',
-                      }}
+                      style={{ border: '2.5px solid white', boxShadow: '0 3px 12px rgba(0,0,0,0.22)' }}
                     />
                   ) : (
                     <div
