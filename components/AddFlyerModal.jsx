@@ -51,7 +51,7 @@ const IconUpload = () => (
   </svg>
 )
 
-export default function AddFlyerModal({ date, onAdd, onClose }) {
+export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
   const [imagePreview, setImagePreview] = useState(null)
   const [imageForStorage, setImageForStorage] = useState(null)
   const [title, setTitle] = useState('')
@@ -115,10 +115,9 @@ export default function AddFlyerModal({ date, onAdd, onClose }) {
     setSaveError(null)
     setAnalyzing(true)
     try {
-      // Two resizes in parallel: small for AI, medium for DB storage
       const [forAI, forStorage] = await Promise.all([
-        resizeImage(dataUrl, 800, 0.7),
-        resizeImage(dataUrl, 900, 0.82),
+        resizeImage(dataUrl, 800, 0.7),   // small for AI reading
+        resizeImage(dataUrl, 1200, 0.85), // quality for CDN storage
       ])
       setImageForStorage(forStorage)
 
@@ -168,13 +167,21 @@ export default function AddFlyerModal({ date, onAdd, onClose }) {
     setSaveError(null)
     setUploading(true)
     try {
-      // Image stored as compressed data URL directly in the DB — no storage bucket needed
+      // Upload image to Supabase Storage via server-side route (uses service role, bypasses RLS)
+      const uploadRes = await fetch('/api/upload-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageData: imageForStorage, userId }),
+      })
+      const uploadData = await uploadRes.json()
+      if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
+
       await onAdd({
         date: eventDate,
         title,
         location,
         time_str: timeStr,
-        image_url: imageForStorage,
+        image_url: uploadData.url,
       })
     } catch (err) {
       console.error('Save failed:', err)
@@ -226,7 +233,6 @@ export default function AddFlyerModal({ date, onAdd, onClose }) {
         <div className="flex justify-center pt-3 md:hidden">
           <div className="w-9 h-[3px] bg-white/10 rounded-full" />
         </div>
-
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <span className="text-[15px] font-semibold">
             {!imagePreview ? 'Add a flyer'
@@ -240,7 +246,6 @@ export default function AddFlyerModal({ date, onAdd, onClose }) {
             </svg>
           </button>
         </div>
-
         <div className="p-4">
           {!imagePreview ? (
             <div className="space-y-2">
@@ -286,7 +291,6 @@ export default function AddFlyerModal({ date, onAdd, onClose }) {
                   >Retake</button>
                 )}
               </div>
-
               {aiError && !analyzing && (
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{
                   background: 'rgba(255,255,255,0.04)',
@@ -297,17 +301,15 @@ export default function AddFlyerModal({ date, onAdd, onClose }) {
                   {aiDetail && <div className="mt-1 text-[10px] opacity-50 break-all">{aiDetail}</div>}
                 </div>
               )}
-
               {saveError && (
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{
                   background: 'rgba(239,68,68,0.08)',
                   border: '1px solid rgba(239,68,68,0.25)',
                   color: 'rgba(248,113,113,0.9)',
                 }}>
-                  Save failed: {saveError}
+                  {saveError}
                 </div>
               )}
-
               {!analyzing && (
                 <>
                   <div className="space-y-2">

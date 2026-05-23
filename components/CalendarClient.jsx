@@ -84,6 +84,7 @@ export default function CalendarClient({ initialEvents, user }) {
           date={addingToDate}
           onAdd={addEvent}
           onClose={() => { setShowAddModal(false); setAddingToDate(null) }}
+          userId={user.id}
         />
       )}
       {viewingEvent && (
