@@ -7,12 +7,12 @@ import AddFlyerModal from './AddFlyerModal'
 import DayView from './DayView'
 
 const THEMES = {
-  dreamy:   { bg: '#f5eef8', sw: 'linear-gradient(135deg,#d8b4fe,#f9a8d4)', c: ['rgba(170,145,215,0.60)','rgba(255,195,215,0.50)','rgba(255,225,175,0.55)','rgba(195,228,175,0.58)','rgba(255,185,205,0.50)','rgba(255,210,170,0.40)'] },
-  ocean:    { bg: '#f0f9ff', sw: 'linear-gradient(135deg,#38bdf8,#34d399)', c: ['rgba(56,189,248,0.55)','rgba(34,211,238,0.50)','rgba(99,102,241,0.40)','rgba(167,243,208,0.55)','rgba(125,211,252,0.50)','rgba(196,181,253,0.40)'] },
-  forest:   { bg: '#f0fdf4', sw: 'linear-gradient(135deg,#86efac,#fde047)', c: ['rgba(134,239,172,0.55)','rgba(167,243,208,0.50)','rgba(253,224,71,0.45)','rgba(110,231,183,0.55)','rgba(187,247,208,0.50)','rgba(254,240,138,0.40)'] },
-  sunset:   { bg: '#fff7ed', sw: 'linear-gradient(135deg,#fb923c,#ef4444)', c: ['rgba(251,146,60,0.55)','rgba(249,115,22,0.45)','rgba(239,68,68,0.40)','rgba(253,186,116,0.55)','rgba(254,215,170,0.50)','rgba(252,165,165,0.40)'] },
-  midnight: { bg: '#f5f3ff', sw: 'linear-gradient(135deg,#6366f1,#3b82f6)', c: ['rgba(99,102,241,0.55)','rgba(139,92,246,0.50)','rgba(59,130,246,0.40)','rgba(167,139,250,0.55)','rgba(196,181,253,0.45)','rgba(147,197,253,0.40)'] },
-  rose:     { bg: '#fdf2f8', sw: 'linear-gradient(135deg,#f472b6,#fbbf24)', c: ['rgba(244,114,182,0.55)','rgba(251,191,36,0.45)','rgba(249,168,212,0.50)','rgba(253,230,138,0.50)','rgba(252,207,232,0.55)','rgba(254,243,199,0.40)'] },
+  dreamy:   { bg: '#eddff8', sw: 'linear-gradient(135deg,#c084fc,#f472b6)', c: ['rgba(192,132,252,0.55)','rgba(244,114,182,0.45)','rgba(251,207,232,0.50)','rgba(216,180,254,0.55)','rgba(249,168,212,0.45)','rgba(233,213,255,0.50)'] },
+  ocean:    { bg: '#c8e8f8', sw: 'linear-gradient(135deg,#0ea5e9,#10b981)', c: ['rgba(14,165,233,0.55)','rgba(16,185,129,0.50)','rgba(99,102,241,0.40)','rgba(103,232,249,0.55)','rgba(52,211,153,0.50)','rgba(147,197,253,0.45)'] },
+  forest:   { bg: '#c8f0d8', sw: 'linear-gradient(135deg,#22c55e,#eab308)', c: ['rgba(34,197,94,0.55)','rgba(234,179,8,0.45)','rgba(74,222,128,0.50)','rgba(163,230,53,0.55)','rgba(187,247,208,0.50)','rgba(254,240,138,0.45)'] },
+  sunset:   { bg: '#fde0c0', sw: 'linear-gradient(135deg,#f97316,#ef4444)', c: ['rgba(249,115,22,0.60)','rgba(239,68,68,0.50)','rgba(251,146,60,0.55)','rgba(252,165,165,0.50)','rgba(254,215,170,0.55)','rgba(253,186,116,0.50)'] },
+  midnight: { bg: '#d8d0f8', sw: 'linear-gradient(135deg,#6366f1,#3b82f6)', c: ['rgba(99,102,241,0.60)','rgba(139,92,246,0.55)','rgba(59,130,246,0.45)','rgba(167,139,250,0.60)','rgba(196,181,253,0.50)','rgba(147,197,253,0.45)'] },
+  rose:     { bg: '#f8d0e8', sw: 'linear-gradient(135deg,#ec4899,#f59e0b)', c: ['rgba(236,72,153,0.55)','rgba(245,158,11,0.45)','rgba(249,168,212,0.55)','rgba(253,224,71,0.50)','rgba(252,207,232,0.55)','rgba(254,243,199,0.45)'] },
 }
 const POS = ['75% 65% at 3% 4%','55% 55% at 52% 18%','45% 55% at 97% 12%','50% 50% at 93% 88%','65% 52% at 18% 80%','40% 40% at 75% 60%']
 const STOPS = [58,55,50,52,55,50]
@@ -21,7 +21,10 @@ function buildBg(tid) {
   const t = THEMES[tid] || THEMES.dreamy
   return {
     backgroundColor: t.bg,
-    backgroundImage: ["url('/watercolor-bg.jpg.png')", ...POS.map((p, i) => `radial-gradient(ellipse ${p}, ${t.c[i]} 0%, transparent ${STOPS[i]}%)`)].join(', '),
+    backgroundImage: [
+      "url('/watercolor-bg.jpg.png')",
+      ...POS.map((p, i) => `radial-gradient(ellipse ${p}, ${t.c[i]} 0%, transparent ${STOPS[i]}%)`),
+    ].join(', '),
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundAttachment: 'fixed',
@@ -35,19 +38,19 @@ export default function CalendarClient({ initialEvents, user }) {
   const [addingToDate, setAddingToDate] = useState(null)
   const [dayViewDate, setDayViewDate] = useState(null)
   const [notifEnabled, setNotifEnabled] = useState(false)
-  const [themeId, setThemeId] = useState(() =>
-    typeof window !== 'undefined' ? (localStorage.getItem('calendarTheme') || 'dreamy') : 'dreamy'
-  )
+  const [themeId, setThemeId] = useState('dreamy')
   const [showThemePicker, setShowThemePicker] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
+  // Load persisted preferences after hydration
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    const saved = localStorage.getItem('calendarTheme')
+    if (saved && THEMES[saved]) setThemeId(saved)
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
   }, [])
 
-  // Close theme picker when clicking outside
+  // Close theme picker on outside click
   useEffect(() => {
     if (!showThemePicker) return
     const close = () => setShowThemePicker(false)
@@ -152,11 +155,9 @@ export default function CalendarClient({ initialEvents, user }) {
   }
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={buildBg(themeId)}
-    >
-      {/* Header */}
+    <div className="min-h-screen flex flex-col" style={buildBg(themeId)}>
+
+      {/* Header — overflow visible so theme picker popup isn't clipped */}
       <header
         className="flex items-center justify-between px-5 py-4"
         style={{
@@ -164,6 +165,9 @@ export default function CalendarClient({ initialEvents, user }) {
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid rgba(255,255,255,0.5)',
           boxShadow: '0 1px 12px rgba(124,58,237,0.08)',
+          overflow: 'visible',
+          position: 'relative',
+          zIndex: 50,
         }}
       >
         <div className="flex items-center gap-2.5">
@@ -175,30 +179,37 @@ export default function CalendarClient({ initialEvents, user }) {
           </div>
           <span className="font-semibold text-[15px] tracking-tight" style={{ color: '#1a1a2e' }}>calendar</span>
         </div>
+
         <div className="flex items-center gap-3">
           {/* Color theme picker */}
           <div style={{ position: 'relative' }}>
             <button
               onClick={(e) => { e.stopPropagation(); setShowThemePicker(p => !p) }}
               title="Change color theme"
-              className="text-lg transition-all active:scale-90"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 20, lineHeight: 1, padding: '2px 4px',
+              }}
             >
               &#127912;
             </button>
+
             {showThemePicker && (
               <div
                 onClick={e => e.stopPropagation()}
                 style={{
-                  position: 'absolute', top: 'calc(100% + 10px)', right: 0,
-                  background: 'rgba(255,255,255,0.97)',
-                  backdropFilter: 'blur(16px)',
-                  borderRadius: 16,
-                  padding: '10px 12px',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.13)',
-                  border: '1px solid rgba(255,255,255,0.8)',
-                  display: 'flex', gap: 8,
-                  zIndex: 100,
+                  position: 'absolute',
+                  top: 'calc(100% + 12px)',
+                  right: '-8px',
+                  background: 'white',
+                  borderRadius: 18,
+                  padding: '10px 14px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                  border: '1px solid rgba(0,0,0,0.08)',
+                  display: 'flex',
+                  gap: 10,
+                  zIndex: 9999,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {Object.entries(THEMES).map(([id, theme]) => (
@@ -207,28 +218,33 @@ export default function CalendarClient({ initialEvents, user }) {
                     onClick={() => applyTheme(id)}
                     title={id.charAt(0).toUpperCase() + id.slice(1)}
                     style={{
-                      width: 26, height: 26, borderRadius: '50%',
+                      width: 28, height: 28,
+                      borderRadius: '50%',
                       background: theme.sw,
-                      border: themeId === id ? '2.5px solid #7c3aed' : '2.5px solid transparent',
+                      border: themeId === id ? '3px solid #7c3aed' : '3px solid transparent',
                       cursor: 'pointer',
                       outline: 'none',
-                      boxShadow: themeId === id ? '0 0 0 2px rgba(124,58,237,0.25)' : '0 1px 4px rgba(0,0,0,0.12)',
-                      transition: 'box-shadow 0.15s',
+                      boxShadow: themeId === id
+                        ? '0 0 0 2px rgba(124,58,237,0.35), 0 2px 8px rgba(0,0,0,0.15)'
+                        : '0 2px 6px rgba(0,0,0,0.15)',
+                      transition: 'transform 0.1s',
+                      flexShrink: 0,
                     }}
                   />
                 ))}
               </div>
             )}
           </div>
+
           {/* Notification bell */}
           <button
             onClick={toggleNotifications}
             title={notifEnabled ? 'Notifications on — tap to turn off' : 'Tap to enable event reminders'}
-            className="text-xl transition-all active:scale-90"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '2px 4px' }}
           >
             {notifEnabled ? '🔔' : '🔕'}
           </button>
+
           <button
             onClick={handleSignOut}
             className="text-[11px] transition-colors hover:text-violet-500"
@@ -239,7 +255,6 @@ export default function CalendarClient({ initialEvents, user }) {
         </div>
       </header>
 
-      {/* Calendar */}
       <main className="flex-1 px-3 md:px-6 py-5 pb-24 max-w-4xl mx-auto w-full">
         <Calendar
           currentDate={currentDate}
