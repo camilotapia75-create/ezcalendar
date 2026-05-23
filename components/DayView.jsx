@@ -123,19 +123,20 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                       </div>
                     )}
 
+                    {/* Info — always fully visible, wraps freely */}
                     <div style={{ padding: '7px 8px 9px', background: '#fff' }}>
                       {event.title && (
-                        <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 700, color: '#1a1a2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>
                           {event.title}
                         </p>
                       )}
                       {event.time_str && (
-                        <p style={{ margin: '0 0 2px', fontSize: 9, color: '#6b7280' }}>
+                        <p style={{ margin: '0 0 3px', fontSize: 10, color: '#6b7280', lineHeight: 1.3 }}>
                           &#128336; {event.time_str}
                         </p>
                       )}
                       {event.location && (
-                        <p style={{ margin: 0, fontSize: 9, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <p style={{ margin: 0, fontSize: 10, color: '#6b7280', lineHeight: 1.3 }}>
                           &#128205; {event.location}
                         </p>
                       )}
