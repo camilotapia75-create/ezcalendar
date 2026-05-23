@@ -4,14 +4,20 @@ const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satur
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e']
 const ROTATIONS = [-5, 5, -3]
-const NUDGE_TOP = [0, 40, 20] // stagger cards vertically so they don't align
+const NUDGE_TOP = [0, 50, 20]
+
+const cardWidth = (total) => {
+  if (total === 1) return { flex: '0 0 55%', maxWidth: 260 }
+  if (total === 2) return { flex: '0 0 38%' }
+  return { flex: '0 0 27%' }
+}
 
 const PushPin = ({ color }) => (
   <div style={{ position: 'absolute', top: -22, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
-    <svg width="28" height="36" viewBox="0 0 28 36" fill="none">
-      <circle cx="14" cy="12" r="12" fill={color} />
-      <circle cx="10" cy="8" r="5" fill="rgba(255,255,255,0.30)" />
-      <line x1="14" y1="23" x2="14" y2="35" stroke="#9ca3af" strokeWidth="3" strokeLinecap="round" />
+    <svg width="26" height="34" viewBox="0 0 26 34" fill="none">
+      <circle cx="13" cy="11" r="11" fill={color} />
+      <circle cx="9.5" cy="7.5" r="4.5" fill="rgba(255,255,255,0.30)" />
+      <line x1="13" y1="21" x2="13" y2="33" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   </div>
 )
@@ -78,83 +84,80 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'flex-start',
-              justifyContent: shown.length === 1 ? 'center' : 'space-evenly',
-              padding: shown.length === 1 ? '48px 15% 20px' : '48px 10px 20px',
+              justifyContent: 'center',
+              padding: '52px 6% 20px',
               height: '100%',
               boxSizing: 'border-box',
-              gap: 12,
+              gap: shown.length === 1 ? 0 : '6%',
             }}>
-              {shown.map((event, idx) => (
-                <div
-                  key={event.id}
-                  style={{
-                    flex: shown.length === 1 ? '0 0 auto' : '1 1 0',
-                    maxWidth: shown.length === 1 ? 320 : undefined,
-                    width: shown.length === 1 ? '100%' : undefined,
-                    marginTop: NUDGE_TOP[idx],
-                    transform: `rotate(${ROTATIONS[idx]}deg)`,
-                    transformOrigin: 'top center',
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    background: '#fff',
-                    border: '3px solid #fff',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.28)',
-                    flexShrink: 0,
-                  }}
-                >
-                  <PushPin color={PIN_COLORS[idx]} />
-
-                  {/* Flyer image */}
-                  {event.image_url ? (
-                    <img
-                      src={event.image_url}
-                      alt={event.title || ''}
-                      style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }}
-                    />
-                  ) : (
-                    <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 8 }}>{event.title}</p>
-                    </div>
-                  )}
-
-                  {/* Event info */}
-                  <div style={{ padding: '8px 10px 10px', background: '#fff' }}>
-                    {event.title && (
-                      <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: '#1a1a2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {event.title}
-                      </p>
-                    )}
-                    {event.time_str && (
-                      <p style={{ margin: '0 0 2px', fontSize: 10, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        &#128336; {event.time_str}
-                      </p>
-                    )}
-                    {event.location && (
-                      <p style={{ margin: 0, fontSize: 10, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        &#128205; {event.location}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Delete button */}
-                  <button
-                    onClick={() => onDelete(event.id)}
+              {shown.map((event, idx) => {
+                const w = cardWidth(shown.length)
+                return (
+                  <div
+                    key={event.id}
                     style={{
-                      position: 'absolute', top: 4, right: 4,
-                      width: 22, height: 22, borderRadius: '50%',
-                      background: 'rgba(239,68,68,0.85)',
-                      border: 'none', cursor: 'pointer',
-                      color: '#fff', fontSize: 11, fontWeight: 700,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      zIndex: 20, boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                      lineHeight: 1,
+                      ...w,
+                      flexShrink: 0,
+                      marginTop: NUDGE_TOP[idx],
+                      transform: `rotate(${ROTATIONS[idx]}deg)`,
+                      transformOrigin: 'top center',
+                      position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      background: '#fff',
+                      border: '3px solid #fff',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.28)',
                     }}
                   >
-                    &#10005;
-                  </button>
-                </div>
-              ))}
+                    <PushPin color={PIN_COLORS[idx]} />
+
+                    {event.image_url ? (
+                      <img
+                        src={event.image_url}
+                        alt={event.title || ''}
+                        style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }}
+                      />
+                    ) : (
+                      <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 8 }}>{event.title}</p>
+                      </div>
+                    )}
+
+                    <div style={{ padding: '7px 8px 9px', background: '#fff' }}>
+                      {event.title && (
+                        <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 700, color: '#1a1a2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {event.title}
+                        </p>
+                      )}
+                      {event.time_str && (
+                        <p style={{ margin: '0 0 2px', fontSize: 9, color: '#6b7280' }}>
+                          &#128336; {event.time_str}
+                        </p>
+                      )}
+                      {event.location && (
+                        <p style={{ margin: 0, fontSize: 9, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          &#128205; {event.location}
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => onDelete(event.id)}
+                      style={{
+                        position: 'absolute', top: 4, right: 4,
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: 'rgba(239,68,68,0.88)',
+                        border: 'none', cursor: 'pointer',
+                        color: '#fff', fontSize: 10, fontWeight: 700,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        zIndex: 20, boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                      }}
+                    >
+                      &#10005;
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )}
 
