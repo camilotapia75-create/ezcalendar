@@ -1,18 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Calendar from './Calendar'
 import AddFlyerModal from './AddFlyerModal'
 import DayView from './DayView'
-
-const CORK_BG = {
-  backgroundColor: '#c49a6c',
-  backgroundImage: [
-    'repeating-linear-gradient(112deg, rgba(100,55,10,0.08) 0px, rgba(100,55,10,0.08) 1px, transparent 1px, transparent 9px)',
-    'repeating-linear-gradient(22deg, rgba(155,95,25,0.06) 0px, rgba(155,95,25,0.06) 1px, transparent 1px, transparent 11px)',
-  ].join(', '),
-}
 
 export default function CalendarClient({ initialEvents, user }) {
   const [events, setEvents] = useState(initialEvents)
@@ -20,8 +12,68 @@ export default function CalendarClient({ initialEvents, user }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [addingToDate, setAddingToDate] = useState(null)
   const [dayViewDate, setDayViewDate] = useState(null)
+  const [notifEnabled, setNotifEnabled] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  // Load notification preference from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
+  }, [])
+
+  const checkAndNotify = useCallback((eventsToCheck) => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    if (Notification.permission !== 'granted') return
+    const today = new Date()
+    const pad = n => String(n).padStart(2, '0')
+    const todayKey = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
+    const tomorrowKey = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}`
+    // Only notify once per day
+    if (localStorage.getItem(`notified_${todayKey}`)) return
+    const todayEvents = eventsToCheck.filter(e => e.date === todayKey)
+    const tomorrowEvents = eventsToCheck.filter(e => e.date === tomorrowKey)
+    if (todayEvents.length > 0) {
+      new Notification(`${todayEvents.length} event${todayEvents.length > 1 ? 's' : ''} today! 📌`, {
+        body: todayEvents.map(e => e.title || 'Event').join(' • '),
+        icon: '/favicon.ico',
+      })
+      localStorage.setItem(`notified_${todayKey}`, '1')
+    } else if (tomorrowEvents.length > 0) {
+      new Notification(`${tomorrowEvents.length} event${tomorrowEvents.length > 1 ? 's' : ''} tomorrow 📌`, {
+        body: tomorrowEvents.map(e => e.title || 'Event').join(' • '),
+        icon: '/favicon.ico',
+      })
+      localStorage.setItem(`notified_${todayKey}`, '1')
+    }
+  }, [])
+
+  // Fire notification check whenever notifications are enabled or events change
+  useEffect(() => {
+    if (notifEnabled) checkAndNotify(events)
+  }, [notifEnabled, events, checkAndNotify])
+
+  const toggleNotifications = async () => {
+    if (notifEnabled) {
+      setNotifEnabled(false)
+      localStorage.setItem('notificationsEnabled', 'false')
+      return
+    }
+    if (!('Notification' in window)) {
+      alert('Your browser does not support notifications.')
+      return
+    }
+    let perm = Notification.permission
+    if (perm === 'default') perm = await Notification.requestPermission()
+    if (perm === 'granted') {
+      setNotifEnabled(true)
+      localStorage.setItem('notificationsEnabled', 'true')
+      checkAndNotify(events)
+    } else {
+      alert('Notification permission was denied. Please enable it in your browser/phone settings.')
+    }
+  }
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -98,13 +150,24 @@ export default function CalendarClient({ initialEvents, user }) {
           </div>
           <span className="font-semibold text-[15px] tracking-tight" style={{ color: '#1a1a2e' }}>calendar</span>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="text-[11px] transition-colors hover:text-violet-500"
-          style={{ color: '#a78bfa' }}
-        >
-          {user.email} &middot; sign out
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Notification bell */}
+          <button
+            onClick={toggleNotifications}
+            title={notifEnabled ? 'Notifications on — tap to turn off' : 'Tap to enable event reminders'}
+            className="text-xl transition-all active:scale-90"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}
+          >
+            {notifEnabled ? '🔔' : '🕕'}
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="text-[11px] transition-colors hover:text-violet-500"
+            style={{ color: '#a78bfa' }}
+          >
+            {user.email} &middot; sign out
+          </button>
+        </div>
       </header>
 
       {/* Calendar */}

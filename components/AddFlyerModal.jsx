@@ -51,6 +51,13 @@ const IconUpload = () => (
   </svg>
 )
 
+const IconLink = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+  </svg>
+)
+
 export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
   const [imagePreview, setImagePreview] = useState(null)
   const [imageForStorage, setImageForStorage] = useState(null)
@@ -66,6 +73,14 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
   const [aiDetail, setAiDetail] = useState(null)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraStream, setCameraStream] = useState(null)
+  // Link mode
+  const [linkMode, setLinkMode] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkScanning, setLinkScanning] = useState(false)
+  const [linkError, setLinkError] = useState(null)
+  const [ogImageUrl, setOgImageUrl] = useState(null)
+  const [linkScanned, setLinkScanned] = useState(false)
+
   const videoRef = useRef()
   const fileRef = useRef()
 
@@ -110,17 +125,14 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
 
   const analyzeImage = async (dataUrl) => {
     setImagePreview(dataUrl)
-    setAiError(null)
-    setAiDetail(null)
-    setSaveError(null)
+    setAiError(null); setAiDetail(null); setSaveError(null)
     setAnalyzing(true)
     try {
       const [forAI, forStorage] = await Promise.all([
-        resizeImage(dataUrl, 800, 0.7),   // small for AI reading
-        resizeImage(dataUrl, 1200, 0.85), // quality for CDN storage
+        resizeImage(dataUrl, 800, 0.7),
+        resizeImage(dataUrl, 1200, 0.85),
       ])
       setImageForStorage(forStorage)
-
       const res = await fetch('/api/analyze-flyer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,8 +150,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
       }
       if (!data.title && !data.date && !data.time_str && !data.location) setAiError('failed')
     } catch (err) {
-      setAiError('failed')
-      setAiDetail(err.message)
+      setAiError('failed'); setAiDetail(err.message)
     } finally {
       setAnalyzing(false)
     }
@@ -152,45 +163,77 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
     reader.readAsDataURL(file)
   }
 
+  const scanLink = async () => {
+    if (!linkUrl.trim()) return
+    setLinkScanning(true)
+    setLinkError(null)
+    try {
+      const res = await fetch('/api/scan-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: linkUrl.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to read link')
+      if (data.title) setTitle(data.title)
+      if (data.time_str) setTimeStr(data.time_str)
+      if (data.location) setLocation(data.location)
+      if (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+        setEventDate(data.date)
+        setAiDetectedDate(true)
+      }
+      setOgImageUrl(data.og_image || null)
+      setLinkScanned(true)
+    } catch (err) {
+      setLinkError(err.message)
+    } finally {
+      setLinkScanning(false)
+    }
+  }
+
   const reset = () => {
     stopCamera()
     setImagePreview(null); setImageForStorage(null)
-    setAiDetectedDate(false); setAiError(null); setAiDetail(null)
-    setSaveError(null)
+    setAiDetectedDate(false); setAiError(null); setAiDetail(null); setSaveError(null)
     setTitle(''); setLocation(''); setTimeStr('')
+    setLinkMode(false); setLinkUrl(''); setLinkScanning(false)
+    setLinkError(null); setOgImageUrl(null); setLinkScanned(false)
     if (!date) setEventDate('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!eventDate || !imageForStorage) return
+    if (!eventDate) return
+    if (!linkMode && !imageForStorage) return
     setSaveError(null)
     setUploading(true)
     try {
-      // Upload image to Supabase Storage via server-side route (uses service role, bypasses RLS)
-      const uploadRes = await fetch('/api/upload-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageData: imageForStorage, userId }),
-      })
-      const uploadData = await uploadRes.json()
-      if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
-
-      await onAdd({
-        date: eventDate,
-        title,
-        location,
-        time_str: timeStr,
-        image_url: uploadData.url,
-      })
+      let image_url = null
+      if (linkMode) {
+        // Use og:image directly — no upload needed
+        image_url = ogImageUrl || null
+      } else {
+        const uploadRes = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageData: imageForStorage, userId }),
+        })
+        const uploadData = await uploadRes.json()
+        if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
+        image_url = uploadData.url
+      }
+      await onAdd({ date: eventDate, title, location, time_str: timeStr, image_url })
     } catch (err) {
-      console.error('Save failed:', err)
       setSaveError(err.message || 'Failed to save — try again')
     } finally {
       setUploading(false)
     }
   }
 
+  const showForm = imagePreview || linkScanned
+  const canSubmit = eventDate && (linkMode ? true : !!imageForStorage)
+
+  // Camera view
   if (cameraActive) {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col">
@@ -234,9 +277,10 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
           <div className="w-9 h-[3px] bg-white/10 rounded-full" />
         </div>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <span className="text-[15px] font-semibold">
-            {!imagePreview ? 'Add a flyer'
-              : analyzing ? 'Reading…'
+          <span className="text-[15px] font-semibold text-white">
+            {!showForm
+              ? (linkMode ? 'Paste a link' : 'Add a flyer')
+              : analyzing || linkScanning ? 'Reading…'
               : aiDetectedDate ? `Placing on ${formatNice(eventDate)}`
               : 'Fill in details'}
           </span>
@@ -246,8 +290,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
             </svg>
           </button>
         </div>
+
         <div className="p-4">
-          {!imagePreview ? (
+          {!showForm && !linkMode && (
             <div className="space-y-2">
               <button type="button" onClick={startCamera}
                 className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all active:scale-[0.98]"
@@ -273,28 +318,86 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                   <p className="text-xs text-white/25 mt-0.5">From your photos</p>
                 </div>
               </button>
+              <button type="button" onClick={() => setLinkMode(true)}
+                className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all active:scale-[0.98]"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <IconLink />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white/70">Paste a link</p>
+                  <p className="text-xs text-white/25 mt-0.5">AI reads the event from the URL</p>
+                </div>
+              </button>
               <p className="text-center text-[11px] text-white/15 pt-1">AI reads the date, time &amp; location automatically</p>
             </div>
-          ) : (
+          )}
+
+          {/* Link input screen */}
+          {linkMode && !linkScanned && (
+            <div className="space-y-3">
+              <input
+                type="url"
+                placeholder="https://..."
+                value={linkUrl}
+                onChange={e => setLinkUrl(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && scanLink()}
+                autoFocus
+                className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none text-white"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+              />
+              {linkError && (
+                <p className="text-xs px-1" style={{ color: 'rgba(248,113,113,0.9)' }}>{linkError}</p>
+              )}
+              <div className="flex gap-2">
+                <button type="button" onClick={reset}
+                  className="flex-1 py-3 rounded-xl text-sm font-medium text-white/40"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  Back
+                </button>
+                <button type="button" onClick={scanLink} disabled={!linkUrl.trim() || linkScanning}
+                  className="flex-[2] py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-30"
+                  style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+                >
+                  {linkScanning ? 'Reading…' : 'Scan link'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Form — shown after image analysis or link scan */}
+          {showForm && (
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="relative rounded-2xl overflow-hidden bg-black" style={{ height: 220 }}>
-                <img src={imagePreview} alt="flyer" className="w-full h-full object-contain" />
-                {analyzing ? (
+              <div className="relative rounded-2xl overflow-hidden bg-black" style={{ height: 180 }}>
+                {imagePreview ? (
+                  <img src={imagePreview} alt="flyer" className="w-full h-full object-contain" />
+                ) : ogImageUrl ? (
+                  <img src={ogImageUrl} alt="flyer" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                    <IconLink />
+                    <span className="text-xs">No preview image found</span>
+                  </div>
+                )}
+                {(analyzing || linkScanning) && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: 'rgba(0,0,0,0.7)' }}>
                     <div className="w-8 h-8 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
-                    <p className="text-xs text-violet-300 font-medium tracking-wide">Reading flyer…</p>
+                    <p className="text-xs text-violet-300 font-medium tracking-wide">Reading…</p>
                   </div>
-                ) : (
+                )}
+                {!analyzing && !linkScanning && (
                   <button type="button" onClick={reset}
                     className="absolute top-3 right-3 text-xs text-white/70 px-3 py-1.5 rounded-lg font-medium"
                     style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
                   >Retake</button>
                 )}
               </div>
+
               {aiError && !analyzing && (
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
                   color: aiError === 'quota' ? 'rgba(248,113,113,0.9)' : 'rgba(255,255,255,0.35)',
                 }}>
                   {aiError === 'quota' ? 'Rate limit — wait a moment and retake' : "Couldn't read automatically — fill in below"}
@@ -302,15 +405,12 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                 </div>
               )}
               {saveError && (
-                <div className="px-3 py-2.5 rounded-xl text-xs" style={{
-                  background: 'rgba(239,68,68,0.08)',
-                  border: '1px solid rgba(239,68,68,0.25)',
-                  color: 'rgba(248,113,113,0.9)',
-                }}>
+                <div className="px-3 py-2.5 rounded-xl text-xs" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: 'rgba(248,113,113,0.9)' }}>
                   {saveError}
                 </div>
               )}
-              {!analyzing && (
+
+              {!analyzing && !linkScanning && (
                 <>
                   <div className="space-y-2">
                     <div className="relative">
@@ -321,22 +421,22 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                       {aiDetectedDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 font-semibold tracking-widest">AI</span>}
                     </div>
                     <input type="text" placeholder="Event title" value={title} onChange={e => setTitle(e.target.value)}
-                      className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all"
+                      className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white"
                       style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${title ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <input type="text" placeholder="Location" value={location} onChange={e => setLocation(e.target.value)}
-                        className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all"
+                        className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white"
                         style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${location ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
                       />
                       <input type="text" placeholder="Time" value={timeStr} onChange={e => setTimeStr(e.target.value)}
-                        className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all"
+                        className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white"
                         style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${timeStr ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
                       />
                     </div>
                   </div>
-                  <button type="submit" disabled={!eventDate || !imageForStorage || uploading}
-                    className="w-full py-3.5 rounded-2xl text-sm font-semibold transition-all disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.98]"
+                  <button type="submit" disabled={!canSubmit || uploading}
+                    className="w-full py-3.5 rounded-2xl text-sm font-semibold transition-all disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.98] text-white"
                     style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
                   >
                     {uploading ? 'Saving…' : eventDate ? `Pin to ${formatNice(eventDate)}` : 'Pick a date above'}
@@ -345,6 +445,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
               )}
             </form>
           )}
+
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => handleFile(e.target.files[0])} />
         </div>
       </div>
