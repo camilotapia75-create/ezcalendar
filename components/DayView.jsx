@@ -112,30 +112,32 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                   >
                     <PushPin color={PIN_COLORS[idx]} />
 
+                    {/* Full flyer — never cropped */}
                     {event.image_url ? (
                       <img
                         src={event.image_url}
                         alt={event.title || ''}
                         style={{
                           width: '100%',
-                          height: '35vh',
-                          objectFit: 'cover',
+                          height: 'auto',
+                          maxHeight: '38vh',
+                          objectFit: 'contain',
                           display: 'block',
-                          flexShrink: 0,
+                          background: '#f8f8f8',
                         }}
                       />
                     ) : (
                       <div style={{
                         width: '100%',
-                        height: '35vh',
+                        height: '32vh',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)',
-                        flexShrink: 0,
                       }}>
                         <p style={{ fontSize: 13, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 8 }}>{event.title}</p>
                       </div>
                     )}
 
+                    {/* Info strip */}
                     <div style={{ flexShrink: 0, padding: '6px 8px 8px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                       {event.title && (
                         <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>
