@@ -27,12 +27,21 @@ export async function POST(request) {
   }
   if (!url) return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
 
-  // Fetch the URL server-side (bypasses browser CORS)
+  let baseUrl = url
+  try {
+    const parsed = new URL(url)
+    baseUrl = `${parsed.protocol}//${parsed.host}`
+  } catch {}
+
+  // Fetch page HTML server-side (bypasses CORS)
   let html = ''
-  let ogImage = null
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
       signal: AbortSignal.timeout(12000),
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -41,13 +50,46 @@ export async function POST(request) {
     return NextResponse.json({ error: `Could not fetch URL: ${err.message}` }, { status: 400 })
   }
 
-  // Extract og:image for the flyer preview
+  // Extract og:image / twitter:image
   const ogMatch =
     html.match(/property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-    html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i)
-  ogImage = ogMatch?.[1] || null
+    html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
+    html.match(/name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
+    html.match(/content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i)
+  let ogImageUrl = ogMatch?.[1] || null
 
-  // Strip scripts/styles/tags → readable plain text
+  // Normalize relative URLs
+  if (ogImageUrl) {
+    if (ogImageUrl.startsWith('//')) ogImageUrl = 'https:' + ogImageUrl
+    else if (ogImageUrl.startsWith('/')) ogImageUrl = baseUrl + ogImageUrl
+    else if (!ogImageUrl.startsWith('http')) ogImageUrl = baseUrl + '/' + ogImageUrl
+  }
+
+  // Extract JSON-LD structured data — most reliable source for event sites
+  let structuredInfo = ''
+  const jsonLdRegex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+  let ldMatch
+  while ((ldMatch = jsonLdRegex.exec(html)) !== null) {
+    try {
+      const ldData = JSON.parse(ldMatch[1])
+      const items = Array.isArray(ldData) ? ldData : [ldData]
+      for (const item of items) {
+        const types = Array.isArray(item['@type']) ? item['@type'] : [item['@type']]
+        if (types.some(t => typeof t === 'string' && t.toLowerCase().includes('event'))) {
+          structuredInfo += '\nStructured Event Data (JSON-LD): ' + JSON.stringify(item).slice(0, 3000)
+        }
+      }
+    } catch {}
+  }
+
+  // Meta description fallback
+  const descMatch =
+    html.match(/name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+    html.match(/content=["']([^"']+)["'][^>]+name=["']description["']/i) ||
+    html.match(/property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
+  const metaDesc = descMatch?.[1] || ''
+
+  // Strip HTML → plain text
   const pageText = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -55,10 +97,38 @@ export async function POST(request) {
     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 4000)
+    .slice(0, 6000)
+
+  // Proxy og:image server-side to avoid hotlink protection, return as base64
+  let ogImageData = null
+  if (ogImageUrl) {
+    try {
+      const imgRes = await fetch(ogImageUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)',
+          'Referer': url,
+        },
+        signal: AbortSignal.timeout(6000),
+      })
+      if (imgRes.ok) {
+        const ct = imgRes.headers.get('content-type') || 'image/jpeg'
+        if (ct.startsWith('image/')) {
+          const buf = await imgRes.arrayBuffer()
+          if (buf.byteLength < 800000) {
+            ogImageData = `data:${ct};base64,${Buffer.from(buf).toString('base64')}`
+          }
+        }
+      }
+    } catch {}
+  }
+
+  const contextParts = []
+  if (structuredInfo) contextParts.push(structuredInfo.trim())
+  if (metaDesc) contextParts.push(`Page meta description: ${metaDesc}`)
+  contextParts.push(`Page text:\n${pageText}`)
 
   const geminiBody = JSON.stringify({
-    contents: [{ parts: [{ text: `${PROMPT}\n\nWebpage content:\n${pageText}` }] }],
+    contents: [{ parts: [{ text: `${PROMPT}\n\n${contextParts.join('\n\n')}` }] }],
   })
 
   for (const modelUrl of MODELS) {
@@ -74,7 +144,7 @@ export async function POST(request) {
       if (!raw) continue
       const match = raw.match(/\{[\s\S]*\}/)
       const data = JSON.parse(match ? match[0] : raw)
-      return NextResponse.json({ ...data, og_image: ogImage })
+      return NextResponse.json({ ...data, og_image: ogImageData || ogImageUrl })
     } catch {
       continue
     }

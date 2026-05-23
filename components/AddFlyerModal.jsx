@@ -210,8 +210,20 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
     try {
       let image_url = null
       if (linkMode) {
-        // Use og:image directly — no upload needed
-        image_url = ogImageUrl || null
+        if (ogImageUrl?.startsWith('data:')) {
+          // Proxied image — upload to Supabase so we store a proper URL, not a giant base64 string
+          try {
+            const uploadRes = await fetch('/api/upload-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageData: ogImageUrl, userId }),
+            })
+            const uploadData = await uploadRes.json()
+            if (uploadRes.ok) image_url = uploadData.url
+          } catch {}
+        } else {
+          image_url = ogImageUrl || null
+        }
       } else {
         const uploadRes = await fetch('/api/upload-image', {
           method: 'POST',
