@@ -6,6 +6,7 @@
 
 body {
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f5eef8;
   color: #111;
   -webkit-font-smoothing: antialiased;
 }
