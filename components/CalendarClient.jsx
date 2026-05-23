@@ -21,13 +21,14 @@ export default function CalendarClient({ initialEvents, user }) {
   }
 
   const addEvent = async (eventData) => {
-    const { data, error } = await supabase
-      .from('events')
-      .insert({ ...eventData, user_id: user.id })
-      .select()
-      .single()
-    if (error) throw new Error(error.message)
-    setEvents(prev => [...prev, data])
+    const res = await fetch('/api/save-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventData }),
+    })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error)
+    setEvents(prev => [...prev, json.event])
     if (eventData.date) {
       const [year, month] = eventData.date.split('-').map(Number)
       setCurrentDate(new Date(year, month - 1, 1))
