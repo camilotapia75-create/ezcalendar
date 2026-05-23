@@ -1,132 +1,190 @@
 'use client'
+import { useState } from 'react'
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
+const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899']
+
+const PushPin = ({ color }) => (
+  <div style={{ position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
+    <svg width="26" height="34" viewBox="0 0 26 34" fill="none">
+      <circle cx="13" cy="11" r="11" fill={color} />
+      <circle cx="9" cy="7" r="4.5" fill="rgba(255,255,255,0.30)" />
+      <line x1="13" y1="21" x2="13" y2="33" stroke="#9ca3af" strokeWidth="2.8" strokeLinecap="round" />
+    </svg>
+  </div>
+)
+
+const getFlyerLayout = (idx, total) => {
+  if (total === 1) return { left: '10%', right: '10%', top: '8%', bottom: '10%', rotate: -2 }
+  if (total === 2) return idx === 0
+    ? { left: '3%', right: '44%', top: '6%', bottom: '8%', rotate: -7 }
+    : { left: '42%', right: '3%', top: '10%', bottom: '6%', rotate: 6 }
+  const three = [
+    { left: '0%', right: '52%', top: '4%', bottom: '28%', rotate: -10 },
+    { left: '20%', right: '20%', top: '2%', bottom: '14%', rotate: 1 },
+    { left: '52%', right: '0%', top: '6%', bottom: '24%', rotate: 9 },
+  ]
+  return three[idx] ?? three[2]
+}
+
 export default function DayView({ date, events, onClose, onAdd, onDelete }) {
+  const [confirmId, setConfirmId] = useState(null)
   const dayName = DAYS[date.getDay()]
   const monthName = MONTHS[date.getMonth()]
   const dayNum = date.getDate()
   const year = date.getFullYear()
+  const shown = events.slice(0, 3)
+  const extra = events.length - 3
+
+  const handleDelete = (id) => {
+    if (confirmId === id) {
+      onDelete(id)
+      setConfirmId(null)
+    } else {
+      setConfirmId(id)
+      setTimeout(() => setConfirmId(null), 2500)
+    }
+  }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col"
-      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(10px)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.68)', backdropFilter: 'blur(8px)', padding: '24px 20px' }}
       onClick={onClose}
     >
       <div
-        className="flex-1 flex flex-col rounded-t-3xl overflow-hidden"
-        style={{ background: '#faf8ff', marginTop: '10vh' }}
+        className="relative flex flex-col w-full"
+        style={{
+          maxWidth: 400,
+          maxHeight: 'calc(100vh - 80px)',
+          background: '#fffaee',
+          border: '4px solid #1a1a1a',
+          borderRadius: 4,
+          boxShadow: '8px 8px 0 rgba(0,0,0,0.35)',
+          overflow: 'hidden',
+        }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full" style={{ background: '#ddd6fe' }} />
-        </div>
-
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom: '2px solid #ede9fe' }}
-        >
+        {/* Top row */}
+        <div className="flex items-start justify-between shrink-0" style={{ padding: '14px 16px 0' }}>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#a78bfa' }}>
-              {dayName}
+            <span className="font-black leading-none" style={{ fontSize: 42, color: '#1a1a1a' }}>{dayNum}</span>
+            <p className="text-xs font-semibold uppercase tracking-widest mt-1" style={{ color: '#9ca3af' }}>
+              {dayName} &middot; {monthName} {year}
             </p>
-            <h2 className="text-2xl font-black tracking-tight" style={{ color: '#1a1a2e' }}>
-              {monthName} {dayNum}
-              <span className="text-lg font-normal ml-2" style={{ color: '#c4b5fd' }}>{year}</span>
-            </h2>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onAdd}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', boxShadow: '0 2px 12px rgba(124,58,237,0.35)' }}
-            >
-              + Scan
-            </button>
-            <button
-              onClick={onClose}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all"
-              style={{ background: '#ede9fe', color: '#7c3aed' }}
-            >
-              &#10005;
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center font-bold mt-1"
+            style={{ width: 30, height: 30, borderRadius: '50%', background: '#e5e5e5', color: '#555', fontSize: 13, border: 'none', cursor: 'pointer' }}
+          >
+            &#10005;
+          </button>
         </div>
 
-        {/* Events list */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {events.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3 py-20">
-              <div className="text-5xl mb-2">&#128204;</div>
-              <p className="text-base font-semibold" style={{ color: '#9ca3af' }}>Nothing pinned yet</p>
-              <p className="text-sm" style={{ color: '#d1d5db' }}>Tap Scan to add a flyer</p>
+        {/* Pinboard */}
+        <div
+          className="relative"
+          style={{ flex: '1 1 0', minHeight: 0, overflow: 'hidden', margin: '8px 0 0' }}
+        >
+          {shown.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-2 pb-10">
+              <span style={{ fontSize: 44 }}>&#128204;</span>
+              <p className="text-sm font-semibold" style={{ color: '#9ca3af' }}>Nothing pinned yet</p>
+              <p className="text-xs" style={{ color: '#d1d5db' }}>Tap Scan to add a flyer</p>
             </div>
           ) : (
-            events.map(event => {
-              const displayDate = new Date(event.date + 'T12:00:00').toLocaleDateString('en-US', {
-                weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-              })
+            shown.map((event, idx) => {
+              const pos = getFlyerLayout(idx, shown.length)
+              const pinColor = PIN_COLORS[idx % PIN_COLORS.length]
               return (
                 <div
                   key={event.id}
-                  className="rounded-2xl overflow-hidden"
-                  style={{ background: '#fff', boxShadow: '0 4px 20px rgba(124,58,237,0.10)', border: '1px solid #ede9fe' }}
+                  className="absolute"
+                  style={{
+                    left: pos.left, right: pos.right,
+                    top: pos.top, bottom: pos.bottom,
+                    transform: `rotate(${pos.rotate}deg)`,
+                    transformOrigin: 'top center',
+                    zIndex: idx + 1,
+                  }}
                 >
-                  {event.image_url && (
-                    <div className="relative">
-                      <img
-                        src={event.image_url}
-                        alt={event.title || 'flyer'}
-                        className="w-full object-cover"
-                        style={{ maxHeight: '55vw' }}
-                      />
-                      {/* Decorative pin */}
-                      <div style={{ position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%)' }}>
-                        <svg width="18" height="24" viewBox="0 0 18 24" fill="none">
-                          <circle cx="9" cy="7" r="7" fill="#ef4444" />
-                          <circle cx="6.5" cy="4.5" r="2.5" fill="rgba(255,255,255,0.32)" />
-                          <line x1="9" y1="13" x2="9" y2="23" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
-                      </div>
+                  <PushPin color={pinColor} />
+                  {event.image_url ? (
+                    <img
+                      src={event.image_url}
+                      alt={event.title || ''}
+                      className="w-full h-full object-cover"
+                      style={{ border: '3px solid #fff', boxShadow: '0 6px 28px rgba(0,0,0,0.30)', display: 'block' }}
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center p-4"
+                      style={{ background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', border: '2px solid #c4b5fd', boxShadow: '0 4px 16px rgba(124,58,237,0.2)' }}
+                    >
+                      <p className="text-sm font-semibold text-center" style={{ color: '#5b21b6' }}>{event.title}</p>
                     </div>
                   )}
-                  <div className="p-4">
-                    {event.title && (
-                      <h3 className="font-bold text-xl tracking-tight mb-3" style={{ color: '#1a1a2e' }}>
-                        {event.title}
-                      </h3>
-                    )}
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm" style={{ color: '#6b7280' }}>
-                        <span>&#128197;</span><span>{displayDate}</span>
-                      </div>
-                      {event.time_str && (
-                        <div className="flex items-center gap-2 text-sm" style={{ color: '#6b7280' }}>
-                          <span>&#128336;</span><span>{event.time_str}</span>
-                        </div>
-                      )}
-                      {event.location && (
-                        <div className="flex items-center gap-2 text-sm" style={{ color: '#6b7280' }}>
-                          <span>&#128205;</span><span>{event.location}</span>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => onDelete(event.id)}
-                      className="text-xs font-semibold px-4 py-2 rounded-xl transition-colors"
-                      style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444' }}
-                    >
-                      Remove
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => handleDelete(event.id)}
+                    className="absolute flex items-center justify-center font-bold text-white"
+                    style={{
+                      top: -2, right: -2,
+                      width: 20, height: 20,
+                      borderRadius: '50%',
+                      fontSize: 9,
+                      background: confirmId === event.id ? '#dc2626' : 'rgba(0,0,0,0.45)',
+                      zIndex: 20,
+                      border: 'none',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                    }}
+                  >
+                    {confirmId === event.id ? '&#10003;' : '&#10005;'}
+                  </button>
                 </div>
               )
             })
           )}
+
+          {extra > 0 && (
+            <div
+              className="absolute flex items-center justify-center font-bold text-xs"
+              style={{ bottom: 8, left: '50%', transform: 'translateX(-50%)', background: '#ede9fe', color: '#7c3aed', borderRadius: 999, padding: '3px 12px', zIndex: 20, whiteSpace: 'nowrap' }}
+            >
+              +{extra} more
+            </div>
+          )}
+        </div>
+
+        {/* Bottom bar */}
+        <div
+          className="shrink-0 flex items-center justify-between"
+          style={{ padding: '10px 14px 14px', borderTop: '2px solid #e9e0cc' }}
+        >
+          <button
+            onClick={onClose}
+            className="text-sm font-semibold"
+            style={{ padding: '8px 16px', borderRadius: 10, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer' }}
+          >
+            Close
+          </button>
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-2 text-sm font-bold text-white"
+            style={{
+              padding: '9px 20px',
+              borderRadius: 10,
+              background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
+              boxShadow: '0 2px 12px rgba(124,58,237,0.35)',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            + Scan
+          </button>
         </div>
       </div>
     </div>
