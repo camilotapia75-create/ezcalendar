@@ -8,22 +8,18 @@ const PROMPT = `Extract event details from this flyer. Return ONLY valid JSON wi
   "location": "venue name and/or city"
 }`
 
-// All v1beta models that support vision with a Google AI Studio API key
+// gemini-1.5 models live at v1 (stable), gemini-2.0 at v1beta
 const MODELS = [
-  'gemini-1.5-flash-002',
-  'gemini-1.5-flash-001',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-pro-latest',
-  'gemini-1.5-pro-002',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-exp',
-].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
+  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-002:generateContent',
+  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-001:generateContent',
+  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-002:generateContent',
+  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-001:generateContent',
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+]
 
 export async function POST(request) {
   const apiKey = process.env.GOOGLE_AI_API_KEY
   if (!apiKey) {
-    console.error('[analyze-flyer] GOOGLE_AI_API_KEY not set')
     return NextResponse.json({ error: 'AI not configured', detail: 'missing api key' }, { status: 500 })
   }
 
@@ -33,7 +29,6 @@ export async function POST(request) {
     imageData = body.imageData
     mediaType = body.mediaType
   } catch (err) {
-    console.error('[analyze-flyer] body parse failed:', err.message)
     return NextResponse.json({ error: 'failed', detail: 'body parse: ' + err.message }, { status: 500 })
   }
 
@@ -68,7 +63,7 @@ export async function POST(request) {
 
       if (res.status === 429) {
         console.error(`[analyze-flyer] ${modelName} → 429: ${errMsg}`)
-        errors.push(`${modelName}: 429 ${errMsg}`)
+        errors.push(`${modelName}: 429`)
         continue
       }
 
@@ -92,7 +87,6 @@ export async function POST(request) {
       return NextResponse.json(data)
     } catch (err) {
       anyNonQuota = true
-      console.error(`[analyze-flyer] ${modelName} threw:`, err.message)
       errors.push(`${modelName}: ${err.message}`)
     }
   }
