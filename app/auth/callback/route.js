@@ -6,7 +6,6 @@ export async function GET(request) {
   const code = searchParams.get('code')
 
   if (code) {
-    // Create the redirect response FIRST, then attach cookies to it
     const response = NextResponse.redirect(`${origin}/calendar`)
 
     const supabase = createServerClient(
@@ -18,7 +17,6 @@ export async function GET(request) {
             return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
-            // Write cookies directly onto the redirect response
             cookiesToSet.forEach(({ name, value, options }) =>
               response.cookies.set(name, value, options)
             )
@@ -31,6 +29,5 @@ export async function GET(request) {
     if (!error) return response
   }
 
-  // Bad/missing code — back to sign in
-  return NextResponse.redirect(`${origin}/`)
+  return NextResponse.redirect(`${origin}/?error=auth`)
 }
