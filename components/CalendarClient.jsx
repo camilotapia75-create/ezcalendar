@@ -57,7 +57,7 @@ export default function CalendarClient({ initialEvents, user }) {
       style={{
         backgroundColor: '#f5eef8',
         backgroundImage: [
-          "url('/watercolor-bg.jpg')",
+          "url('/watercolor-bg.jpg.png')",
           "radial-gradient(ellipse 75% 65% at 3% 4%, rgba(170,145,215,0.60) 0%, transparent 58%)",
           "radial-gradient(ellipse 55% 55% at 52% 18%, rgba(255,195,215,0.50) 0%, transparent 55%)",
           "radial-gradient(ellipse 45% 55% at 97% 12%, rgba(255,225,175,0.55) 0%, transparent 50%)",
