@@ -59,11 +59,11 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
         </span>
       </div>
 
-      {/* Fanned flyers with pins */}
+      {/* Fanned flyers — tap opens day view */}
       {count > 0 && (
         <div className="flex-1 relative">
           <button
-            onClick={(e) => { e.stopPropagation(); onEventClick(events) }}
+            onClick={(e) => { e.stopPropagation(); onEventClick() }}
             className="absolute inset-0"
             style={{ overflow: 'visible' }}
           >
@@ -106,7 +106,6 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
               )
             })}
           </button>
-
           {events.length > 3 && (
             <div
               className="absolute top-0 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"

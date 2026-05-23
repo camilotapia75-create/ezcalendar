@@ -4,21 +4,38 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Calendar from './Calendar'
 import AddFlyerModal from './AddFlyerModal'
-import FlyerModal from './FlyerModal'
+import DayView from './DayView'
+
+const CORK_BG = {
+  backgroundColor: '#c49a6c',
+  backgroundImage: [
+    'repeating-linear-gradient(112deg, rgba(100,55,10,0.08) 0px, rgba(100,55,10,0.08) 1px, transparent 1px, transparent 9px)',
+    'repeating-linear-gradient(22deg, rgba(155,95,25,0.06) 0px, rgba(155,95,25,0.06) 1px, transparent 1px, transparent 11px)',
+  ].join(', '),
+}
 
 export default function CalendarClient({ initialEvents, user }) {
   const [events, setEvents] = useState(initialEvents)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [showAddModal, setShowAddModal] = useState(false)
   const [addingToDate, setAddingToDate] = useState(null)
-  const [viewingEvents, setViewingEvents] = useState(null)
-  const [viewingIndex, setViewingIndex] = useState(0)
+  const [dayViewDate, setDayViewDate] = useState(null)
   const router = useRouter()
   const supabase = createClient()
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  const getDayEvents = (date) => {
+    if (!date) return []
+    const key = [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-')
+    return events.filter(e => e.date === key)
   }
 
   const addEvent = async (eventData) => {
@@ -41,14 +58,6 @@ export default function CalendarClient({ initialEvents, user }) {
   const deleteEvent = async (id) => {
     await supabase.from('events').delete().eq('id', id)
     setEvents(prev => prev.filter(e => e.id !== id))
-    const remaining = (viewingEvents || []).filter(e => e.id !== id)
-    if (remaining.length > 0) {
-      setViewingEvents(remaining)
-      setViewingIndex(i => Math.min(i, remaining.length - 1))
-    } else {
-      setViewingEvents(null)
-      setViewingIndex(0)
-    }
   }
 
   return (
@@ -104,8 +113,8 @@ export default function CalendarClient({ initialEvents, user }) {
           currentDate={currentDate}
           setCurrentDate={setCurrentDate}
           events={events}
-          onDayClick={(date) => { setAddingToDate(date); setShowAddModal(true) }}
-          onEventClick={(eventsArr) => { setViewingEvents(eventsArr); setViewingIndex(0) }}
+          onDayClick={(date) => setDayViewDate(date)}
+          onEventClick={(date) => setDayViewDate(date)}
         />
       </main>
 
@@ -131,13 +140,17 @@ export default function CalendarClient({ initialEvents, user }) {
         />
       )}
 
-      {viewingEvents && (
-        <FlyerModal
-          events={viewingEvents}
-          activeIndex={viewingIndex}
-          onNavigate={setViewingIndex}
+      {dayViewDate && (
+        <DayView
+          date={dayViewDate}
+          events={getDayEvents(dayViewDate)}
+          onClose={() => setDayViewDate(null)}
+          onAdd={() => {
+            setAddingToDate(dayViewDate)
+            setDayViewDate(null)
+            setShowAddModal(true)
+          }}
           onDelete={deleteEvent}
-          onClose={() => { setViewingEvents(null); setViewingIndex(0) }}
         />
       )}
     </div>
