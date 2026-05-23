@@ -17,7 +17,7 @@ function formatNice(dateStr) {
   })
 }
 
-async function resizeImage(dataUrl, maxWidth = 1200) {
+async function resizeImage(dataUrl, maxWidth = 800) {
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
@@ -30,7 +30,7 @@ async function resizeImage(dataUrl, maxWidth = 1200) {
       canvas.width = width
       canvas.height = height
       canvas.getContext('2d').drawImage(img, 0, 0, width, height)
-      resolve(canvas.toDataURL('image/jpeg', 0.85))
+      resolve(canvas.toDataURL('image/jpeg', 0.7))
     }
     img.src = dataUrl
   })
@@ -62,6 +62,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
   const [uploading, setUploading] = useState(false)
   const [aiDetectedDate, setAiDetectedDate] = useState(false)
   const [aiError, setAiError] = useState(null)
+  const [aiDetail, setAiDetail] = useState(null)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraStream, setCameraStream] = useState(null)
   const videoRef = useRef()
@@ -115,17 +116,20 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
   const analyzeImage = async (dataUrl) => {
     setImagePreview(dataUrl)
     setAiError(null)
+    setAiDetail(null)
     setAnalyzing(true)
     try {
       const compressed = await resizeImage(dataUrl)
+      console.log('[modal] compressed size (chars):', compressed.length)
       const res = await fetch('/api/analyze-flyer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageData: compressed, mediaType: 'image/jpeg' }),
       })
       const data = await res.json()
-      if (res.status === 429) { setAiError('quota'); return }
-      if (!res.ok) { setAiError('failed'); return }
+      console.log('[modal] response:', res.status, data)
+      if (res.status === 429) { setAiError('quota'); setAiDetail(data.detail); return }
+      if (!res.ok) { setAiError('failed'); setAiDetail(data.detail); return }
       if (data.title) setTitle(data.title)
       if (data.time_str) setTimeStr(data.time_str)
       if (data.location) setLocation(data.location)
@@ -134,8 +138,10 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
         setAiDetectedDate(true)
       }
       if (!data.title && !data.date && !data.time_str && !data.location) setAiError('failed')
-    } catch {
+    } catch (err) {
+      console.error('[modal] fetch threw:', err)
       setAiError('failed')
+      setAiDetail(err.message)
     } finally {
       setAnalyzing(false)
     }
@@ -152,7 +158,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
   const reset = () => {
     stopCamera()
     setImageFile(null); setImagePreview(null)
-    setAiDetectedDate(false); setAiError(null)
+    setAiDetectedDate(false); setAiError(null); setAiDetail(null)
     setTitle(''); setLocation(''); setTimeStr('')
     if (!date) setEventDate('')
   }
@@ -281,7 +287,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                   border: `1px solid ${aiError === 'quota' ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.08)'}`,
                   color: aiError === 'quota' ? 'rgba(248,113,113,0.9)' : 'rgba(255,255,255,0.35)',
                 }}>
-                  {aiError === 'quota' ? 'Rate limit — wait a moment and retake' : "Couldn’t read automatically — fill in below"}
+                  {aiError === 'quota' ? 'Rate limit — wait a moment and retake' : "Couldn't read automatically — fill in below"}
+                  {aiDetail && <div className="mt-1 text-[10px] opacity-50 break-all">{aiDetail}</div>}
                 </div>
               )}
 
