@@ -4,15 +4,18 @@ const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satur
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e']
 const ROTATIONS = [-4, 4, -2]
-// small vertical stagger so cards don't sit in a flat row
-const NUDGE = ['0%', '4%', '2%']
 
-// width and maxHeight as % of the pinboard so cards always fit
-const cardStyle = (total, idx) => {
-  if (total === 1) return { width: '52%', maxWidth: 300, maxHeight: '88%' }
-  if (total === 2) return { width: '42%', maxHeight: idx === 1 ? '80%' : '84%' }
-  return { width: '28%', maxHeight: idx === 1 ? '76%' : '80%' }
+// 100vh minus: outer inset 8%, header ~108px, footer ~58px, pin+top-pad ~60px, nudge, buffer
+// idx 1 gets extra 30px for its vertical nudge
+const imgHeight = (idx) => `calc(100vh * 0.92 - ${260 + idx * 30}px)`
+
+const cardWidth = (total) => {
+  if (total === 1) return { width: '54%', maxWidth: 300 }
+  if (total === 2) return { width: '42%' }
+  return { width: '29%' }
 }
+
+const NUDGE_TOP = [0, 30, 15] // px
 
 const PushPin = ({ color }) => (
   <div style={{ position: 'absolute', top: -22, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
@@ -60,7 +63,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
           borderBottom: '2px solid #e9e0cc',
         }}>
           <div>
-            <div style={{ fontSize: 54, fontWeight: 900, lineHeight: 1, color: '#1a1a1a', letterSpacing: '-2px' }}>{dayNum}</div>
+            <div style={{ fontSize: 52, fontWeight: 900, lineHeight: 1, color: '#1a1a1a', letterSpacing: '-2px' }}>{dayNum}</div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#9ca3af', marginTop: 3 }}>
               {dayName} &middot; {monthName} {year}
             </div>
@@ -73,8 +76,8 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
           </button>
         </div>
 
-        {/* Pinboard — position:relative so % maxHeight on children works */}
-        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        {/* Pinboard */}
+        <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
           {shown.length === 0 ? (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
               <span style={{ fontSize: 52 }}>&#128204;</span>
@@ -89,20 +92,20 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
               alignItems: 'flex-start',
               justifyContent: 'center',
               gap: shown.length === 1 ? 0 : '4%',
-              padding: '40px 4% 12px',
+              padding: '40px 5% 12px',
               boxSizing: 'border-box',
+              overflowX: 'hidden',
+              overflowY: 'hidden',
             }}>
               {shown.map((event, idx) => {
-                const cs = cardStyle(shown.length, idx)
+                const w = cardWidth(shown.length)
                 return (
                   <div
                     key={event.id}
                     style={{
-                      width: cs.width,
-                      maxWidth: cs.maxWidth,
-                      maxHeight: cs.maxHeight,
+                      ...w,
                       flexShrink: 0,
-                      marginTop: NUDGE[idx],
+                      marginTop: NUDGE_TOP[idx],
                       transform: `rotate(${ROTATIONS[idx]}deg)`,
                       transformOrigin: 'top center',
                       position: 'relative',
@@ -111,27 +114,37 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                       background: '#fff',
                       border: '3px solid #fff',
                       boxShadow: '0 8px 32px rgba(0,0,0,0.28)',
-                      overflow: 'hidden',
+                      // No height set here — the image drives the height via calc(100vh)
                     }}
                   >
                     <PushPin color={PIN_COLORS[idx]} />
 
-                    {/* Image stretches to fill, bounded by card maxHeight */}
-                    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                      {event.image_url ? (
-                        <img
-                          src={event.image_url}
-                          alt={event.title || ''}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                        />
-                      ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
-                          <p style={{ fontSize: 13, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 8 }}>{event.title}</p>
-                        </div>
-                      )}
-                    </div>
+                    {/* Image: height capped via 100vh calc so it can never overflow */}
+                    {event.image_url ? (
+                      <img
+                        src={event.image_url}
+                        alt={event.title || ''}
+                        style={{
+                          width: '100%',
+                          height: imgHeight(idx),
+                          objectFit: 'cover',
+                          display: 'block',
+                          flexShrink: 0,
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '100%',
+                        height: imgHeight(idx),
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)',
+                        flexShrink: 0,
+                      }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 8 }}>{event.title}</p>
+                      </div>
+                    )}
 
-                    {/* Info strip — always fully visible at bottom */}
+                    {/* Info strip — always below image, never clipped */}
                     <div style={{ flexShrink: 0, padding: '6px 8px 8px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                       {event.title && (
                         <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>
