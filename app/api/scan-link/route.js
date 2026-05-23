@@ -14,6 +14,8 @@ const MODELS = [
   'gemini-2.0-flash-lite',
 ].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
 
+const EMPTY = { title: null, date: null, time_str: null, location: null, og_image: null }
+
 export async function POST(request) {
   const apiKey = process.env.GOOGLE_AI_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'AI not configured' }, { status: 500 })
@@ -33,7 +35,7 @@ export async function POST(request) {
     baseUrl = `${parsed.protocol}//${parsed.host}`
   } catch {}
 
-  // Fetch page HTML server-side (bypasses CORS)
+  // Fetch page HTML server-side
   let html = ''
   try {
     const res = await fetch(url, {
@@ -44,10 +46,16 @@ export async function POST(request) {
       },
       signal: AbortSignal.timeout(12000),
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) {
+      // Site blocked the request (login wall, bot protection, etc.) — let user fill in manually
+      return NextResponse.json({
+        ...EMPTY,
+        warning: `This site (${new URL(url).hostname}) requires login or blocks automated reading. Fill in the details below.`,
+      })
+    }
     html = await res.text()
   } catch (err) {
-    return NextResponse.json({ error: `Could not fetch URL: ${err.message}` }, { status: 400 })
+    return NextResponse.json({ error: `Could not reach URL: ${err.message}` }, { status: 400 })
   }
 
   // Extract og:image / twitter:image
@@ -57,8 +65,6 @@ export async function POST(request) {
     html.match(/name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
     html.match(/content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i)
   let ogImageUrl = ogMatch?.[1] || null
-
-  // Normalize relative URLs
   if (ogImageUrl) {
     if (ogImageUrl.startsWith('//')) ogImageUrl = 'https:' + ogImageUrl
     else if (ogImageUrl.startsWith('/')) ogImageUrl = baseUrl + ogImageUrl
@@ -99,15 +105,12 @@ export async function POST(request) {
     .trim()
     .slice(0, 6000)
 
-  // Proxy og:image server-side to avoid hotlink protection, return as base64
+  // Proxy og:image server-side to avoid hotlink protection
   let ogImageData = null
   if (ogImageUrl) {
     try {
       const imgRes = await fetch(ogImageUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)',
-          'Referer': url,
-        },
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)', 'Referer': url },
         signal: AbortSignal.timeout(6000),
       })
       if (imgRes.ok) {
@@ -150,5 +153,6 @@ export async function POST(request) {
     }
   }
 
-  return NextResponse.json({ error: 'Could not extract event details from that URL' }, { status: 500 })
+  // Gemini failed but we have the URL — still let user fill in manually
+  return NextResponse.json({ ...EMPTY, warning: 'Could not extract event details automatically. Fill in below.' })
 }

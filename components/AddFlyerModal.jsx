@@ -73,11 +73,11 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
   const [aiDetail, setAiDetail] = useState(null)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraStream, setCameraStream] = useState(null)
-  // Link mode
   const [linkMode, setLinkMode] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkScanning, setLinkScanning] = useState(false)
   const [linkError, setLinkError] = useState(null)
+  const [linkWarning, setLinkWarning] = useState(null)
   const [ogImageUrl, setOgImageUrl] = useState(null)
   const [linkScanned, setLinkScanned] = useState(false)
 
@@ -167,6 +167,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
     if (!linkUrl.trim()) return
     setLinkScanning(true)
     setLinkError(null)
+    setLinkWarning(null)
     try {
       const res = await fetch('/api/scan-link', {
         method: 'POST',
@@ -183,6 +184,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
         setAiDetectedDate(true)
       }
       setOgImageUrl(data.og_image || null)
+      if (data.warning) setLinkWarning(data.warning)
       setLinkScanned(true)
     } catch (err) {
       setLinkError(err.message)
@@ -197,7 +199,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
     setAiDetectedDate(false); setAiError(null); setAiDetail(null); setSaveError(null)
     setTitle(''); setLocation(''); setTimeStr('')
     setLinkMode(false); setLinkUrl(''); setLinkScanning(false)
-    setLinkError(null); setOgImageUrl(null); setLinkScanned(false)
+    setLinkError(null); setLinkWarning(null); setOgImageUrl(null); setLinkScanned(false)
     if (!date) setEventDate('')
   }
 
@@ -211,7 +213,6 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
       let image_url = null
       if (linkMode) {
         if (ogImageUrl?.startsWith('data:')) {
-          // Proxied image — upload to Supabase so we store a proper URL, not a giant base64 string
           try {
             const uploadRes = await fetch('/api/upload-image', {
               method: 'POST',
@@ -245,7 +246,6 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
   const showForm = imagePreview || linkScanned
   const canSubmit = eventDate && (linkMode ? true : !!imageForStorage)
 
-  // Camera view
   if (cameraActive) {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col">
@@ -346,7 +346,6 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
             </div>
           )}
 
-          {/* Link input screen */}
           {linkMode && !linkScanned && (
             <div className="space-y-3">
               <input
@@ -379,7 +378,6 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
             </div>
           )}
 
-          {/* Form — shown after image analysis or link scan */}
           {showForm && (
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="relative rounded-2xl overflow-hidden bg-black" style={{ height: 180 }}>
@@ -390,7 +388,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
                     <IconLink />
-                    <span className="text-xs">No preview image found</span>
+                    <span className="text-xs">No preview image</span>
                   </div>
                 )}
                 {(analyzing || linkScanning) && (
@@ -407,6 +405,11 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                 )}
               </div>
 
+              {linkWarning && !analyzing && (
+                <div className="px-3 py-2.5 rounded-xl text-xs" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.40)' }}>
+                  {linkWarning}
+                </div>
+              )}
               {aiError && !analyzing && (
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{
                   background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
