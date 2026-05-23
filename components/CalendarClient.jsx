@@ -21,12 +21,20 @@ export default function CalendarClient({ initialEvents, user }) {
   }
 
   const uploadImage = async (file) => {
-    const ext = file.name.split('.').pop()
-    const path = `${user.id}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('flyer-images').upload(path, file)
-    if (error) throw error
-    const { data } = supabase.storage.from('flyer-images').getPublicUrl(path)
-    return data.publicUrl
+    try {
+      const ext = file.name.split('.').pop() || 'jpg'
+      const path = `${user.id}/${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from('flyer-images').upload(path, file)
+      if (error) {
+        console.warn('Image upload failed, saving without image:', error.message)
+        return null
+      }
+      const { data } = supabase.storage.from('flyer-images').getPublicUrl(path)
+      return data.publicUrl
+    } catch (err) {
+      console.warn('Image upload threw, saving without image:', err.message)
+      return null
+    }
   }
 
   const addEvent = async (eventData) => {
@@ -35,12 +43,14 @@ export default function CalendarClient({ initialEvents, user }) {
       .insert({ ...eventData, user_id: user.id })
       .select()
       .single()
-    if (!error && data) {
-      setEvents(prev => [...prev, data])
-      if (eventData.date) {
-        const [year, month] = eventData.date.split('-').map(Number)
-        setCurrentDate(new Date(year, month - 1, 1))
-      }
+    if (error) {
+      console.error('Insert failed:', error)
+      throw new Error(error.message)
+    }
+    setEvents(prev => [...prev, data])
+    if (eventData.date) {
+      const [year, month] = eventData.date.split('-').map(Number)
+      setCurrentDate(new Date(year, month - 1, 1))
     }
     setShowAddModal(false)
     setAddingToDate(null)

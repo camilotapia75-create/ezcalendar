@@ -60,6 +60,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
   const [eventDate, setEventDate] = useState(date ? toDateKey(date) : '')
   const [analyzing, setAnalyzing] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [aiDetectedDate, setAiDetectedDate] = useState(false)
   const [aiError, setAiError] = useState(null)
   const [aiDetail, setAiDetail] = useState(null)
@@ -120,14 +121,12 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
     setAnalyzing(true)
     try {
       const compressed = await resizeImage(dataUrl)
-      console.log('[modal] compressed size (chars):', compressed.length)
       const res = await fetch('/api/analyze-flyer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageData: compressed, mediaType: 'image/jpeg' }),
       })
       const data = await res.json()
-      console.log('[modal] response:', res.status, data)
       if (res.status === 429) { setAiError('quota'); setAiDetail(data.detail); return }
       if (!res.ok) { setAiError('failed'); setAiDetail(data.detail); return }
       if (data.title) setTitle(data.title)
@@ -139,7 +138,6 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
       }
       if (!data.title && !data.date && !data.time_str && !data.location) setAiError('failed')
     } catch (err) {
-      console.error('[modal] fetch threw:', err)
       setAiError('failed')
       setAiDetail(err.message)
     } finally {
@@ -159,6 +157,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
     stopCamera()
     setImageFile(null); setImagePreview(null)
     setAiDetectedDate(false); setAiError(null); setAiDetail(null)
+    setSaveError(null)
     setTitle(''); setLocation(''); setTimeStr('')
     if (!date) setEventDate('')
   }
@@ -166,13 +165,14 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!eventDate) return
+    setSaveError(null)
     setUploading(true)
     try {
-      let imageUrl = null
-      if (imageFile) imageUrl = await uploadImage(imageFile)
+      const imageUrl = imageFile ? await uploadImage(imageFile) : null
       await onAdd({ date: eventDate, title, location, time_str: timeStr, image_url: imageUrl })
     } catch (err) {
-      console.error('Failed to save:', err)
+      console.error('Save failed:', err)
+      setSaveError(err.message || 'Failed to save — check your connection')
     } finally {
       setUploading(false)
     }
@@ -292,6 +292,16 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                 </div>
               )}
 
+              {saveError && !analyzing && (
+                <div className="px-3 py-2.5 rounded-xl text-xs" style={{
+                  background: 'rgba(239,68,68,0.06)',
+                  border: '1px solid rgba(239,68,68,0.2)',
+                  color: 'rgba(248,113,113,0.9)',
+                }}>
+                  {saveError}
+                </div>
+              )}
+
               {!analyzing && (
                 <>
                   <div className="space-y-2">
@@ -317,7 +327,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                       />
                     </div>
                   </div>
-                  <button type="submit" disabled={!(imageFile && eventDate) || uploading}
+                  <button type="submit" disabled={!eventDate || uploading}
                     className="w-full py-3.5 rounded-2xl text-sm font-semibold transition-all disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.98]"
                     style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
                   >
