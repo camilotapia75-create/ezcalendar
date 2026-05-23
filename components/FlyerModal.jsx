@@ -1,29 +1,11 @@
 'use client'
 
-const IconDate = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="3"/>
-    <line x1="16" y1="2" x2="16" y2="6"/>
-    <line x1="8" y1="2" x2="8" y2="6"/>
-    <line x1="3" y1="10" x2="21" y2="10"/>
-  </svg>
-)
+export default function FlyerModal({ events, activeIndex, onNavigate, onDelete, onClose }) {
+  const event = events[activeIndex]
+  const total = events.length
+  const hasPrev = activeIndex > 0
+  const hasNext = activeIndex < total - 1
 
-const IconTime = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="9"/>
-    <polyline points="12 7 12 12 15.5 15.5"/>
-  </svg>
-)
-
-const IconLocation = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/>
-    <circle cx="12" cy="10" r="3"/>
-  </svg>
-)
-
-export default function FlyerModal({ event, onDelete, onClose }) {
   const displayDate = new Date(event.date + 'T12:00:00').toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   })
@@ -31,65 +13,114 @@ export default function FlyerModal({ event, onDelete, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(16px)' }}
+      style={{ background: 'rgba(109,40,217,0.18)', backdropFilter: 'blur(16px)' }}
       onClick={onClose}
     >
       <div
-        className="w-full md:max-w-sm rounded-t-[28px] md:rounded-[24px] overflow-hidden"
-        style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 -16px 60px rgba(0,0,0,0.6)' }}
-        onClick={e => e.stopPropagation()}
+        className="w-full md:max-w-sm rounded-t-3xl md:rounded-2xl overflow-hidden"
+        style={{ background: '#fff', boxShadow: '0 8px 48px rgba(124,58,237,0.22)' }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-3 pb-1 md:hidden">
-          <div className="w-9 h-[3px] rounded-full bg-white/10" />
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 md:hidden">
+          <div className="w-10 h-[3px] rounded-full" style={{ background: '#ede9fe' }} />
         </div>
 
-        {event.image_url && (
-          <div className="relative" style={{ maxHeight: '52vh', overflow: 'hidden', background: '#000' }}>
+        {/* Image with carousel controls */}
+        <div className="relative" style={{ background: '#faf8ff' }}>
+          {event.image_url ? (
             <img
               src={event.image_url}
               alt={event.title || 'flyer'}
               className="w-full object-contain"
               style={{ maxHeight: '52vh' }}
             />
-          </div>
-        )}
-
-        <div className="p-5 pb-6">
-          {event.title && (
-            <h3 className="text-xl font-bold tracking-tight mb-4 leading-snug">{event.title}</h3>
+          ) : (
+            <div className="w-full flex items-center justify-center" style={{ height: 120, background: '#f3f0ff' }}>
+              <span className="text-4xl">&#128203;</span>
+            </div>
           )}
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-3" style={{ color: 'rgba(255,255,255,0.45)' }}>
-              <IconDate />
-              <span className="text-sm">{displayDate}</span>
+          {hasPrev && (
+            <button
+              onClick={() => onNavigate(activeIndex - 1)}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all active:scale-90"
+              style={{ background: 'rgba(255,255,255,0.92)', color: '#7c3aed', boxShadow: '0 2px 12px rgba(0,0,0,0.12)' }}
+            >
+              &#8249;
+            </button>
+          )}
+          {hasNext && (
+            <button
+              onClick={() => onNavigate(activeIndex + 1)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all active:scale-90"
+              style={{ background: 'rgba(255,255,255,0.92)', color: '#7c3aed', boxShadow: '0 2px 12px rgba(0,0,0,0.12)' }}
+            >
+              &#8250;
+            </button>
+          )}
+
+          {total > 1 && (
+            <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+              {events.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => onNavigate(i)}
+                  className="rounded-full transition-all"
+                  style={{
+                    width: i === activeIndex ? 18 : 6,
+                    height: 6,
+                    background: i === activeIndex ? '#7c3aed' : 'rgba(255,255,255,0.7)',
+                    boxShadow: i === activeIndex ? '0 0 6px rgba(124,58,237,0.5)' : 'none',
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="p-5">
+          {total > 1 && (
+            <p className="text-xs font-semibold mb-2" style={{ color: '#a78bfa' }}>
+              {activeIndex + 1} of {total} events
+            </p>
+          )}
+
+          {event.title && (
+            <h3 className="font-bold text-lg tracking-tight mb-3" style={{ color: '#1a1a2e' }}>{event.title}</h3>
+          )}
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5 text-sm" style={{ color: '#6b7280' }}>
+              <span className="w-4 text-center">&#128197;</span>
+              <span>{displayDate}</span>
             </div>
             {event.time_str && (
-              <div className="flex items-center gap-3" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                <IconTime />
-                <span className="text-sm">{event.time_str}</span>
+              <div className="flex items-center gap-2.5 text-sm" style={{ color: '#6b7280' }}>
+                <span className="w-4 text-center">&#128336;</span>
+                <span>{event.time_str}</span>
               </div>
             )}
             {event.location && (
-              <div className="flex items-center gap-3" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                <IconLocation />
-                <span className="text-sm">{event.location}</span>
+              <div className="flex items-center gap-2.5 text-sm" style={{ color: '#6b7280' }}>
+                <span className="w-4 text-center">&#128205;</span>
+                <span>{event.location}</span>
               </div>
             )}
           </div>
 
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-2.5 mt-5">
             <button
               onClick={onClose}
-              className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95"
-              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors hover:bg-violet-50"
+              style={{ background: '#f3f0ff', color: '#5b21b6' }}
             >
               Close
             </button>
             <button
               onClick={() => onDelete(event.id)}
-              className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95"
-              style={{ background: 'rgba(239,68,68,0.1)', color: 'rgba(248,113,113,0.9)', border: '1px solid rgba(239,68,68,0.15)' }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+              style={{ background: 'rgba(239,68,68,0.07)', color: '#ef4444' }}
             >
               Remove
             </button>
