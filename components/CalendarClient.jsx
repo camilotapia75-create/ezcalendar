@@ -20,33 +20,13 @@ export default function CalendarClient({ initialEvents, user }) {
     router.push('/')
   }
 
-  const uploadImage = async (file) => {
-    try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${user.id}/${Date.now()}.${ext}`
-      const { error } = await supabase.storage.from('flyer-images').upload(path, file)
-      if (error) {
-        console.warn('Image upload failed, saving without image:', error.message)
-        return null
-      }
-      const { data } = supabase.storage.from('flyer-images').getPublicUrl(path)
-      return data.publicUrl
-    } catch (err) {
-      console.warn('Image upload threw, saving without image:', err.message)
-      return null
-    }
-  }
-
   const addEvent = async (eventData) => {
     const { data, error } = await supabase
       .from('events')
       .insert({ ...eventData, user_id: user.id })
       .select()
       .single()
-    if (error) {
-      console.error('Insert failed:', error)
-      throw new Error(error.message)
-    }
+    if (error) throw new Error(error.message)
     setEvents(prev => [...prev, data])
     if (eventData.date) {
       const [year, month] = eventData.date.split('-').map(Number)
@@ -57,11 +37,6 @@ export default function CalendarClient({ initialEvents, user }) {
   }
 
   const deleteEvent = async (id) => {
-    const event = events.find(e => e.id === id)
-    if (event?.image_url) {
-      const parts = event.image_url.split('/flyer-images/')
-      if (parts[1]) await supabase.storage.from('flyer-images').remove([parts[1]])
-    }
     await supabase.from('events').delete().eq('id', id)
     setEvents(prev => prev.filter(e => e.id !== id))
     setViewingEvent(null)
@@ -109,7 +84,6 @@ export default function CalendarClient({ initialEvents, user }) {
           date={addingToDate}
           onAdd={addEvent}
           onClose={() => { setShowAddModal(false); setAddingToDate(null) }}
-          uploadImage={uploadImage}
         />
       )}
       {viewingEvent && (

@@ -17,7 +17,7 @@ function formatNice(dateStr) {
   })
 }
 
-async function resizeImage(dataUrl, maxWidth = 800) {
+async function resizeImage(dataUrl, maxWidth, quality) {
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
@@ -30,7 +30,7 @@ async function resizeImage(dataUrl, maxWidth = 800) {
       canvas.width = width
       canvas.height = height
       canvas.getContext('2d').drawImage(img, 0, 0, width, height)
-      resolve(canvas.toDataURL('image/jpeg', 0.7))
+      resolve(canvas.toDataURL('image/jpeg', quality))
     }
     img.src = dataUrl
   })
@@ -51,9 +51,9 @@ const IconUpload = () => (
   </svg>
 )
 
-export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
-  const [imageFile, setImageFile] = useState(null)
+export default function AddFlyerModal({ date, onAdd, onClose }) {
   const [imagePreview, setImagePreview] = useState(null)
+  const [imageForStorage, setImageForStorage] = useState(null)
   const [title, setTitle] = useState('')
   const [location, setLocation] = useState('')
   const [timeStr, setTimeStr] = useState('')
@@ -104,27 +104,28 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     canvas.getContext('2d').drawImage(video, 0, 0)
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
+    analyzeImage(canvas.toDataURL('image/jpeg', 0.92))
     stopCamera()
-    const arr = dataUrl.split(',')
-    const bstr = atob(arr[1])
-    const u8arr = new Uint8Array(bstr.length)
-    for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i)
-    setImageFile(new File([u8arr], 'capture.jpg', { type: 'image/jpeg' }))
-    analyzeImage(dataUrl)
   }
 
   const analyzeImage = async (dataUrl) => {
     setImagePreview(dataUrl)
     setAiError(null)
     setAiDetail(null)
+    setSaveError(null)
     setAnalyzing(true)
     try {
-      const compressed = await resizeImage(dataUrl)
+      // Two resizes in parallel: small for AI, medium for DB storage
+      const [forAI, forStorage] = await Promise.all([
+        resizeImage(dataUrl, 800, 0.7),
+        resizeImage(dataUrl, 900, 0.82),
+      ])
+      setImageForStorage(forStorage)
+
       const res = await fetch('/api/analyze-flyer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageData: compressed, mediaType: 'image/jpeg' }),
+        body: JSON.stringify({ imageData: forAI, mediaType: 'image/jpeg' }),
       })
       const data = await res.json()
       if (res.status === 429) { setAiError('quota'); setAiDetail(data.detail); return }
@@ -147,7 +148,6 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
 
   const handleFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return
-    setImageFile(file)
     const reader = new FileReader()
     reader.onload = (e) => analyzeImage(e.target.result)
     reader.readAsDataURL(file)
@@ -155,7 +155,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
 
   const reset = () => {
     stopCamera()
-    setImageFile(null); setImagePreview(null)
+    setImagePreview(null); setImageForStorage(null)
     setAiDetectedDate(false); setAiError(null); setAiDetail(null)
     setSaveError(null)
     setTitle(''); setLocation(''); setTimeStr('')
@@ -164,15 +164,21 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!eventDate) return
+    if (!eventDate || !imageForStorage) return
     setSaveError(null)
     setUploading(true)
     try {
-      const imageUrl = imageFile ? await uploadImage(imageFile) : null
-      await onAdd({ date: eventDate, title, location, time_str: timeStr, image_url: imageUrl })
+      // Image stored as compressed data URL directly in the DB — no storage bucket needed
+      await onAdd({
+        date: eventDate,
+        title,
+        location,
+        time_str: timeStr,
+        image_url: imageForStorage,
+      })
     } catch (err) {
       console.error('Save failed:', err)
-      setSaveError(err.message || 'Failed to save — check your connection')
+      setSaveError(err.message || 'Failed to save — try again')
     } finally {
       setUploading(false)
     }
@@ -283,8 +289,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
 
               {aiError && !analyzing && (
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{
-                  background: aiError === 'quota' ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${aiError === 'quota' ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.08)'}`,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
                   color: aiError === 'quota' ? 'rgba(248,113,113,0.9)' : 'rgba(255,255,255,0.35)',
                 }}>
                   {aiError === 'quota' ? 'Rate limit — wait a moment and retake' : "Couldn't read automatically — fill in below"}
@@ -292,13 +298,13 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                 </div>
               )}
 
-              {saveError && !analyzing && (
+              {saveError && (
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{
-                  background: 'rgba(239,68,68,0.06)',
-                  border: '1px solid rgba(239,68,68,0.2)',
+                  background: 'rgba(239,68,68,0.08)',
+                  border: '1px solid rgba(239,68,68,0.25)',
                   color: 'rgba(248,113,113,0.9)',
                 }}>
-                  {saveError}
+                  Save failed: {saveError}
                 </div>
               )}
 
@@ -327,7 +333,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, uploadImage }) {
                       />
                     </div>
                   </div>
-                  <button type="submit" disabled={!eventDate || uploading}
+                  <button type="submit" disabled={!eventDate || !imageForStorage || uploading}
                     className="w-full py-3.5 rounded-2xl text-sm font-semibold transition-all disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.98]"
                     style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
                   >
