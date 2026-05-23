@@ -21,15 +21,6 @@ export default function CalendarClient({ initialEvents, user }) {
     router.push('/')
   }
 
-  const uploadImage = async (file) => {
-    const ext = file.name.split('.').pop()
-    const path = `${user.id}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('flyer-images').upload(path, file)
-    if (error) throw error
-    const { data } = supabase.storage.from('flyer-images').getPublicUrl(path)
-    return data.publicUrl
-  }
-
   const addEvent = async (eventData) => {
     const { data, error } = await supabase
       .from('events')
@@ -48,11 +39,6 @@ export default function CalendarClient({ initialEvents, user }) {
   }
 
   const deleteEvent = async (id) => {
-    const event = events.find(e => e.id === id)
-    if (event?.image_url) {
-      const parts = event.image_url.split('/flyer-images/')
-      if (parts[1]) await supabase.storage.from('flyer-images').remove([parts[1]])
-    }
     await supabase.from('events').delete().eq('id', id)
     setEvents(prev => prev.filter(e => e.id !== id))
     const remaining = (viewingEvents || []).filter(e => e.id !== id)
@@ -119,7 +105,7 @@ export default function CalendarClient({ initialEvents, user }) {
           date={addingToDate}
           onAdd={addEvent}
           onClose={() => { setShowAddModal(false); setAddingToDate(null) }}
-          uploadImage={uploadImage}
+          userId={user.id}
         />
       )}
 
