@@ -12,6 +12,7 @@ const MODELS = [
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent',
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent',
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent',
 ]
 
 export async function POST(request) {
@@ -34,6 +35,8 @@ export async function POST(request) {
       }],
     })
 
+    let allQuota = true
+
     for (const url of MODELS) {
       try {
         const res = await fetch(`${url}?key=${apiKey}`, {
@@ -45,9 +48,11 @@ export async function POST(request) {
         const result = await res.json()
 
         if (res.status === 429) {
-          console.error('[analyze-flyer] quota exceeded')
-          return NextResponse.json({ error: 'quota' }, { status: 429 })
+          console.error(`[analyze-flyer] ${url} → quota exceeded, trying next`)
+          continue
         }
+
+        allQuota = false
 
         if (!res.ok) {
           console.error(`[analyze-flyer] ${url} → ${res.status}:`, result?.error?.message)
@@ -65,12 +70,17 @@ export async function POST(request) {
           const data = JSON.parse(match ? match[0] : text)
           return NextResponse.json(data)
         } catch {
-          console.error(`[analyze-flyer] JSON parse failed, text:`, text.slice(0, 200))
+          console.error(`[analyze-flyer] JSON parse failed:`, text.slice(0, 200))
           continue
         }
       } catch (err) {
+        allQuota = false
         console.error(`[analyze-flyer] fetch threw:`, err.message)
       }
+    }
+
+    if (allQuota) {
+      return NextResponse.json({ error: 'quota' }, { status: 429 })
     }
   } catch (err) {
     console.error('[analyze-flyer] outer error:', err)
