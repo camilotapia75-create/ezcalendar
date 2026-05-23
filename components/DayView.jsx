@@ -4,18 +4,19 @@ const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satur
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e']
 const ROTATIONS = [-4, 4, -2]
+const NUDGE_TOP = [0, 30, 15]
 
-// 100vh minus: outer inset 8%, header ~108px, footer ~58px, pin+top-pad ~60px, nudge, buffer
-// idx 1 gets extra 30px for its vertical nudge
-const imgHeight = (idx) => `calc(100vh * 0.92 - ${260 + idx * 30}px)`
+// 100vh * 0.92 = cell height. Subtract: header ~108px, footer ~58px,
+// pin+top-pad ~60px, info strip ~65px, border ~10px, buffer ~40px = ~341px
+// idx 1 gets +30px extra for its nudge, idx 2 gets +15px
+const IMG_SUBTRACT = [341, 371, 356]
+const imgHeight = (idx) => `calc(100vh * 0.92 - ${IMG_SUBTRACT[idx]}px)`
 
 const cardWidth = (total) => {
-  if (total === 1) return { width: '54%', maxWidth: 300 }
+  if (total === 1) return { width: '52%', maxWidth: 290 }
   if (total === 2) return { width: '42%' }
-  return { width: '29%' }
+  return { width: '28%' }
 }
-
-const NUDGE_TOP = [0, 30, 15] // px
 
 const PushPin = ({ color }) => (
   <div style={{ position: 'absolute', top: -22, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
@@ -94,8 +95,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
               gap: shown.length === 1 ? 0 : '4%',
               padding: '40px 5% 12px',
               boxSizing: 'border-box',
-              overflowX: 'hidden',
-              overflowY: 'hidden',
+              overflow: 'hidden',
             }}>
               {shown.map((event, idx) => {
                 const w = cardWidth(shown.length)
@@ -114,12 +114,10 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                       background: '#fff',
                       border: '3px solid #fff',
                       boxShadow: '0 8px 32px rgba(0,0,0,0.28)',
-                      // No height set here — the image drives the height via calc(100vh)
                     }}
                   >
                     <PushPin color={PIN_COLORS[idx]} />
 
-                    {/* Image: height capped via 100vh calc so it can never overflow */}
                     {event.image_url ? (
                       <img
                         src={event.image_url}
@@ -144,7 +142,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                       </div>
                     )}
 
-                    {/* Info strip — always below image, never clipped */}
+                    {/* Info strip — always visible below image */}
                     <div style={{ flexShrink: 0, padding: '6px 8px 8px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                       {event.title && (
                         <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>
