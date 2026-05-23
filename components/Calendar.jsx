@@ -66,7 +66,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
       ...CORK_BG,
     }}>
 
-      {/* Month nav — wooden header */}
+      {/* Month nav */}
       <div
         className="flex items-center justify-between py-4 px-5"
         style={{ background: '#6b4510', borderBottom: '4px solid #111' }}
@@ -113,11 +113,8 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
         ))}
       </div>
 
-      {/* Cork grid — black magnet lines */}
-      <div
-        className="grid grid-cols-7"
-        style={{ borderTop: '0', borderLeft: '3px solid #111' }}
-      >
+      {/* Cork grid */}
+      <div className="grid grid-cols-7" style={{ borderLeft: '3px solid #111' }}>
         {cells.map((cell, i) => (
           <DayCell
             key={i}
@@ -127,7 +124,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
             isWeekend={cell.date.getDay() === 0 || cell.date.getDay() === 6}
             events={eventsForDate(cell.date)}
             onClick={() => cell.current && onDayClick(cell.date)}
-            onEventClick={onEventClick}
+            onEventClick={() => cell.current && onEventClick(cell.date)}
           />
         ))}
       </div>
