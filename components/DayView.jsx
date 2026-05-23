@@ -3,28 +3,27 @@ import { useState } from 'react'
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
-
-const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899']
+const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e']
 
 const PushPin = ({ color }) => (
-  <div style={{ position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
-    <svg width="26" height="34" viewBox="0 0 26 34" fill="none">
-      <circle cx="13" cy="11" r="11" fill={color} />
-      <circle cx="9" cy="7" r="4.5" fill="rgba(255,255,255,0.30)" />
-      <line x1="13" y1="21" x2="13" y2="33" stroke="#9ca3af" strokeWidth="2.8" strokeLinecap="round" />
+  <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
+    <svg width="28" height="38" viewBox="0 0 28 38" fill="none">
+      <circle cx="14" cy="12" r="12" fill={color} />
+      <circle cx="10" cy="8" r="5" fill="rgba(255,255,255,0.30)" />
+      <line x1="14" y1="23" x2="14" y2="37" stroke="#9ca3af" strokeWidth="3" strokeLinecap="round" />
     </svg>
   </div>
 )
 
 const getFlyerLayout = (idx, total) => {
-  if (total === 1) return { left: '10%', right: '10%', top: '8%', bottom: '10%', rotate: -2 }
+  if (total === 1) return { left: '8%', right: '8%', top: '5%', bottom: '5%', rotate: -2 }
   if (total === 2) return idx === 0
-    ? { left: '3%', right: '44%', top: '6%', bottom: '8%', rotate: -7 }
-    : { left: '42%', right: '3%', top: '10%', bottom: '6%', rotate: 6 }
+    ? { left: '2%', right: '46%', top: '4%', bottom: '6%', rotate: -7 }
+    : { left: '44%', right: '2%', top: '8%', bottom: '4%', rotate: 6 }
   const three = [
-    { left: '0%', right: '52%', top: '4%', bottom: '28%', rotate: -10 },
-    { left: '20%', right: '20%', top: '2%', bottom: '14%', rotate: 1 },
-    { left: '52%', right: '0%', top: '6%', bottom: '24%', rotate: 9 },
+    { left: '-2%', right: '54%', top: '3%', bottom: '26%', rotate: -11 },
+    { left: '18%', right: '18%', top: '1%', bottom: '12%', rotate: 1 },
+    { left: '54%', right: '-2%', top: '5%', bottom: '22%', rotate: 10 },
   ]
   return three[idx] ?? three[2]
 }
@@ -50,138 +49,117 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.68)', backdropFilter: 'blur(8px)', padding: '24px 20px' }}
+      className="fixed inset-0 z-50"
+      style={{ background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
     >
+      {/* Giant cell — positioned to fill most of the screen */}
       <div
-        className="relative flex flex-col w-full"
+        onClick={e => e.stopPropagation()}
         style={{
-          maxWidth: 400,
-          maxHeight: 'calc(100vh - 80px)',
+          position: 'absolute',
+          top: '4%',
+          left: '4%',
+          right: '4%',
+          bottom: '4%',
           background: '#fffaee',
-          border: '4px solid #1a1a1a',
-          borderRadius: 4,
-          boxShadow: '8px 8px 0 rgba(0,0,0,0.35)',
+          border: '5px solid #1a1a1a',
+          borderRadius: 6,
+          boxShadow: '10px 10px 0 rgba(0,0,0,0.40)',
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'hidden',
         }}
-        onClick={e => e.stopPropagation()}
       >
-        {/* Top row */}
-        <div className="flex items-start justify-between shrink-0" style={{ padding: '14px 16px 0' }}>
+        {/* Header */}
+        <div style={{ flexShrink: 0, padding: '18px 20px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '2px solid #e9e0cc' }}>
           <div>
-            <span className="font-black leading-none" style={{ fontSize: 42, color: '#1a1a1a' }}>{dayNum}</span>
-            <p className="text-xs font-semibold uppercase tracking-widest mt-1" style={{ color: '#9ca3af' }}>
+            <div style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, color: '#1a1a1a', letterSpacing: '-2px' }}>{dayNum}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#9ca3af', marginTop: 4 }}>
               {dayName} &middot; {monthName} {year}
-            </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="flex items-center justify-center font-bold mt-1"
-            style={{ width: 30, height: 30, borderRadius: '50%', background: '#e5e5e5', color: '#555', fontSize: 13, border: 'none', cursor: 'pointer' }}
+            style={{ marginTop: 4, width: 34, height: 34, borderRadius: '50%', background: '#e5e5e5', border: 'none', cursor: 'pointer', fontSize: 14, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}
           >
             &#10005;
           </button>
         </div>
 
-        {/* Pinboard */}
-        <div
-          className="relative"
-          style={{ flex: '1 1 0', minHeight: 0, overflow: 'hidden', margin: '8px 0 0' }}
-        >
+        {/* Pinboard — takes all remaining height */}
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           {shown.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-2 pb-10">
-              <span style={{ fontSize: 44 }}>&#128204;</span>
-              <p className="text-sm font-semibold" style={{ color: '#9ca3af' }}>Nothing pinned yet</p>
-              <p className="text-xs" style={{ color: '#d1d5db' }}>Tap Scan to add a flyer</p>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+              <span style={{ fontSize: 56 }}>&#128204;</span>
+              <p style={{ fontSize: 15, fontWeight: 600, color: '#9ca3af', margin: 0 }}>Nothing pinned yet</p>
+              <p style={{ fontSize: 13, color: '#d1d5db', margin: 0 }}>Tap Scan to add a flyer</p>
             </div>
           ) : (
             shown.map((event, idx) => {
               const pos = getFlyerLayout(idx, shown.length)
-              const pinColor = PIN_COLORS[idx % PIN_COLORS.length]
               return (
                 <div
                   key={event.id}
-                  className="absolute"
                   style={{
-                    left: pos.left, right: pos.right,
-                    top: pos.top, bottom: pos.bottom,
+                    position: 'absolute',
+                    left: pos.left,
+                    right: pos.right,
+                    top: pos.top,
+                    bottom: pos.bottom,
                     transform: `rotate(${pos.rotate}deg)`,
                     transformOrigin: 'top center',
                     zIndex: idx + 1,
                   }}
                 >
-                  <PushPin color={pinColor} />
+                  <PushPin color={PIN_COLORS[idx]} />
                   {event.image_url ? (
                     <img
                       src={event.image_url}
                       alt={event.title || ''}
-                      className="w-full h-full object-cover"
-                      style={{ border: '3px solid #fff', boxShadow: '0 6px 28px rgba(0,0,0,0.30)', display: 'block' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', border: '4px solid #fff', boxShadow: '0 8px 32px rgba(0,0,0,0.32)', display: 'block' }}
                     />
                   ) : (
-                    <div
-                      className="w-full h-full flex items-center justify-center p-4"
-                      style={{ background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', border: '2px solid #c4b5fd', boxShadow: '0 4px 16px rgba(124,58,237,0.2)' }}
-                    >
-                      <p className="text-sm font-semibold text-center" style={{ color: '#5b21b6' }}>{event.title}</p>
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', border: '3px solid #c4b5fd', boxShadow: '0 6px 20px rgba(124,58,237,0.2)' }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 0 }}>{event.title}</p>
                     </div>
                   )}
                   <button
                     onClick={() => handleDelete(event.id)}
-                    className="absolute flex items-center justify-center font-bold text-white"
                     style={{
-                      top: -2, right: -2,
-                      width: 20, height: 20,
-                      borderRadius: '50%',
-                      fontSize: 9,
-                      background: confirmId === event.id ? '#dc2626' : 'rgba(0,0,0,0.45)',
-                      zIndex: 20,
-                      border: 'none',
-                      cursor: 'pointer',
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                      position: 'absolute', top: -2, right: -2,
+                      width: 24, height: 24, borderRadius: '50%',
+                      background: confirmId === event.id ? '#dc2626' : 'rgba(0,0,0,0.50)',
+                      border: 'none', cursor: 'pointer',
+                      color: '#fff', fontSize: 10, fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      zIndex: 20, boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
                     }}
                   >
-                    {confirmId === event.id ? '&#10003;' : '&#10005;'}
+                    {confirmId === event.id ? '✓' : '✕'}
                   </button>
                 </div>
               )
             })
           )}
-
           {extra > 0 && (
-            <div
-              className="absolute flex items-center justify-center font-bold text-xs"
-              style={{ bottom: 8, left: '50%', transform: 'translateX(-50%)', background: '#ede9fe', color: '#7c3aed', borderRadius: 999, padding: '3px 12px', zIndex: 20, whiteSpace: 'nowrap' }}
-            >
+            <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', background: '#ede9fe', color: '#7c3aed', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 700, zIndex: 20, whiteSpace: 'nowrap' }}>
               +{extra} more
             </div>
           )}
         </div>
 
-        {/* Bottom bar */}
-        <div
-          className="shrink-0 flex items-center justify-between"
-          style={{ padding: '10px 14px 14px', borderTop: '2px solid #e9e0cc' }}
-        >
+        {/* Footer */}
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px 16px', borderTop: '2px solid #e9e0cc' }}>
           <button
             onClick={onClose}
-            className="text-sm font-semibold"
-            style={{ padding: '8px 16px', borderRadius: 10, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer' }}
+            style={{ padding: '10px 20px', borderRadius: 12, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
           >
             Close
           </button>
           <button
             onClick={onAdd}
-            className="flex items-center gap-2 text-sm font-bold text-white"
-            style={{
-              padding: '9px 20px',
-              borderRadius: 10,
-              background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
-              boxShadow: '0 2px 12px rgba(124,58,237,0.35)',
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            style={{ padding: '10px 24px', borderRadius: 12, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 14px rgba(124,58,237,0.38)' }}
           >
             + Scan
           </button>
