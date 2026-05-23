@@ -8,11 +8,13 @@ const PROMPT = `Extract event details from this flyer. Return ONLY valid JSON wi
   "location": "venue name and/or city"
 }`
 
+// Ordered by reliability: versioned v1 models first (stable), then v1beta fallbacks
 const MODELS = [
+  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-002:generateContent',
+  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-001:generateContent',
+  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-002:generateContent',
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent',
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
 ]
 
 export async function POST(request) {
@@ -48,7 +50,7 @@ export async function POST(request) {
         const result = await res.json()
 
         if (res.status === 429) {
-          console.error(`[analyze-flyer] ${url} → quota exceeded, trying next`)
+          console.error(`[analyze-flyer] ${url} → quota, trying next`)
           continue
         }
 
@@ -68,6 +70,7 @@ export async function POST(request) {
         try {
           const match = text.match(/\{[\s\S]*\}/)
           const data = JSON.parse(match ? match[0] : text)
+          console.log(`[analyze-flyer] success via ${url}`)
           return NextResponse.json(data)
         } catch {
           console.error(`[analyze-flyer] JSON parse failed:`, text.slice(0, 200))
