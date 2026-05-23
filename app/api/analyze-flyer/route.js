@@ -8,14 +8,14 @@ const PROMPT = `Extract event details from this flyer. Return ONLY valid JSON wi
   "location": "venue name and/or city"
 }`
 
-// Try newest models first (2.5 family), fall back to 2.0
+// Confirmed available models from /api/list-models
 const MODELS = [
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-]
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash-001',
+  'gemini-2.0-flash',
+].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
 
 export async function POST(request) {
   const apiKey = process.env.GOOGLE_AI_API_KEY
