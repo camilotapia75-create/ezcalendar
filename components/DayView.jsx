@@ -14,7 +14,6 @@ const PushPin = ({ color }) => (
   </div>
 )
 
-// Given total count, decide grid shape
 const getGrid = (count) => {
   if (count <= 3) return { cols: count, rows: 1 }
   if (count === 4) return { cols: 2, rows: 2 }
@@ -22,25 +21,22 @@ const getGrid = (count) => {
   return { cols: 3, rows: 3 }
 }
 
+const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
+
 export default function DayView({ date, events, onClose, onAdd, onDelete }) {
   const dayName = DAYS[date.getDay()]
   const monthName = MONTHS[date.getMonth()]
   const dayNum = date.getDate()
   const year = date.getFullYear()
-
   const MAX = 9
   const shown = events.slice(0, MAX)
   const extra = events.length - MAX
   const { cols, rows } = getGrid(shown.length)
 
-  // Image max-height shrinks as more rows are needed
-  const imgMaxH = rows === 1 ? '34vh' : rows === 2 ? '16vh' : '10vh'
-
-  // Card width fits cols into the row with gaps
-  const cardW = cols === 1 ? '50%' : cols === 2 ? '44%' : '28%'
-
-  // Subtle rotation; smaller for multi-row to avoid overlap
-  const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
+  // Image height in vh based on available rows
+  const imgVh = rows === 1 ? 36 : rows === 2 ? 18 : 11
+  // Card width = image height * ~0.8 (portrait flyer ratio); this eliminates side whitespace
+  const cardVw = (imgVh * 0.82).toFixed(1)
   const rotScale = rows > 1 ? 0.4 : 1
 
   return (
@@ -95,14 +91,14 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
           ) : (
             <div style={{
               position: 'absolute', inset: 0,
-              display: 'flex',
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              alignContent: 'flex-start',
+              display: 'grid',
+              // Each column is sized to match portrait flyer width — no whitespace
+              gridTemplateColumns: `repeat(${cols}, ${cardVw}vh)`,
+              gridAutoRows: 'max-content',
+              gap: rows > 1 ? '14px 14px' : '0 4%',
               justifyContent: 'center',
-              alignItems: 'flex-start',
-              gap: rows > 1 ? '3%' : '4%',
-              padding: rows > 1 ? '32px 4% 12px' : '40px 5% 12px',
+              alignContent: 'center',
+              padding: '36px 5% 14px',
               boxSizing: 'border-box',
               overflow: 'hidden',
             }}>
@@ -110,17 +106,15 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                 <div
                   key={event.id}
                   style={{
-                    width: cardW,
-                    flexShrink: 0,
-                    marginTop: rows === 1 ? [0, 20, 10][idx] || 0 : 0,
-                    transform: `rotate(${rots[idx] * rotScale}deg)`,
-                    transformOrigin: 'top center',
                     position: 'relative',
                     display: 'flex',
                     flexDirection: 'column',
                     background: '#fff',
                     border: '3px solid #fff',
                     boxShadow: '0 6px 24px rgba(0,0,0,0.22)',
+                    transform: `rotate(${rots[idx] * rotScale}deg)`,
+                    transformOrigin: 'top center',
+                    marginTop: rows === 1 && idx === 1 ? 20 : rows === 1 && idx === 2 ? 10 : 0,
                   }}
                 >
                   <PushPin color={PIN_COLORS[idx % PIN_COLORS.length]} />
@@ -131,29 +125,21 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                       alt={event.title || ''}
                       style={{
                         width: '100%',
-                        height: 'auto',
-                        maxHeight: imgMaxH,
-                        objectFit: 'contain',
+                        height: `${imgVh}vh`,
+                        objectFit: 'cover',
                         display: 'block',
-                        background: '#f8f8f8',
                       }}
                     />
                   ) : (
-                    <div style={{ width: '100%', height: imgMaxH, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
+                    <div style={{ width: '100%', height: `${imgVh}vh`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
                       <p style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 6 }}>{event.title}</p>
                     </div>
                   )}
 
                   <div style={{ flexShrink: 0, padding: '5px 7px 7px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
-                    {event.title && (
-                      <p style={{ margin: '0 0 2px', fontSize: 9, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>{event.title}</p>
-                    )}
-                    {event.time_str && (
-                      <p style={{ margin: '0 0 2px', fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128336; {event.time_str}</p>
-                    )}
-                    {event.location && (
-                      <p style={{ margin: 0, fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128205; {event.location}</p>
-                    )}
+                    {event.title && <p style={{ margin: '0 0 2px', fontSize: 9, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>{event.title}</p>}
+                    {event.time_str && <p style={{ margin: '0 0 2px', fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128336; {event.time_str}</p>}
+                    {event.location && <p style={{ margin: 0, fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128205; {event.location}</p>}
                   </div>
 
                   <button
@@ -184,18 +170,8 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
 
         {/* Footer */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px 14px', borderTop: '2px solid #e9e0cc' }}>
-          <button
-            onClick={onClose}
-            style={{ padding: '9px 18px', borderRadius: 12, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-          >
-            Close
-          </button>
-          <button
-            onClick={onAdd}
-            style={{ padding: '9px 22px', borderRadius: 12, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 14px rgba(124,58,237,0.38)' }}
-          >
-            + Scan
-          </button>
+          <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 12, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Close</button>
+          <button onClick={onAdd} style={{ padding: '9px 22px', borderRadius: 12, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 14px rgba(124,58,237,0.38)' }}>+ Scan</button>
         </div>
       </div>
     </div>
