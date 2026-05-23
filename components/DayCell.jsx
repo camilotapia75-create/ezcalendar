@@ -21,9 +21,16 @@ const getFanStyle = (idx, total) => {
   return { left: '44%', right: '-6%', rotate: 13 }
 }
 
-export default function DayCell({ day, currentMonth, isToday, isWeekend, events, onClick, onEventClick }) {
+export default function DayCell({ day, currentMonth, isToday, isWeekend, events, onClick, onEventClick, theme }) {
   const displayed = events.slice(0, 3)
   const count = displayed.length
+  const accent = theme?.accent || '#7c3aed'
+
+  const cellBg = !currentMonth
+    ? (theme?.inactiveBg || 'rgba(150,100,45,0.30)')
+    : isWeekend
+    ? (theme?.weekendBg || 'rgba(255,245,225,0.82)')
+    : (theme?.cellBg || 'rgba(255,250,238,0.90)')
 
   return (
     <div
@@ -33,22 +40,13 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
         'min-h-[108px] md:min-h-[128px]',
         currentMonth ? 'cursor-pointer' : 'pointer-events-none',
       ].join(' ')}
-      style={{
-        borderRight: '3px solid #111',
-        borderBottom: '3px solid #111',
-        background: !currentMonth
-          ? 'rgba(150,100,45,0.30)'
-          : isWeekend
-          ? 'rgba(255,245,225,0.82)'
-          : 'rgba(255,250,238,0.90)',
-      }}
+      style={{ borderRight: '3px solid #111', borderBottom: '3px solid #111', background: cellBg }}
     >
-      {/* Day number */}
       <div className="p-1.5 md:p-2">
         <span
           className="inline-flex w-6 h-6 text-[11px] items-center justify-center rounded-full font-semibold"
           style={{
-            background: isToday ? '#7c3aed' : 'transparent',
+            background: isToday ? accent : 'transparent',
             color: isToday ? '#fff'
               : !currentMonth ? 'rgba(110,70,20,0.45)'
               : isWeekend ? '#92400e'
@@ -59,7 +57,6 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
         </span>
       </div>
 
-      {/* Fanned flyers — tap opens day view */}
       {count > 0 && (
         <div className="flex-1 relative">
           <button
@@ -73,14 +70,7 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
                 <div
                   key={event.id}
                   className="absolute"
-                  style={{
-                    left: s.left,
-                    right: s.right,
-                    bottom: 10,
-                    height: 54,
-                    transform: `rotate(${s.rotate}deg)`,
-                    zIndex: idx + 1,
-                  }}
+                  style={{ left: s.left, right: s.right, bottom: 10, height: 54, transform: `rotate(${s.rotate}deg)`, zIndex: idx + 1 }}
                 >
                   <PushPin />
                   {event.image_url ? (
@@ -93,13 +83,9 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
                   ) : (
                     <div
                       className="w-full h-full rounded flex items-center justify-center px-1"
-                      style={{
-                        background: 'linear-gradient(135deg, #ede9fe, #ddd6fe)',
-                        border: '1.5px solid #c4b5fd',
-                        boxShadow: '0 2px 8px rgba(124,58,237,0.15)',
-                      }}
+                      style={{ background: `linear-gradient(135deg, ${accent}22, ${accent}44)`, border: `1.5px solid ${accent}66`, boxShadow: `0 2px 8px ${accent}25` }}
                     >
-                      <p className="text-[8px] font-semibold text-center" style={{ color: '#5b21b6' }}>{event.title}</p>
+                      <p className="text-[8px] font-semibold text-center" style={{ color: accent }}>{event.title}</p>
                     </div>
                   )}
                 </div>
@@ -109,7 +95,7 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
           {events.length > 3 && (
             <div
               className="absolute top-0 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-              style={{ background: '#7c3aed', zIndex: 20 }}
+              style={{ background: accent, zIndex: 20 }}
             >
               +{events.length - 3}
             </div>

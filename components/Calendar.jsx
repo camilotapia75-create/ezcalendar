@@ -17,16 +17,10 @@ const CORK_BG = {
     'radial-gradient(ellipse 11% 13% at 18% 82%, rgba(125,75,15,0.20) 0%, transparent 100%)',
     'radial-gradient(ellipse 17% 7% at 50% 6%, rgba(85,40,5,0.22) 0%, transparent 100%)',
     'radial-gradient(ellipse 8% 16% at 85% 72%, rgba(85,40,5,0.26) 0%, transparent 100%)',
-    'radial-gradient(ellipse 12% 10% at 45% 50%, rgba(125,75,15,0.16) 0%, transparent 100%)',
-    'radial-gradient(ellipse 10% 12% at 75% 18%, rgba(85,40,5,0.24) 0%, transparent 100%)',
-    'radial-gradient(ellipse 13% 9% at 12% 52%, rgba(85,40,5,0.22) 0%, transparent 100%)',
-    'radial-gradient(ellipse 9% 14% at 90% 40%, rgba(125,75,15,0.18) 0%, transparent 100%)',
-    'radial-gradient(ellipse 15% 8% at 28% 30%, rgba(85,40,5,0.20) 0%, transparent 100%)',
-    'radial-gradient(ellipse 8% 14% at 68% 88%, rgba(85,40,5,0.22) 0%, transparent 100%)',
   ].join(', '),
 }
 
-export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick }) {
+export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick, theme }) {
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
@@ -55,6 +49,8 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
     ].join('-')
     return events.filter(e => e.date === key)
   }
+
+  const accent = theme?.accent || '#7c3aed'
 
   return (
     <div style={{
@@ -113,7 +109,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
         ))}
       </div>
 
-      {/* Cork grid */}
+      {/* Grid */}
       <div className="grid grid-cols-7" style={{ borderLeft: '3px solid #111' }}>
         {cells.map((cell, i) => (
           <DayCell
@@ -125,6 +121,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
             events={eventsForDate(cell.date)}
             onClick={() => cell.current && onDayClick(cell.date)}
             onEventClick={() => cell.current && onEventClick(cell.date)}
+            theme={theme}
           />
         ))}
       </div>
