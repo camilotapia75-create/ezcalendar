@@ -3,13 +3,15 @@
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e']
-const ROTATIONS = [-5, 5, -3]
-const NUDGE_TOP = [0, 28, 14]
+const ROTATIONS = [-4, 4, -2]
+// small vertical stagger so cards don't sit in a flat row
+const NUDGE = ['0%', '4%', '2%']
 
-const cardFlex = (total) => {
-  if (total === 1) return { flex: '0 0 50%', maxWidth: 240 }
-  if (total === 2) return { flex: '0 0 38%' }
-  return { flex: '0 0 27%' }
+// width and maxHeight as % of the pinboard so cards always fit
+const cardStyle = (total, idx) => {
+  if (total === 1) return { width: '52%', maxWidth: 300, maxHeight: '88%' }
+  if (total === 2) return { width: '42%', maxHeight: idx === 1 ? '80%' : '84%' }
+  return { width: '28%', maxHeight: idx === 1 ? '76%' : '80%' }
 }
 
 const PushPin = ({ color }) => (
@@ -53,26 +55,26 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
         {/* Header */}
         <div style={{
           flexShrink: 0,
-          padding: '16px 20px 14px',
+          padding: '14px 18px 12px',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
           borderBottom: '2px solid #e9e0cc',
         }}>
           <div>
-            <div style={{ fontSize: 60, fontWeight: 900, lineHeight: 1, color: '#1a1a1a', letterSpacing: '-2px' }}>{dayNum}</div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#9ca3af', marginTop: 4 }}>
+            <div style={{ fontSize: 54, fontWeight: 900, lineHeight: 1, color: '#1a1a1a', letterSpacing: '-2px' }}>{dayNum}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#9ca3af', marginTop: 3 }}>
               {dayName} &middot; {monthName} {year}
             </div>
           </div>
           <button
             onClick={onClose}
-            style={{ marginTop: 4, width: 34, height: 34, borderRadius: '50%', background: '#e5e5e5', border: 'none', cursor: 'pointer', fontSize: 15, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}
+            style={{ marginTop: 2, width: 32, height: 32, borderRadius: '50%', background: '#e5e5e5', border: 'none', cursor: 'pointer', fontSize: 14, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}
           >
             &#10005;
           </button>
         </div>
 
-        {/* Pinboard */}
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+        {/* Pinboard — position:relative so % maxHeight on children works */}
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           {shown.length === 0 ? (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
               <span style={{ fontSize: 52 }}>&#128204;</span>
@@ -81,27 +83,26 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
             </div>
           ) : (
             <div style={{
-              position: 'absolute',
-              inset: 0,
+              position: 'absolute', inset: 0,
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'flex-start',
               justifyContent: 'center',
-              padding: '44px 6% 16px',
-              gap: shown.length === 1 ? 0 : '5%',
+              gap: shown.length === 1 ? 0 : '4%',
+              padding: '40px 4% 12px',
               boxSizing: 'border-box',
             }}>
               {shown.map((event, idx) => {
-                const w = cardFlex(shown.length)
+                const cs = cardStyle(shown.length, idx)
                 return (
                   <div
                     key={event.id}
                     style={{
-                      ...w,
+                      width: cs.width,
+                      maxWidth: cs.maxWidth,
+                      maxHeight: cs.maxHeight,
                       flexShrink: 0,
-                      // Cap height so card always fits: full pinboard height minus pin overhang, nudge and bottom gap
-                      maxHeight: `calc(100% - ${NUDGE_TOP[idx] + 28}px)`,
-                      marginTop: NUDGE_TOP[idx],
+                      marginTop: NUDGE[idx],
                       transform: `rotate(${ROTATIONS[idx]}deg)`,
                       transformOrigin: 'top center',
                       position: 'relative',
@@ -115,7 +116,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                   >
                     <PushPin color={PIN_COLORS[idx]} />
 
-                    {/* Image fills remaining space, never overflows */}
+                    {/* Image stretches to fill, bounded by card maxHeight */}
                     <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                       {event.image_url ? (
                         <img
@@ -130,15 +131,15 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                       )}
                     </div>
 
-                    {/* Info — fixed at bottom, always fully visible */}
-                    <div style={{ flexShrink: 0, padding: '7px 9px 9px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
+                    {/* Info strip — always fully visible at bottom */}
+                    <div style={{ flexShrink: 0, padding: '6px 8px 8px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                       {event.title && (
-                        <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>
+                        <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>
                           {event.title}
                         </p>
                       )}
                       {event.time_str && (
-                        <p style={{ margin: '0 0 3px', fontSize: 10, color: '#6b7280', lineHeight: 1.3 }}>
+                        <p style={{ margin: '0 0 2px', fontSize: 10, color: '#6b7280', lineHeight: 1.3 }}>
                           &#128336; {event.time_str}
                         </p>
                       )}
@@ -170,23 +171,23 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
           )}
 
           {extra > 0 && (
-            <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', background: '#ede9fe', color: '#7c3aed', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 700, zIndex: 20, whiteSpace: 'nowrap' }}>
+            <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: '#ede9fe', color: '#7c3aed', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 700, zIndex: 20, whiteSpace: 'nowrap' }}>
               +{extra} more
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px 16px', borderTop: '2px solid #e9e0cc' }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px 14px', borderTop: '2px solid #e9e0cc' }}>
           <button
             onClick={onClose}
-            style={{ padding: '10px 20px', borderRadius: 12, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+            style={{ padding: '9px 18px', borderRadius: 12, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
           >
             Close
           </button>
           <button
             onClick={onAdd}
-            style={{ padding: '10px 24px', borderRadius: 12, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 14px rgba(124,58,237,0.38)' }}
+            style={{ padding: '9px 22px', borderRadius: 12, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 14px rgba(124,58,237,0.38)' }}
           >
             + Scan
           </button>
