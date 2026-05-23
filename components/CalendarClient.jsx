@@ -6,6 +6,28 @@ import Calendar from './Calendar'
 import AddFlyerModal from './AddFlyerModal'
 import DayView from './DayView'
 
+const THEMES = {
+  dreamy:   { bg: '#f5eef8', sw: 'linear-gradient(135deg,#d8b4fe,#f9a8d4)', c: ['rgba(170,145,215,0.60)','rgba(255,195,215,0.50)','rgba(255,225,175,0.55)','rgba(195,228,175,0.58)','rgba(255,185,205,0.50)','rgba(255,210,170,0.40)'] },
+  ocean:    { bg: '#f0f9ff', sw: 'linear-gradient(135deg,#38bdf8,#34d399)', c: ['rgba(56,189,248,0.55)','rgba(34,211,238,0.50)','rgba(99,102,241,0.40)','rgba(167,243,208,0.55)','rgba(125,211,252,0.50)','rgba(196,181,253,0.40)'] },
+  forest:   { bg: '#f0fdf4', sw: 'linear-gradient(135deg,#86efac,#fde047)', c: ['rgba(134,239,172,0.55)','rgba(167,243,208,0.50)','rgba(253,224,71,0.45)','rgba(110,231,183,0.55)','rgba(187,247,208,0.50)','rgba(254,240,138,0.40)'] },
+  sunset:   { bg: '#fff7ed', sw: 'linear-gradient(135deg,#fb923c,#ef4444)', c: ['rgba(251,146,60,0.55)','rgba(249,115,22,0.45)','rgba(239,68,68,0.40)','rgba(253,186,116,0.55)','rgba(254,215,170,0.50)','rgba(252,165,165,0.40)'] },
+  midnight: { bg: '#f5f3ff', sw: 'linear-gradient(135deg,#6366f1,#3b82f6)', c: ['rgba(99,102,241,0.55)','rgba(139,92,246,0.50)','rgba(59,130,246,0.40)','rgba(167,139,250,0.55)','rgba(196,181,253,0.45)','rgba(147,197,253,0.40)'] },
+  rose:     { bg: '#fdf2f8', sw: 'linear-gradient(135deg,#f472b6,#fbbf24)', c: ['rgba(244,114,182,0.55)','rgba(251,191,36,0.45)','rgba(249,168,212,0.50)','rgba(253,230,138,0.50)','rgba(252,207,232,0.55)','rgba(254,243,199,0.40)'] },
+}
+const POS = ['75% 65% at 3% 4%','55% 55% at 52% 18%','45% 55% at 97% 12%','50% 50% at 93% 88%','65% 52% at 18% 80%','40% 40% at 75% 60%']
+const STOPS = [58,55,50,52,55,50]
+
+function buildBg(tid) {
+  const t = THEMES[tid] || THEMES.dreamy
+  return {
+    backgroundColor: t.bg,
+    backgroundImage: ["url('/watercolor-bg.jpg.png')", ...POS.map((p, i) => `radial-gradient(ellipse ${p}, ${t.c[i]} 0%, transparent ${STOPS[i]}%)`)].join(', '),
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed',
+  }
+}
+
 export default function CalendarClient({ initialEvents, user }) {
   const [events, setEvents] = useState(initialEvents)
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -13,27 +35,45 @@ export default function CalendarClient({ initialEvents, user }) {
   const [addingToDate, setAddingToDate] = useState(null)
   const [dayViewDate, setDayViewDate] = useState(null)
   const [notifEnabled, setNotifEnabled] = useState(false)
+  const [themeId, setThemeId] = useState(() =>
+    typeof window !== 'undefined' ? (localStorage.getItem('calendarTheme') || 'dreamy') : 'dreamy'
+  )
+  const [showThemePicker, setShowThemePicker] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
-  // Load notification preference from localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
   }, [])
 
+  // Close theme picker when clicking outside
+  useEffect(() => {
+    if (!showThemePicker) return
+    const close = () => setShowThemePicker(false)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [showThemePicker])
+
+  const applyTheme = (id) => {
+    setThemeId(id)
+    localStorage.setItem('calendarTheme', id)
+    setShowThemePicker(false)
+  }
+
   const checkAndNotify = useCallback((eventsToCheck) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return
     if (Notification.permission !== 'granted') return
+    let notifEvts = {}
+    try { notifEvts = JSON.parse(localStorage.getItem('eventNotifs') || '{}') } catch {}
     const today = new Date()
     const pad = n => String(n).padStart(2, '0')
     const todayKey = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
     const tomorrowKey = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}`
-    // Only notify once per day
     if (localStorage.getItem(`notified_${todayKey}`)) return
-    const todayEvents = eventsToCheck.filter(e => e.date === todayKey)
-    const tomorrowEvents = eventsToCheck.filter(e => e.date === tomorrowKey)
+    const todayEvents = eventsToCheck.filter(e => e.date === todayKey && notifEvts[e.id] !== false)
+    const tomorrowEvents = eventsToCheck.filter(e => e.date === tomorrowKey && notifEvts[e.id] !== false)
     if (todayEvents.length > 0) {
       new Notification(`${todayEvents.length} event${todayEvents.length > 1 ? 's' : ''} today! 📌`, {
         body: todayEvents.map(e => e.title || 'Event').join(' • '),
@@ -49,7 +89,6 @@ export default function CalendarClient({ initialEvents, user }) {
     }
   }, [])
 
-  // Fire notification check whenever notifications are enabled or events change
   useEffect(() => {
     if (notifEnabled) checkAndNotify(events)
   }, [notifEnabled, events, checkAndNotify])
@@ -115,21 +154,7 @@ export default function CalendarClient({ initialEvents, user }) {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{
-        backgroundColor: '#f5eef8',
-        backgroundImage: [
-          "url('/watercolor-bg.jpg.png')",
-          "radial-gradient(ellipse 75% 65% at 3% 4%, rgba(170,145,215,0.60) 0%, transparent 58%)",
-          "radial-gradient(ellipse 55% 55% at 52% 18%, rgba(255,195,215,0.50) 0%, transparent 55%)",
-          "radial-gradient(ellipse 45% 55% at 97% 12%, rgba(255,225,175,0.55) 0%, transparent 50%)",
-          "radial-gradient(ellipse 50% 50% at 93% 88%, rgba(195,228,175,0.58) 0%, transparent 52%)",
-          "radial-gradient(ellipse 65% 52% at 18% 80%, rgba(255,185,205,0.50) 0%, transparent 55%)",
-          "radial-gradient(ellipse 40% 40% at 75% 60%, rgba(255,210,170,0.40) 0%, transparent 50%)",
-        ].join(', '),
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-      }}
+      style={buildBg(themeId)}
     >
       {/* Header */}
       <header
@@ -151,6 +176,50 @@ export default function CalendarClient({ initialEvents, user }) {
           <span className="font-semibold text-[15px] tracking-tight" style={{ color: '#1a1a2e' }}>calendar</span>
         </div>
         <div className="flex items-center gap-3">
+          {/* Color theme picker */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowThemePicker(p => !p) }}
+              title="Change color theme"
+              className="text-lg transition-all active:scale-90"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}
+            >
+              &#127912;
+            </button>
+            {showThemePicker && (
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  position: 'absolute', top: 'calc(100% + 10px)', right: 0,
+                  background: 'rgba(255,255,255,0.97)',
+                  backdropFilter: 'blur(16px)',
+                  borderRadius: 16,
+                  padding: '10px 12px',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.13)',
+                  border: '1px solid rgba(255,255,255,0.8)',
+                  display: 'flex', gap: 8,
+                  zIndex: 100,
+                }}
+              >
+                {Object.entries(THEMES).map(([id, theme]) => (
+                  <button
+                    key={id}
+                    onClick={() => applyTheme(id)}
+                    title={id.charAt(0).toUpperCase() + id.slice(1)}
+                    style={{
+                      width: 26, height: 26, borderRadius: '50%',
+                      background: theme.sw,
+                      border: themeId === id ? '2.5px solid #7c3aed' : '2.5px solid transparent',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      boxShadow: themeId === id ? '0 0 0 2px rgba(124,58,237,0.25)' : '0 1px 4px rgba(0,0,0,0.12)',
+                      transition: 'box-shadow 0.15s',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
           {/* Notification bell */}
           <button
             onClick={toggleNotifications}
@@ -158,7 +227,7 @@ export default function CalendarClient({ initialEvents, user }) {
             className="text-xl transition-all active:scale-90"
             style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}
           >
-            {notifEnabled ? '🔔' : '🕕'}
+            {notifEnabled ? '🔔' : '🔕'}
           </button>
           <button
             onClick={handleSignOut}

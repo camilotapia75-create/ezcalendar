@@ -1,4 +1,5 @@
 'use client'
+import { useState, useEffect } from 'react'
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -24,6 +25,31 @@ const getGrid = (count) => {
 const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
 
 export default function DayView({ date, events, onClose, onAdd, onDelete }) {
+  const [notifEvents, setNotifEvents] = useState({})
+  const [globalNotifOn, setGlobalNotifOn] = useState(false)
+
+  useEffect(() => {
+    try {
+      setNotifEvents(JSON.parse(localStorage.getItem('eventNotifs') || '{}'))
+      setGlobalNotifOn(localStorage.getItem('notificationsEnabled') === 'true')
+    } catch {}
+  }, [])
+
+  const toggleEventNotif = (id) => {
+    setNotifEvents(prev => {
+      const next = { ...prev }
+      if (prev[id] === false) {
+        delete next[id]
+      } else {
+        next[id] = false
+      }
+      localStorage.setItem('eventNotifs', JSON.stringify(next))
+      return next
+    })
+  }
+
+  const isEventOn = (id) => notifEvents[id] !== false
+
   const dayName = DAYS[date.getDay()]
   const monthName = MONTHS[date.getMonth()]
   const dayNum = date.getDate()
@@ -33,9 +59,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
   const extra = events.length - MAX
   const { cols, rows } = getGrid(shown.length)
 
-  // Image height in vh based on available rows
   const imgVh = rows === 1 ? 36 : rows === 2 ? 18 : 11
-  // Card width = image height * ~0.8 (portrait flyer ratio); this eliminates side whitespace
   const cardVw = (imgVh * 0.82).toFixed(1)
   const rotScale = rows > 1 ? 0.4 : 1
 
@@ -92,7 +116,6 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
             <div style={{
               position: 'absolute', inset: 0,
               display: 'grid',
-              // Each column is sized to match portrait flyer width — no whitespace
               gridTemplateColumns: `repeat(${cols}, ${cardVw}vh)`,
               gridAutoRows: 'max-content',
               gap: rows > 1 ? '14px 14px' : '0 4%',
@@ -123,12 +146,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                     <img
                       src={event.image_url}
                       alt={event.title || ''}
-                      style={{
-                        width: '100%',
-                        height: `${imgVh}vh`,
-                        objectFit: 'cover',
-                        display: 'block',
-                      }}
+                      style={{ width: '100%', height: `${imgVh}vh`, objectFit: 'cover', display: 'block' }}
                     />
                   ) : (
                     <div style={{ width: '100%', height: `${imgVh}vh`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
@@ -136,12 +154,33 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                     </div>
                   )}
 
+                  {/* Info strip */}
                   <div style={{ flexShrink: 0, padding: '5px 7px 7px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
-                    {event.title && <p style={{ margin: '0 0 2px', fontSize: 9, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>{event.title}</p>}
-                    {event.time_str && <p style={{ margin: '0 0 2px', fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128336; {event.time_str}</p>}
-                    {event.location && <p style={{ margin: 0, fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128205; {event.location}</p>}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {event.title && <p style={{ margin: '0 0 2px', fontSize: 9, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>{event.title}</p>}
+                        {event.time_str && <p style={{ margin: '0 0 2px', fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128336; {event.time_str}</p>}
+                        {event.location && <p style={{ margin: 0, fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128205; {event.location}</p>}
+                      </div>
+                      {globalNotifOn && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleEventNotif(event.id) }}
+                          title={isEventOn(event.id) ? 'Mute reminder' : 'Enable reminder'}
+                          style={{
+                            flexShrink: 0, width: 18, height: 18, borderRadius: '50%', marginTop: 1,
+                            background: isEventOn(event.id) ? 'rgba(234,179,8,0.90)' : 'rgba(200,200,200,0.65)',
+                            border: 'none', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 9, transition: 'background 0.15s',
+                          }}
+                        >
+                          {isEventOn(event.id) ? '🔔' : '🔕'}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
+                  {/* Delete button */}
                   <button
                     onClick={() => onDelete(event.id)}
                     style={{
