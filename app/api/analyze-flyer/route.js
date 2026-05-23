@@ -8,13 +8,17 @@ const PROMPT = `Extract event details from this flyer. Return ONLY valid JSON wi
   "location": "venue name and/or city"
 }`
 
+// All v1beta models that support vision with a Google AI Studio API key
 const MODELS = [
-  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-002:generateContent',
-  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-001:generateContent',
-  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-002:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
-]
+  'gemini-1.5-flash-002',
+  'gemini-1.5-flash-001',
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro-latest',
+  'gemini-1.5-pro-002',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-exp',
+].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
 
 export async function POST(request) {
   const apiKey = process.env.GOOGLE_AI_API_KEY
@@ -28,35 +32,31 @@ export async function POST(request) {
     const body = await request.json()
     imageData = body.imageData
     mediaType = body.mediaType
-    console.log('[analyze-flyer] body parsed, imageData length:', imageData?.length ?? 'undefined')
   } catch (err) {
     console.error('[analyze-flyer] body parse failed:', err.message)
-    return NextResponse.json({ error: 'failed', detail: 'body parse error: ' + err.message }, { status: 500 })
+    return NextResponse.json({ error: 'failed', detail: 'body parse: ' + err.message }, { status: 500 })
   }
 
   if (!imageData) {
-    return NextResponse.json({ error: 'failed', detail: 'no imageData in request' }, { status: 500 })
+    return NextResponse.json({ error: 'failed', detail: 'no imageData' }, { status: 500 })
   }
 
   const base64 = imageData.includes(',') ? imageData.split(',')[1] : imageData
   const mimeType = mediaType?.startsWith('image/') ? mediaType : 'image/jpeg'
-  console.log('[analyze-flyer] base64 length:', base64.length, 'mimeType:', mimeType)
 
   const geminiBody = JSON.stringify({
-    contents: [{
-      parts: [
-        { inlineData: { mimeType, data: base64 } },
-        { text: PROMPT },
-      ],
-    }],
+    contents: [{ parts: [
+      { inlineData: { mimeType, data: base64 } },
+      { text: PROMPT },
+    ]}],
   })
 
-  let allQuota = true
   const errors = []
+  let anyNonQuota = false
 
   for (const url of MODELS) {
+    const modelName = url.split('/models/')[1]
     try {
-      console.log('[analyze-flyer] trying:', url)
       const res = await fetch(`${url}?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -64,42 +64,44 @@ export async function POST(request) {
       })
 
       const result = await res.json()
+      const errMsg = result?.error?.message ?? ''
 
       if (res.status === 429) {
-        console.error(`[analyze-flyer] ${url} → 429 quota`)
-        errors.push(`${url.split('/models/')[1]}: 429`)
+        console.error(`[analyze-flyer] ${modelName} → 429: ${errMsg}`)
+        errors.push(`${modelName}: 429 ${errMsg}`)
         continue
       }
 
-      allQuota = false
+      anyNonQuota = true
 
       if (!res.ok) {
-        const msg = result?.error?.message ?? res.status
-        console.error(`[analyze-flyer] ${url} → ${res.status}:`, msg)
-        errors.push(`${url.split('/models/')[1]}: ${res.status} ${msg}`)
+        console.error(`[analyze-flyer] ${modelName} → ${res.status}: ${errMsg}`)
+        errors.push(`${modelName}: ${res.status} ${errMsg}`)
         continue
       }
 
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
       if (!text) {
-        console.error(`[analyze-flyer] ${url} → empty text`)
-        errors.push(`${url.split('/models/')[1]}: empty response`)
+        errors.push(`${modelName}: empty response`)
         continue
       }
 
       const match = text.match(/\{[\s\S]*\}/)
       const data = JSON.parse(match ? match[0] : text)
-      console.log('[analyze-flyer] success via', url)
+      console.log(`[analyze-flyer] success: ${modelName}`)
       return NextResponse.json(data)
     } catch (err) {
-      allQuota = false
-      console.error(`[analyze-flyer] ${url} threw:`, err.message)
-      errors.push(`${url.split('/models/')[1]}: threw ${err.message}`)
+      anyNonQuota = true
+      console.error(`[analyze-flyer] ${modelName} threw:`, err.message)
+      errors.push(`${modelName}: ${err.message}`)
     }
   }
 
-  if (allQuota) {
-    return NextResponse.json({ error: 'quota', detail: errors.join(' | ') }, { status: 429 })
+  const detail = errors.join(' | ')
+  console.error('[analyze-flyer] all models failed:', detail)
+
+  if (!anyNonQuota) {
+    return NextResponse.json({ error: 'quota', detail }, { status: 429 })
   }
-  return NextResponse.json({ error: 'failed', detail: errors.join(' | ') }, { status: 500 })
+  return NextResponse.json({ error: 'failed', detail }, { status: 500 })
 }
