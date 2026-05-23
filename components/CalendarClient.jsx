@@ -7,23 +7,24 @@ import AddFlyerModal from './AddFlyerModal'
 import DayView from './DayView'
 
 const THEMES = {
-  dreamy:   { bg: '#eddff8', sw: 'linear-gradient(135deg,#c084fc,#f472b6)', c: ['rgba(192,132,252,0.55)','rgba(244,114,182,0.45)','rgba(251,207,232,0.50)','rgba(216,180,254,0.55)','rgba(249,168,212,0.45)','rgba(233,213,255,0.50)'] },
-  ocean:    { bg: '#c8e8f8', sw: 'linear-gradient(135deg,#0ea5e9,#10b981)', c: ['rgba(14,165,233,0.55)','rgba(16,185,129,0.50)','rgba(99,102,241,0.40)','rgba(103,232,249,0.55)','rgba(52,211,153,0.50)','rgba(147,197,253,0.45)'] },
-  forest:   { bg: '#c8f0d8', sw: 'linear-gradient(135deg,#22c55e,#eab308)', c: ['rgba(34,197,94,0.55)','rgba(234,179,8,0.45)','rgba(74,222,128,0.50)','rgba(163,230,53,0.55)','rgba(187,247,208,0.50)','rgba(254,240,138,0.45)'] },
-  sunset:   { bg: '#fde0c0', sw: 'linear-gradient(135deg,#f97316,#ef4444)', c: ['rgba(249,115,22,0.60)','rgba(239,68,68,0.50)','rgba(251,146,60,0.55)','rgba(252,165,165,0.50)','rgba(254,215,170,0.55)','rgba(253,186,116,0.50)'] },
-  midnight: { bg: '#d8d0f8', sw: 'linear-gradient(135deg,#6366f1,#3b82f6)', c: ['rgba(99,102,241,0.60)','rgba(139,92,246,0.55)','rgba(59,130,246,0.45)','rgba(167,139,250,0.60)','rgba(196,181,253,0.50)','rgba(147,197,253,0.45)'] },
-  rose:     { bg: '#f8d0e8', sw: 'linear-gradient(135deg,#ec4899,#f59e0b)', c: ['rgba(236,72,153,0.55)','rgba(245,158,11,0.45)','rgba(249,168,212,0.55)','rgba(253,224,71,0.50)','rgba(252,207,232,0.55)','rgba(254,243,199,0.45)'] },
+  dreamy:   { bg: '#f0d8ff', sw: 'linear-gradient(135deg,#c084fc,#f472b6)', c: ['rgba(192,132,252,0.72)','rgba(244,114,182,0.62)','rgba(251,207,232,0.68)','rgba(216,180,254,0.72)','rgba(249,168,212,0.62)','rgba(233,213,255,0.68)'] },
+  ocean:    { bg: '#b8e0f8', sw: 'linear-gradient(135deg,#0ea5e9,#10b981)', c: ['rgba(14,165,233,0.72)','rgba(16,185,129,0.65)','rgba(99,102,241,0.58)','rgba(103,232,249,0.72)','rgba(52,211,153,0.65)','rgba(147,197,253,0.65)'] },
+  forest:   { bg: '#b8f0cc', sw: 'linear-gradient(135deg,#22c55e,#eab308)', c: ['rgba(34,197,94,0.72)','rgba(234,179,8,0.62)','rgba(74,222,128,0.68)','rgba(163,230,53,0.72)','rgba(187,247,208,0.65)','rgba(254,240,138,0.65)'] },
+  sunset:   { bg: '#fdd0a0', sw: 'linear-gradient(135deg,#f97316,#ef4444)', c: ['rgba(249,115,22,0.75)','rgba(239,68,68,0.65)','rgba(251,146,60,0.72)','rgba(252,165,165,0.68)','rgba(254,215,170,0.72)','rgba(253,186,116,0.68)'] },
+  midnight: { bg: '#c8c0f8', sw: 'linear-gradient(135deg,#6366f1,#3b82f6)', c: ['rgba(99,102,241,0.75)','rgba(139,92,246,0.68)','rgba(59,130,246,0.62)','rgba(167,139,250,0.75)','rgba(196,181,253,0.68)','rgba(147,197,253,0.65)'] },
+  rose:     { bg: '#f8c0e0', sw: 'linear-gradient(135deg,#ec4899,#f59e0b)', c: ['rgba(236,72,153,0.72)','rgba(245,158,11,0.62)','rgba(249,168,212,0.72)','rgba(253,224,71,0.65)','rgba(252,207,232,0.72)','rgba(254,243,199,0.65)'] },
 }
 const POS = ['75% 65% at 3% 4%','55% 55% at 52% 18%','45% 55% at 97% 12%','50% 50% at 93% 88%','65% 52% at 18% 80%','40% 40% at 75% 60%']
 const STOPS = [58,55,50,52,55,50]
 
+// Gradients come FIRST so they render ON TOP of the watercolor image
 function buildBg(tid) {
   const t = THEMES[tid] || THEMES.dreamy
   return {
     backgroundColor: t.bg,
     backgroundImage: [
-      "url('/watercolor-bg.jpg.png')",
       ...POS.map((p, i) => `radial-gradient(ellipse ${p}, ${t.c[i]} 0%, transparent ${STOPS[i]}%)`),
+      "url('/watercolor-bg.jpg.png')",
     ].join(', '),
     backgroundSize: 'cover',
     backgroundPosition: 'center',
@@ -43,14 +44,12 @@ export default function CalendarClient({ initialEvents, user }) {
   const router = useRouter()
   const supabase = createClient()
 
-  // Load persisted preferences after hydration
   useEffect(() => {
     const saved = localStorage.getItem('calendarTheme')
     if (saved && THEMES[saved]) setThemeId(saved)
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
   }, [])
 
-  // Close theme picker on outside click
   useEffect(() => {
     if (!showThemePicker) return
     const close = () => setShowThemePicker(false)
@@ -157,7 +156,6 @@ export default function CalendarClient({ initialEvents, user }) {
   return (
     <div className="min-h-screen flex flex-col" style={buildBg(themeId)}>
 
-      {/* Header — overflow visible so theme picker popup isn't clipped */}
       <header
         className="flex items-center justify-between px-5 py-4"
         style={{
@@ -186,14 +184,10 @@ export default function CalendarClient({ initialEvents, user }) {
             <button
               onClick={(e) => { e.stopPropagation(); setShowThemePicker(p => !p) }}
               title="Change color theme"
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: 20, lineHeight: 1, padding: '2px 4px',
-              }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '2px 4px' }}
             >
               &#127912;
             </button>
-
             {showThemePicker && (
               <div
                 onClick={e => e.stopPropagation()}
@@ -227,7 +221,6 @@ export default function CalendarClient({ initialEvents, user }) {
                       boxShadow: themeId === id
                         ? '0 0 0 2px rgba(124,58,237,0.35), 0 2px 8px rgba(0,0,0,0.15)'
                         : '0 2px 6px rgba(0,0,0,0.15)',
-                      transition: 'transform 0.1s',
                       flexShrink: 0,
                     }}
                   />
@@ -236,7 +229,6 @@ export default function CalendarClient({ initialEvents, user }) {
             )}
           </div>
 
-          {/* Notification bell */}
           <button
             onClick={toggleNotifications}
             title={notifEnabled ? 'Notifications on — tap to turn off' : 'Tap to enable event reminders'}
@@ -265,7 +257,6 @@ export default function CalendarClient({ initialEvents, user }) {
         />
       </main>
 
-      {/* FAB */}
       <button
         onClick={() => { setAddingToDate(null); setShowAddModal(true) }}
         className="fixed bottom-6 right-5 flex items-center gap-2 px-5 py-3.5 rounded-2xl font-semibold text-sm text-white transition-all active:scale-95 hover:scale-105"
