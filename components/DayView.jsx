@@ -4,10 +4,10 @@ const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satur
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e']
 const ROTATIONS = [-5, 5, -3]
-const NUDGE_TOP = [0, 50, 20]
+const NUDGE_TOP = [0, 28, 14]
 
-const cardWidth = (total) => {
-  if (total === 1) return { flex: '0 0 55%', maxWidth: 260 }
+const cardFlex = (total) => {
+  if (total === 1) return { flex: '0 0 50%', maxWidth: 240 }
   if (total === 2) return { flex: '0 0 38%' }
   return { flex: '0 0 27%' }
 }
@@ -72,7 +72,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
         </div>
 
         {/* Pinboard */}
-        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
           {shown.length === 0 ? (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
               <span style={{ fontSize: 52 }}>&#128204;</span>
@@ -81,23 +81,26 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
             </div>
           ) : (
             <div style={{
+              position: 'absolute',
+              inset: 0,
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'flex-start',
               justifyContent: 'center',
-              padding: '52px 6% 20px',
-              height: '100%',
+              padding: '44px 6% 16px',
+              gap: shown.length === 1 ? 0 : '5%',
               boxSizing: 'border-box',
-              gap: shown.length === 1 ? 0 : '6%',
             }}>
               {shown.map((event, idx) => {
-                const w = cardWidth(shown.length)
+                const w = cardFlex(shown.length)
                 return (
                   <div
                     key={event.id}
                     style={{
                       ...w,
                       flexShrink: 0,
+                      // Cap height so card always fits: full pinboard height minus pin overhang, nudge and bottom gap
+                      maxHeight: `calc(100% - ${NUDGE_TOP[idx] + 28}px)`,
                       marginTop: NUDGE_TOP[idx],
                       transform: `rotate(${ROTATIONS[idx]}deg)`,
                       transformOrigin: 'top center',
@@ -107,24 +110,28 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                       background: '#fff',
                       border: '3px solid #fff',
                       boxShadow: '0 8px 32px rgba(0,0,0,0.28)',
+                      overflow: 'hidden',
                     }}
                   >
                     <PushPin color={PIN_COLORS[idx]} />
 
-                    {event.image_url ? (
-                      <img
-                        src={event.image_url}
-                        alt={event.title || ''}
-                        style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }}
-                      />
-                    ) : (
-                      <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 8 }}>{event.title}</p>
-                      </div>
-                    )}
+                    {/* Image fills remaining space, never overflows */}
+                    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                      {event.image_url ? (
+                        <img
+                          src={event.image_url}
+                          alt={event.title || ''}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 8 }}>{event.title}</p>
+                        </div>
+                      )}
+                    </div>
 
-                    {/* Info — always fully visible, wraps freely */}
-                    <div style={{ padding: '7px 8px 9px', background: '#fff' }}>
+                    {/* Info — fixed at bottom, always fully visible */}
+                    <div style={{ flexShrink: 0, padding: '7px 9px 9px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                       {event.title && (
                         <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>
                           {event.title}
