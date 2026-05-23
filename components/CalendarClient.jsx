@@ -6,6 +6,17 @@ import Calendar from './Calendar'
 import AddFlyerModal from './AddFlyerModal'
 import FlyerModal from './FlyerModal'
 
+const WATERCOLOR_BG = [
+  "radial-gradient(ellipse 75% 65% at 3% 4%, rgba(170,145,215,0.60) 0%, transparent 58%)",
+  "radial-gradient(ellipse 55% 55% at 52% 18%, rgba(255,195,215,0.50) 0%, transparent 55%)",
+  "radial-gradient(ellipse 45% 55% at 97% 12%, rgba(255,225,175,0.55) 0%, transparent 50%)",
+  "radial-gradient(ellipse 50% 50% at 93% 88%, rgba(195,228,175,0.58) 0%, transparent 52%)",
+  "radial-gradient(ellipse 65% 52% at 18% 80%, rgba(255,185,205,0.50) 0%, transparent 55%)",
+  "radial-gradient(ellipse 55% 65% at 50% 55%, rgba(255,215,205,0.38) 0%, transparent 60%)",
+  "radial-gradient(ellipse 40% 40% at 75% 60%, rgba(255,210,170,0.40) 0%, transparent 50%)",
+  "#fff8f5",
+].join(', ')
+
 export default function CalendarClient({ initialEvents, user }) {
   const [events, setEvents] = useState(initialEvents)
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -52,11 +63,24 @@ export default function CalendarClient({ initialEvents, user }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#f0eeff' }}>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{
+        backgroundImage: `url('/watercolor-bg.jpg'), ${WATERCOLOR_BG}`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+      }}
+    >
       {/* Header */}
       <header
         className="flex items-center justify-between px-5 py-4"
-        style={{ background: '#fff', borderBottom: '1px solid #f3f0ff', boxShadow: '0 1px 8px rgba(124,58,237,0.06)' }}
+        style={{
+          background: 'rgba(255,255,255,0.72)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255,255,255,0.5)',
+          boxShadow: '0 1px 12px rgba(124,58,237,0.08)',
+        }}
       >
         <div className="flex items-center gap-2.5">
           <div
