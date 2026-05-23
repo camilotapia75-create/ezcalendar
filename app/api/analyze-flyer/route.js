@@ -8,12 +8,12 @@ const PROMPT = `Extract event details from this flyer. Return ONLY valid JSON wi
   "location": "venue name and/or city"
 }`
 
-// gemini-1.5 models live at v1 (stable), gemini-2.0 at v1beta
+// Try newest models first (2.5 family), fall back to 2.0
 const MODELS = [
-  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-002:generateContent',
-  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-001:generateContent',
-  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-002:generateContent',
-  'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-001:generateContent',
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent',
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent',
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
 ]
 
@@ -71,13 +71,13 @@ export async function POST(request) {
 
       if (!res.ok) {
         console.error(`[analyze-flyer] ${modelName} → ${res.status}: ${errMsg}`)
-        errors.push(`${modelName}: ${res.status} ${errMsg}`)
+        errors.push(`${modelName}: ${res.status}`)
         continue
       }
 
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
       if (!text) {
-        errors.push(`${modelName}: empty response`)
+        errors.push(`${modelName}: empty`)
         continue
       }
 
@@ -93,9 +93,6 @@ export async function POST(request) {
 
   const detail = errors.join(' | ')
   console.error('[analyze-flyer] all models failed:', detail)
-
-  if (!anyNonQuota) {
-    return NextResponse.json({ error: 'quota', detail }, { status: 429 })
-  }
+  if (!anyNonQuota) return NextResponse.json({ error: 'quota', detail }, { status: 429 })
   return NextResponse.json({ error: 'failed', detail }, { status: 500 })
 }
