@@ -1,31 +1,43 @@
+const PushPin = () => (
+  <div style={{
+    position: 'absolute', top: -10, left: '50%',
+    transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none',
+  }}>
+    <svg width="13" height="17" viewBox="0 0 13 17" fill="none">
+      <circle cx="6.5" cy="5" r="5" fill="#ef4444" />
+      <circle cx="4.8" cy="3.2" r="1.8" fill="rgba(255,255,255,0.32)" />
+      <line x1="6.5" y1="9.5" x2="6.5" y2="16.5" stroke="#9ca3af" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  </div>
+)
+
+const getFanStyle = (idx, total) => {
+  if (total === 1) return { left: '6%', right: '6%', rotate: -1 }
+  if (total === 2) return idx === 0
+    ? { left: '-4%', right: '32%', rotate: -9 }
+    : { left: '32%', right: '-4%', rotate: 9 }
+  if (idx === 0) return { left: '-6%', right: '44%', rotate: -13 }
+  if (idx === 1) return { left: '17%', right: '17%', rotate: 1 }
+  return { left: '44%', right: '-6%', rotate: 13 }
+}
+
 export default function DayCell({ day, currentMonth, isToday, isWeekend, events, onClick, onEventClick }) {
-  const hasEvents = events.length > 0
-  const stackCount = Math.min(events.length, 3)
+  const displayed = events.slice(0, 3)
+  const count = displayed.length
 
   return (
     <div
       onClick={onClick}
       className={[
-        'relative min-h-[90px] md:min-h-[110px] flex flex-col transition-colors border-r border-b',
+        'relative flex flex-col border-r border-b transition-colors',
+        'min-h-[108px] md:min-h-[128px]',
         currentMonth ? 'cursor-pointer' : 'pointer-events-none',
       ].join(' ')}
       style={{
         borderColor: '#f3f0ff',
-        background: !currentMonth
-          ? '#faf9ff'
-          : isWeekend
-          ? '#fdf8ff'
-          : '#fff',
+        background: !currentMonth ? '#faf9ff' : isWeekend ? '#fdf8ff' : '#fff',
       }}
     >
-      {/* Hover tint */}
-      {currentMonth && (
-        <div
-          className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity pointer-events-none"
-          style={{ background: 'rgba(124,58,237,0.03)' }}
-        />
-      )}
-
       {/* Day number */}
       <div className="p-1.5 md:p-2">
         <span
@@ -39,59 +51,65 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
         </span>
       </div>
 
-      {/* Stacked flyer thumbnails */}
-      {hasEvents && (
-        <div className="flex-1 px-1.5 pb-2 flex items-end">
+      {/* Fanned flyers */}
+      {count > 0 && (
+        <div className="flex-1 relative">
           <button
             onClick={(e) => { e.stopPropagation(); onEventClick(events) }}
-            className="relative w-full"
-            style={{ height: stackCount > 1 ? 68 : 52 }}
+            className="absolute inset-0"
+            style={{ overflow: 'visible' }}
           >
-            {events.slice(0, 3).map((event, idx) => {
-              const stackOffset = (stackCount - 1 - idx) * 6
-              const rotate = idx === 0 ? -2 : idx === 1 ? 1 : 3
-              return event.image_url ? (
-                <img
-                  key={event.id}
-                  src={event.image_url}
-                  alt={event.title || ''}
-                  className="absolute left-0 right-0 w-full rounded-lg object-cover"
-                  style={{
-                    bottom: stackOffset,
-                    height: 52,
-                    transform: `rotate(${rotate}deg)`,
-                    zIndex: idx + 1,
-                    border: '2px solid white',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                  }}
-                />
-              ) : (
+            {displayed.map((event, idx) => {
+              const s = getFanStyle(idx, count)
+              return (
                 <div
                   key={event.id}
-                  className="absolute left-0 right-0 w-full rounded-lg flex items-center px-2"
+                  className="absolute"
                   style={{
-                    bottom: stackOffset,
-                    height: 28,
-                    transform: `rotate(${rotate}deg)`,
+                    left: s.left,
+                    right: s.right,
+                    bottom: 10,
+                    height: 54,
+                    transform: `rotate(${s.rotate}deg)`,
                     zIndex: idx + 1,
-                    background: 'linear-gradient(135deg, #ede9fe, #ddd6fe)',
-                    border: '1.5px solid #c4b5fd',
-                    boxShadow: '0 2px 6px rgba(124,58,237,0.15)',
                   }}
                 >
-                  <p className="text-[9px] font-semibold truncate" style={{ color: '#5b21b6' }}>{event.title}</p>
+                  <PushPin />
+                  {event.image_url ? (
+                    <img
+                      src={event.image_url}
+                      alt={event.title || ''}
+                      className="w-full h-full object-cover rounded"
+                      style={{
+                        border: '2.5px solid white',
+                        boxShadow: '0 3px 12px rgba(0,0,0,0.18)',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full rounded flex items-center justify-center px-1"
+                      style={{
+                        background: 'linear-gradient(135deg, #ede9fe, #ddd6fe)',
+                        border: '1.5px solid #c4b5fd',
+                        boxShadow: '0 2px 8px rgba(124,58,237,0.15)',
+                      }}
+                    >
+                      <p className="text-[8px] font-semibold text-center" style={{ color: '#5b21b6' }}>{event.title}</p>
+                    </div>
+                  )}
                 </div>
               )
             })}
-            {events.length > 3 && (
-              <div
-                className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-                style={{ background: '#7c3aed', zIndex: 10, boxShadow: '0 1px 4px rgba(124,58,237,0.4)' }}
-              >
-                +{events.length - 3}
-              </div>
-            )}
           </button>
+
+          {events.length > 3 && (
+            <div
+              className="absolute top-0 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
+              style={{ background: '#7c3aed', zIndex: 20 }}
+            >
+              +{events.length - 3}
+            </div>
+          )}
         </div>
       )}
     </div>
