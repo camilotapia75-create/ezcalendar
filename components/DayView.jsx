@@ -4,18 +4,12 @@ const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satur
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e']
 const ROTATIONS = [-4, 4, -2]
-const NUDGE_TOP = [0, 30, 15]
-
-// 100vh * 0.92 = cell height. Subtract: header ~108px, footer ~58px,
-// pin+top-pad ~60px, info strip ~65px, border ~10px, buffer ~40px = ~341px
-// idx 1 gets +30px extra for its nudge, idx 2 gets +15px
-const IMG_SUBTRACT = [341, 371, 356]
-const imgHeight = (idx) => `calc(100vh * 0.92 - ${IMG_SUBTRACT[idx]}px)`
+const NUDGE_TOP = [0, 20, 10]
 
 const cardWidth = (total) => {
-  if (total === 1) return { width: '52%', maxWidth: 290 }
-  if (total === 2) return { width: '42%' }
-  return { width: '28%' }
+  if (total === 1) return { width: '48%', maxWidth: 260 }
+  if (total === 2) return { width: '40%' }
+  return { width: '27%' }
 }
 
 const PushPin = ({ color }) => (
@@ -93,7 +87,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
               alignItems: 'flex-start',
               justifyContent: 'center',
               gap: shown.length === 1 ? 0 : '4%',
-              padding: '40px 5% 12px',
+              padding: '40px 5% 16px',
               boxSizing: 'border-box',
               overflow: 'hidden',
             }}>
@@ -124,7 +118,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                         alt={event.title || ''}
                         style={{
                           width: '100%',
-                          height: imgHeight(idx),
+                          height: '35vh',
                           objectFit: 'cover',
                           display: 'block',
                           flexShrink: 0,
@@ -133,7 +127,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                     ) : (
                       <div style={{
                         width: '100%',
-                        height: imgHeight(idx),
+                        height: '35vh',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)',
                         flexShrink: 0,
@@ -142,7 +136,6 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                       </div>
                     )}
 
-                    {/* Info strip — always visible below image */}
                     <div style={{ flexShrink: 0, padding: '6px 8px 8px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                       {event.title && (
                         <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>
