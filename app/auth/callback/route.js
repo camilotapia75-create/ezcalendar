@@ -27,14 +27,16 @@ export async function GET(request) {
     }
   )
 
-  // token_hash flow — used when clicking magic link in a mobile mail app
-  // (in-app browser has no PKCE verifier from the original session)
-  if (token_hash && type) {
-    const { error } = await supabase.auth.verifyOtp({ token_hash, type })
-    if (!error) return response
+  // token_hash flow — works cross-browser/mobile (requires custom email template)
+  if (token_hash) {
+    const typesToTry = [...new Set([type, 'email', 'magiclink'].filter(Boolean))]
+    for (const t of typesToTry) {
+      const { error } = await supabase.auth.verifyOtp({ token_hash, type: t })
+      if (!error) return response
+    }
   }
 
-  // PKCE code flow — used when the same browser that requested the link clicks it
+  // PKCE code flow — only works in the same browser that requested the link
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) return response
