@@ -160,7 +160,22 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         {event.title && <p style={{ margin: '0 0 2px', fontSize: 9, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>{event.title}</p>}
                         {event.time_str && <p style={{ margin: '0 0 2px', fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128336; {event.time_str}</p>}
-                        {event.location && <p style={{ margin: 0, fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128205; {event.location}</p>}
+                        {event.location && <p style={{ margin: '0 0 2px', fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128205; {event.location}</p>}
+                        {event.source_url && (
+                          <a
+                            href={event.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 2, marginTop: 2, fontSize: 8, color: '#7c3aed', textDecoration: 'none', fontWeight: 600, opacity: 0.85 }}
+                          >
+                            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+                            </svg>
+                            View original
+                          </a>
+                        )}
                       </div>
                       {globalNotifOn && (
                         <button

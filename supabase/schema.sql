@@ -8,6 +8,7 @@ create table if not exists events (
   location text,
   time_str text,
   image_url text,
+  source_url text,
   created_at timestamp with time zone default now()
 );
 
@@ -16,3 +17,6 @@ alter table events enable row level security;
 create policy "Users can manage their own events" on events
   for all using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- Migration: add source_url to existing tables
+-- alter table events add column if not exists source_url text;

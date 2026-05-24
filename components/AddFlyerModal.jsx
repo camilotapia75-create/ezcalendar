@@ -235,7 +235,14 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
         if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
         image_url = uploadData.url
       }
-      await onAdd({ date: eventDate, title, location, time_str: timeStr, image_url })
+      await onAdd({
+        date: eventDate,
+        title,
+        location,
+        time_str: timeStr,
+        image_url,
+        source_url: linkMode ? linkUrl.trim() : null,
+      })
     } catch (err) {
       setSaveError(err.message || 'Failed to save — try again')
     } finally {
