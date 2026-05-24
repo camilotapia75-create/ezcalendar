@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+export const runtime = 'edge'
+
 const PROMPT = `Extract event details from this webpage content. Return ONLY valid JSON with these exact keys (null for anything not found):
 {
   "title": "event name or title",
@@ -20,6 +22,17 @@ const BROWSER_HEADERS = {
   'Accept-Language': 'en-US,en;q=0.5',
 }
 
+// Edge Runtime compatible base64 (Buffer is Node.js only)
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
+// Facebook Graph API — works for public events without user login
 async function tryFacebookGraphAPI(eventId) {
   const appId = process.env.FACEBOOK_APP_ID
   const appSecret = process.env.FACEBOOK_APP_SECRET
@@ -31,8 +44,7 @@ async function tryFacebookGraphAPI(eventId) {
       { signal: AbortSignal.timeout(10000) }
     )
     const data = await res.json()
-    if (data.error) return { _apiError: `Graph API error ${data.error.code}: ${data.error.message}` }
-    if (!res.ok || !data.name) return { _apiError: `Graph API returned status ${res.status} with no event name` }
+    if (data.error || !data.name) return null
 
     let dateStr = null, timeStr = null
     const parseTime = (iso) => {
@@ -66,18 +78,19 @@ async function tryFacebookGraphAPI(eventId) {
           const ct = imgRes.headers.get('content-type') || 'image/jpeg'
           if (ct.startsWith('image/')) {
             const buf = await imgRes.arrayBuffer()
-            if (buf.byteLength < 800000) ogImage = `data:${ct};base64,${Buffer.from(buf).toString('base64')}`
+            if (buf.byteLength < 800000) ogImage = `data:${ct};base64,${arrayBufferToBase64(buf)}`
           }
         }
       } catch {}
     }
 
     return { title: data.name, date: dateStr, time_str: timeStr, location, og_image: ogImage }
-  } catch (e) {
-    return { _apiError: `Graph API request failed: ${e.message}` }
+  } catch {
+    return null
   }
 }
 
+// Jina AI Reader — free headless browser, handles JS-rendered pages and bot protection
 async function fetchViaJina(url) {
   try {
     const res = await fetch(`https://r.jina.ai/${url}`, {
@@ -87,13 +100,12 @@ async function fetchViaJina(url) {
         'X-Return-Format': 'text',
         'X-Timeout': '20',
       },
-      signal: AbortSignal.timeout(28000),
+      signal: AbortSignal.timeout(22000),
     })
-    if (!res.ok) return { _jinaError: `Jina returned HTTP ${res.status}` }
-    const text = await res.text()
-    return { text }
-  } catch (e) {
-    return { _jinaError: `Jina request failed: ${e.message}` }
+    if (!res.ok) return null
+    return await res.text()
+  } catch {
+    return null
   }
 }
 
@@ -132,7 +144,7 @@ async function proxyImage(imageUrl, referer) {
     if (!ct.startsWith('image/')) return imageUrl
     const buf = await res.arrayBuffer()
     if (buf.byteLength >= 800000) return imageUrl
-    return `data:${ct};base64,${Buffer.from(buf).toString('base64')}`
+    return `data:${ct};base64,${arrayBufferToBase64(buf)}`
   } catch {
     return imageUrl
   }
@@ -154,30 +166,29 @@ export async function POST(request) {
   let baseUrl = url
   try { baseUrl = new URL(url).origin } catch {}
 
-  // Facebook events
+  // —— Facebook events ——
   const fbMatch = url.match(/facebook\.com\/events\/(\d+)/i)
   if (fbMatch) {
     const fbResult = await tryFacebookGraphAPI(fbMatch[1])
     if (fbResult?._needsCreds) {
-      return NextResponse.json({ error: 'Facebook credentials not configured in Vercel env vars.' }, { status: 400 })
-    }
-    if (fbResult?._apiError) {
-      // Graph API failed — try Jina and surface the real error if Jina also fails
-      const jinaResult = await fetchViaJina(url)
-      if (jinaResult._jinaError) {
-        return NextResponse.json({ error: `[DEBUG] ${fbResult._apiError} | ${jinaResult._jinaError}` }, { status: 400 })
-      }
-      if (!jinaResult.text || jinaResult.text.length <= 100) {
-        return NextResponse.json({ error: `[DEBUG] ${fbResult._apiError} | Jina returned ${jinaResult.text?.length ?? 0} chars` }, { status: 400 })
-      }
-      const data = await callGemini(jinaResult.text, apiKey)
-      if (data?.title) return NextResponse.json({ ...data, og_image: null })
-      return NextResponse.json({ error: `[DEBUG] ${fbResult._apiError} | Jina got ${jinaResult.text.length} chars but Gemini found no event` }, { status: 400 })
+      return NextResponse.json({
+        error: 'Facebook events need a one-time setup: add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to your Vercel environment variables.',
+      }, { status: 400 })
     }
     if (fbResult) return NextResponse.json(fbResult)
+
+    // Graph API failed (event may require App Review permissions) — try Jina headless browser
+    const jinaText = await fetchViaJina(url)
+    if (jinaText && jinaText.length > 100) {
+      const imgMatch = jinaText.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
+      const ogImageUrl = imgMatch ? imgMatch[1] : null
+      const data = await callGemini(jinaText, apiKey)
+      if (data?.title) return NextResponse.json({ ...data, og_image: ogImageUrl })
+    }
+    return NextResponse.json({ error: 'Could not access that Facebook event. The event may be private or require login.' }, { status: 400 })
   }
 
-  // Step 1: Direct HTML fetch
+  // —— Step 1: Direct HTML fetch ——
   let html = ''
   let blocked = false
   try {
@@ -237,14 +248,16 @@ export async function POST(request) {
     textForGemini = [structuredInfo, metaDesc && `Meta: ${metaDesc}`, `Page text:\n${pageText}`].filter(Boolean).join('\n\n')
   }
 
+  // —— Step 2: Jina AI Reader (headless browser fallback for blocked/JS-heavy sites) ——
   if (blocked || !html) {
-    const jinaResult = await fetchViaJina(url)
-    if (jinaResult._jinaError || !jinaResult.text || jinaResult.text.length <= 100) {
+    const jinaText = await fetchViaJina(url)
+    if (jinaText && jinaText.length > 100) {
+      textForGemini = jinaText
+      const imgMatch = jinaText.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
+      if (imgMatch) ogImageUrl = imgMatch[1]
+    } else {
       return NextResponse.json({ error: 'Could not access that page. Try a different URL or paste an image of the event instead.' }, { status: 400 })
     }
-    textForGemini = jinaResult.text
-    const imgMatch = jinaResult.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
-    if (imgMatch) ogImageUrl = imgMatch[1]
   }
 
   const ogImageData = await proxyImage(ogImageUrl, url)
