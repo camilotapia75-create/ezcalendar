@@ -14,8 +14,8 @@ export default function SetPasswordPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true)
-      else router.push('/')
+      if (data?.session) setReady(true)
+      else router.replace('/')
     })
   }, [])
 
@@ -24,20 +24,32 @@ export default function SetPasswordPage() {
     setLoading(true)
     setError(null)
     const { error } = await supabase.auth.updateUser({ password })
-    if (error) { setError(error.message); setLoading(false); return }
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+      return
+    }
+    // Password set — session stays active, go straight to calendar
     router.push('/calendar')
   }
 
-  if (!ready) return null
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-xs">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black mx-auto mb-5"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}>ez</div>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black mx-auto mb-5 text-white"
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}>ez
+          </div>
           <h1 className="text-xl font-bold tracking-tight mb-1">Set your password</h1>
-          <p className="text-sm text-zinc-500">Choose a password to use from now on</p>
+          <p className="text-sm text-zinc-500">You’ll use this to sign in from now on</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="relative">
@@ -46,9 +58,7 @@ export default function SetPasswordPage() {
               placeholder="New password (min. 6 chars)"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              required
-              minLength={6}
-              autoFocus
+              required minLength={6} autoFocus
               className="w-full rounded-2xl px-4 py-3.5 pr-12 text-sm placeholder-white/20 focus:outline-none"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#f0f0f0' }}
               onFocus={e => e.target.style.borderColor = 'rgba(124,58,237,0.5)'}
@@ -69,7 +79,7 @@ export default function SetPasswordPage() {
             className="w-full py-3.5 rounded-2xl text-sm font-semibold text-white disabled:opacity-40"
             style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
           >
-            {loading ? 'Saving…' : 'Set password & sign in'}
+            {loading ? 'Saving…' : 'Set password → go to calendar'}
           </button>
         </form>
       </div>
