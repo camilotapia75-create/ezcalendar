@@ -4,41 +4,42 @@ import { NextResponse } from 'next/server'
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const token_hash = searchParams.get('token_hash')
+  const type = searchParams.get('type')
   const next = searchParams.get('next') ?? '/calendar'
 
-  if (code) {
-    // Build the redirect response FIRST so we can set cookies on it.
-    const response = NextResponse.redirect(`${origin}${next}`)
+  const response = NextResponse.redirect(`${origin}${next}`)
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          // Write session cookies directly onto the redirect response
-          // so the browser receives them before hitting /calendar.
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options)
-            )
-          },
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
         },
-      }
-    )
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-
+  // token_hash flow — used when clicking magic link in a mobile mail app
+  // (in-app browser has no PKCE verifier from the original session)
+  if (token_hash && type) {
+    const { error } = await supabase.auth.verifyOtp({ token_hash, type })
     if (!error) return response
-
-    // Exchange failed (e.g. code already used, cross-device PKCE mismatch).
-    // Fall through to error redirect below.
   }
 
-  // No code or exchange failed — send back to login.
-  // Do NOT redirect to /calendar or we create a loop.
+  // PKCE code flow — used when the same browser that requested the link clicks it
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) return response
+  }
+
   const errorUrl = new URL('/', origin)
   errorUrl.searchParams.set('error', 'auth')
   return NextResponse.redirect(errorUrl)
