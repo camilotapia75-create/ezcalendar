@@ -172,15 +172,17 @@ export default function CalendarClient({ initialEvents, user }) {
   }
 
   const addEvent = async (eventData) => {
-    const { data, error } = await supabase
-      .from('events')
-      .insert({ ...eventData, user_id: user.id })
-      .select()
-      .single()
+    let result = await supabase.from('events').insert({ ...eventData, user_id: user.id }).select().single()
 
-    if (error) throw new Error(error.message)
+    // If insert failed because source_url column doesn't exist yet, retry without it
+    if (result.error && result.error.message?.includes('source_url')) {
+      const { source_url, ...rest } = eventData
+      result = await supabase.from('events').insert({ ...rest, user_id: user.id }).select().single()
+    }
 
-    setEvents(prev => [...prev, data])
+    if (result.error) throw new Error(result.error.message)
+
+    setEvents(prev => [...prev, result.data])
     if (eventData.date) {
       const [year, month] = eventData.date.split('-').map(Number)
       setCurrentDate(new Date(year, month - 1, 1))
