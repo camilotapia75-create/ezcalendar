@@ -172,13 +172,18 @@ export default function CalendarClient({ initialEvents, user }) {
   }
 
   const addEvent = async (eventData) => {
-    const { data, error } = await supabase.from('events').insert({ ...eventData, user_id: user.id }).select().single()
-    if (!error && data) {
-      setEvents(prev => [...prev, data])
-      if (eventData.date) {
-        const [year, month] = eventData.date.split('-').map(Number)
-        setCurrentDate(new Date(year, month - 1, 1))
-      }
+    const { data, error } = await supabase
+      .from('events')
+      .insert({ ...eventData, user_id: user.id })
+      .select()
+      .single()
+
+    if (error) throw new Error(error.message)
+
+    setEvents(prev => [...prev, data])
+    if (eventData.date) {
+      const [year, month] = eventData.date.split('-').map(Number)
+      setCurrentDate(new Date(year, month - 1, 1))
     }
     setShowAddModal(false)
     setAddingToDate(null)
