@@ -22,7 +22,6 @@ const BROWSER_HEADERS = {
   'Accept-Language': 'en-US,en;q=0.5',
 }
 
-// Edge Runtime compatible base64 (Buffer is Node.js only)
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer)
   let binary = ''
@@ -32,19 +31,19 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary)
 }
 
-// Facebook Graph API — works for public events without user login
 async function tryFacebookGraphAPI(eventId) {
   const appId = process.env.FACEBOOK_APP_ID
   const appSecret = process.env.FACEBOOK_APP_SECRET
-  if (!appId || !appSecret) return { _needsCreds: true }
+  if (!appId || !appSecret) return { _err: 'NO_CREDS' }
 
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v19.0/${eventId}?fields=name,description,start_time,end_time,place,cover&access_token=${appId}|${appSecret}`,
+      `https://graph.facebook.com/v21.0/${eventId}?fields=name,description,start_time,end_time,place,cover&access_token=${appId}|${appSecret}`,
       { signal: AbortSignal.timeout(10000) }
     )
     const data = await res.json()
-    if (data.error || !data.name) return null
+    if (data.error) return { _err: `FB_API_${data.error.code}: ${data.error.message}` }
+    if (!data.name) return { _err: `FB_API_NO_NAME status=${res.status}` }
 
     let dateStr = null, timeStr = null
     const parseTime = (iso) => {
@@ -85,12 +84,11 @@ async function tryFacebookGraphAPI(eventId) {
     }
 
     return { title: data.name, date: dateStr, time_str: timeStr, location, og_image: ogImage }
-  } catch {
-    return null
+  } catch (e) {
+    return { _err: `FB_API_THROW: ${e.message}` }
   }
 }
 
-// Jina AI Reader — free headless browser, handles JS-rendered pages and bot protection
 async function fetchViaJina(url) {
   try {
     const res = await fetch(`https://r.jina.ai/${url}`, {
@@ -102,10 +100,12 @@ async function fetchViaJina(url) {
       },
       signal: AbortSignal.timeout(22000),
     })
-    if (!res.ok) return null
-    return await res.text()
-  } catch {
-    return null
+    const status = res.status
+    if (!res.ok) return { _err: `JINA_HTTP_${status}` }
+    const text = await res.text()
+    return { text, chars: text.length }
+  } catch (e) {
+    return { _err: `JINA_THROW: ${e.message}` }
   }
 }
 
@@ -169,23 +169,43 @@ export async function POST(request) {
   // —— Facebook events ——
   const fbMatch = url.match(/facebook\.com\/events\/(\d+)/i)
   if (fbMatch) {
-    const fbResult = await tryFacebookGraphAPI(fbMatch[1])
-    if (fbResult?._needsCreds) {
-      return NextResponse.json({
-        error: 'Facebook events need a one-time setup: add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to your Vercel environment variables.',
-      }, { status: 400 })
-    }
-    if (fbResult) return NextResponse.json(fbResult)
+    const eventId = fbMatch[1]
+    const errors = []
 
-    // Graph API failed (event may require App Review permissions) — try Jina headless browser
-    const jinaText = await fetchViaJina(url)
-    if (jinaText && jinaText.length > 100) {
-      const imgMatch = jinaText.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
-      const ogImageUrl = imgMatch ? imgMatch[1] : null
-      const data = await callGemini(jinaText, apiKey)
-      if (data?.title) return NextResponse.json({ ...data, og_image: ogImageUrl })
+    // 1) Try Graph API
+    const fbResult = await tryFacebookGraphAPI(eventId)
+    if (fbResult?._err === 'NO_CREDS') {
+      return NextResponse.json({ error: 'Facebook credentials not configured.' }, { status: 400 })
     }
-    return NextResponse.json({ error: 'Could not access that Facebook event. The event may be private or require login.' }, { status: 400 })
+    if (!fbResult?._err) {
+      // Graph API succeeded
+      return NextResponse.json(fbResult)
+    }
+    errors.push(fbResult._err)
+
+    // 2) Try Jina on desktop Facebook URL
+    const jina1 = await fetchViaJina(`https://www.facebook.com/events/${eventId}/`)
+    if (!jina1._err && jina1.text && jina1.chars > 100) {
+      const imgMatch = jina1.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
+      const data = await callGemini(jina1.text, apiKey)
+      if (data?.title) return NextResponse.json({ ...data, og_image: imgMatch?.[1] || null })
+      errors.push(`JINA1_NO_TITLE(${jina1.chars}chars)`)
+    } else {
+      errors.push(jina1._err || `JINA1_SHORT(${jina1.chars ?? 0}chars)`)
+    }
+
+    // 3) Try Jina on mobile Facebook URL
+    const jina2 = await fetchViaJina(`https://m.facebook.com/events/${eventId}/`)
+    if (!jina2._err && jina2.text && jina2.chars > 100) {
+      const imgMatch = jina2.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
+      const data = await callGemini(jina2.text, apiKey)
+      if (data?.title) return NextResponse.json({ ...data, og_image: imgMatch?.[1] || null })
+      errors.push(`JINA2_NO_TITLE(${jina2.chars}chars)`)
+    } else {
+      errors.push(jina2._err || `JINA2_SHORT(${jina2.chars ?? 0}chars)`)
+    }
+
+    return NextResponse.json({ error: `Could not access Facebook event. [${errors.join(' | ')}]` }, { status: 400 })
   }
 
   // —— Step 1: Direct HTML fetch ——
@@ -248,12 +268,12 @@ export async function POST(request) {
     textForGemini = [structuredInfo, metaDesc && `Meta: ${metaDesc}`, `Page text:\n${pageText}`].filter(Boolean).join('\n\n')
   }
 
-  // —— Step 2: Jina AI Reader (headless browser fallback for blocked/JS-heavy sites) ——
+  // —— Step 2: Jina AI Reader fallback ——
   if (blocked || !html) {
-    const jinaText = await fetchViaJina(url)
-    if (jinaText && jinaText.length > 100) {
-      textForGemini = jinaText
-      const imgMatch = jinaText.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
+    const jinaResult = await fetchViaJina(url)
+    if (!jinaResult._err && jinaResult.text && jinaResult.chars > 100) {
+      textForGemini = jinaResult.text
+      const imgMatch = jinaResult.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
       if (imgMatch) ogImageUrl = imgMatch[1]
     } else {
       return NextResponse.json({ error: 'Could not access that page. Try a different URL or paste an image of the event instead.' }, { status: 400 })
