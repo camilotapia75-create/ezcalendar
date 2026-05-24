@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server'
 
-export const runtime = 'edge'
-
 const PROMPT = `Extract event details from this webpage content. Return ONLY valid JSON with these exact keys (null for anything not found):
 {
   "title": "event name or title",
   "date": "YYYY-MM-DD",
   "time_str": "time range e.g. 7:00 PM – 10:00 PM",
   "location": "venue name and/or city"
-}
-Note: the page may contain login prompts or navigation — focus only on the actual event details.`
+}`
 
 const MODELS = [
   'gemini-2.5-flash',
@@ -23,14 +20,6 @@ const BROWSER_HEADERS = {
   'Accept-Language': 'en-US,en;q=0.5',
 }
 
-// Edge-compatible base64 (no Buffer available in Edge Runtime)
-function bufToBase64(buf) {
-  let binary = ''
-  const bytes = new Uint8Array(buf)
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
-  return btoa(binary)
-}
-
 async function tryFacebookGraphAPI(eventId) {
   const appId = process.env.FACEBOOK_APP_ID
   const appSecret = process.env.FACEBOOK_APP_SECRET
@@ -39,8 +28,9 @@ async function tryFacebookGraphAPI(eventId) {
   try {
     const res = await fetch(
       `https://graph.facebook.com/v19.0/${eventId}?fields=name,description,start_time,end_time,place,cover&access_token=${appId}|${appSecret}`,
-      { signal: AbortSignal.timeout(5000) }
+      { signal: AbortSignal.timeout(10000) }
     )
+    if (!res.ok) return null
     const data = await res.json()
     if (data.error || !data.name) return null
 
@@ -70,13 +60,13 @@ async function tryFacebookGraphAPI(eventId) {
       try {
         const imgRes = await fetch(ogImage, {
           headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)' },
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(6000),
         })
         if (imgRes.ok) {
           const ct = imgRes.headers.get('content-type') || 'image/jpeg'
           if (ct.startsWith('image/')) {
             const buf = await imgRes.arrayBuffer()
-            if (buf.byteLength < 800000) ogImage = `data:${ct};base64,${bufToBase64(buf)}`
+            if (buf.byteLength < 800000) ogImage = `data:${ct};base64,${Buffer.from(buf).toString('base64')}`
           }
         }
       } catch {}
@@ -88,16 +78,16 @@ async function tryFacebookGraphAPI(eventId) {
   }
 }
 
-async function fetchViaJina(url, timeoutMs = 18000) {
+async function fetchViaJina(url) {
   try {
     const res = await fetch(`https://r.jina.ai/${url}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)',
         'Accept': 'text/plain',
         'X-Return-Format': 'text',
-        'X-Timeout': '15',
+        'X-Timeout': '20',
       },
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: AbortSignal.timeout(28000),
     })
     if (!res.ok) return null
     return await res.text()
@@ -116,7 +106,7 @@ async function callGemini(text, apiKey) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(20000),
       })
       if (!res.ok) continue
       const result = await res.json()
@@ -134,14 +124,14 @@ async function proxyImage(imageUrl, referer) {
   try {
     const res = await fetch(imageUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)', 'Referer': referer },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(6000),
     })
     if (!res.ok) return imageUrl
     const ct = res.headers.get('content-type') || 'image/jpeg'
     if (!ct.startsWith('image/')) return imageUrl
     const buf = await res.arrayBuffer()
     if (buf.byteLength >= 800000) return imageUrl
-    return `data:${ct};base64,${bufToBase64(buf)}`
+    return `data:${ct};base64,${Buffer.from(buf).toString('base64')}`
   } catch {
     return imageUrl
   }
@@ -163,33 +153,24 @@ export async function POST(request) {
   let baseUrl = url
   try { baseUrl = new URL(url).origin } catch {}
 
-  // Facebook: Graph API (5s) then Jina (18s) = 23s total, fits within Edge 25s limit
+  // Facebook events
   const fbMatch = url.match(/facebook\.com\/events\/(\d+)/i)
   if (fbMatch) {
     const fbResult = await tryFacebookGraphAPI(fbMatch[1])
     if (fbResult?._needsCreds) {
       return NextResponse.json({
-        error: 'Facebook scanning needs a one-time setup: add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to your Vercel environment variables.',
+        error: 'Facebook events need a one-time setup: add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to your Vercel environment variables.',
       }, { status: 400 })
     }
     if (fbResult) return NextResponse.json(fbResult)
-
-    // Graph API failed — try Jina (skip direct fetch, Facebook always blocks it)
-    const jinaText = await fetchViaJina(url, 18000)
-    if (jinaText && jinaText.length > 100) {
-      const data = await callGemini(jinaText, apiKey)
-      if (data?.title) return NextResponse.json({ ...data, og_image: null })
-    }
-    return NextResponse.json({
-      error: 'Facebook blocked access to this event. Try screenshotting the event and uploading the image instead.',
-    }, { status: 400 })
+    // Graph API failed — fall through to Jina
   }
 
-  // Non-Facebook: direct fetch then Jina fallback
+  // Step 1: Direct HTML fetch
   let html = ''
   let blocked = false
   try {
-    const res = await fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(10000) })
+    const res = await fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(12000) })
     if (res.ok) {
       html = await res.text()
     } else {
@@ -245,8 +226,9 @@ export async function POST(request) {
     textForGemini = [structuredInfo, metaDesc && `Meta: ${metaDesc}`, `Page text:\n${pageText}`].filter(Boolean).join('\n\n')
   }
 
+  // Step 2: Jina AI Reader fallback
   if (blocked || !html) {
-    const jinaText = await fetchViaJina(url, 18000)
+    const jinaText = await fetchViaJina(url)
     if (jinaText && jinaText.length > 100) {
       textForGemini = jinaText
       const imgMatch = jinaText.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
