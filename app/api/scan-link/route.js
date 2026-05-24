@@ -20,8 +20,6 @@ const BROWSER_HEADERS = {
   'Accept-Language': 'en-US,en;q=0.5',
 }
 
-// Facebook Graph API — works for public events without user login
-// Requires FACEBOOK_APP_ID + FACEBOOK_APP_SECRET in env vars
 async function tryFacebookGraphAPI(eventId) {
   const appId = process.env.FACEBOOK_APP_ID
   const appSecret = process.env.FACEBOOK_APP_SECRET
@@ -32,11 +30,14 @@ async function tryFacebookGraphAPI(eventId) {
       `https://graph.facebook.com/v19.0/${eventId}?fields=name,description,start_time,end_time,place,cover&access_token=${appId}|${appSecret}`,
       { signal: AbortSignal.timeout(10000) }
     )
-    if (!res.ok) return null
     const data = await res.json()
-    if (data.error || !data.name) return null
+    if (data.error) {
+      // Facebook API returned an error (e.g. permissions, private event, deprecated endpoint)
+      console.error('FB Graph API error:', JSON.stringify(data.error))
+      return { _fbError: data.error.message || 'Facebook API error' }
+    }
+    if (!res.ok || !data.name) return null
 
-    // Extract local date/time from FB's ISO string (includes timezone offset)
     let dateStr = null, timeStr = null
     const parseTime = (iso) => {
       const m = iso?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/)
@@ -58,7 +59,6 @@ async function tryFacebookGraphAPI(eventId) {
       ? [data.place.name, data.place.location?.city].filter(Boolean).join(', ')
       : null
 
-    // Proxy cover image
     let ogImage = data.cover?.source || null
     if (ogImage) {
       try {
@@ -82,7 +82,6 @@ async function tryFacebookGraphAPI(eventId) {
   }
 }
 
-// Jina AI Reader — free headless browser service, handles JS-rendered pages and bot protection
 async function fetchViaJina(url) {
   try {
     const res = await fetch(`https://r.jina.ai/${url}`, {
@@ -90,9 +89,9 @@ async function fetchViaJina(url) {
         'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)',
         'Accept': 'text/plain',
         'X-Return-Format': 'text',
-        'X-Timeout': '20',
+        'X-Timeout': '15',
       },
-      signal: AbortSignal.timeout(28000),
+      signal: AbortSignal.timeout(20000),
     })
     if (!res.ok) return null
     return await res.text()
@@ -158,20 +157,40 @@ export async function POST(request) {
   let baseUrl = url
   try { baseUrl = new URL(url).origin } catch {}
 
-  // —— Facebook events ——
+  // Facebook events
   const fbMatch = url.match(/facebook\.com\/events\/(\d+)/i)
   if (fbMatch) {
     const fbResult = await tryFacebookGraphAPI(fbMatch[1])
     if (fbResult?._needsCreds) {
       return NextResponse.json({
-        error: 'Facebook events need a one-time setup: add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to your Vercel environment variables. Create a free app at developers.facebook.com → My Apps → Create App, then copy the App ID and App Secret from Settings → Basic.',
+        error: 'Facebook scanning needs a one-time setup: add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to your Vercel environment variables.',
+      }, { status: 400 })
+    }
+    if (fbResult?._fbError) {
+      // Graph API returned an error (permissions issue, private event, etc.)
+      // Try Jina as a last resort
+      const jinaText = await fetchViaJina(url)
+      if (jinaText && jinaText.length > 200 && !jinaText.toLowerCase().includes('log in') && !jinaText.toLowerCase().includes('sign in to')) {
+        const data = await callGemini(jinaText, apiKey)
+        if (data?.title) return NextResponse.json({ ...data, og_image: null })
+      }
+      return NextResponse.json({
+        error: 'Facebook blocked access to this event. Try screenshotting the event and uploading the image instead.',
       }, { status: 400 })
     }
     if (fbResult) return NextResponse.json(fbResult)
-    // Graph API failed — fall through to Jina
+    // Graph API call itself failed (network/timeout) — try Jina
+    const jinaText = await fetchViaJina(url)
+    if (jinaText && jinaText.length > 200 && !jinaText.toLowerCase().includes('log in')) {
+      const data = await callGemini(jinaText, apiKey)
+      if (data?.title) return NextResponse.json({ ...data, og_image: null })
+    }
+    return NextResponse.json({
+      error: 'Facebook blocked access to this event. Try screenshotting the event and uploading the image instead.',
+    }, { status: 400 })
   }
 
-  // —— Step 1: Direct HTML fetch ——
+  // Step 1: Direct HTML fetch
   let html = ''
   let blocked = false
   try {
@@ -189,7 +208,6 @@ export async function POST(request) {
   let textForGemini = ''
 
   if (html) {
-    // Extract og:image
     const ogMatch =
       html.match(/property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
@@ -202,7 +220,6 @@ export async function POST(request) {
       else if (!ogImageUrl.startsWith('http')) ogImageUrl = baseUrl + '/' + ogImageUrl
     }
 
-    // JSON-LD structured data
     let structuredInfo = ''
     const jsonLdRegex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
     let ldMatch
@@ -233,7 +250,7 @@ export async function POST(request) {
     textForGemini = [structuredInfo, metaDesc && `Meta: ${metaDesc}`, `Page text:\n${pageText}`].filter(Boolean).join('\n\n')
   }
 
-  // —— Step 2: Jina AI Reader (headless browser fallback for blocked/JS-heavy sites) ——
+  // Step 2: Jina fallback for blocked/JS-heavy sites
   if (blocked || !html) {
     const jinaText = await fetchViaJina(url)
     if (jinaText && jinaText.length > 100) {
