@@ -30,9 +30,9 @@ async function tryFacebookGraphAPI(eventId) {
       `https://graph.facebook.com/v19.0/${eventId}?fields=name,description,start_time,end_time,place,cover&access_token=${appId}|${appSecret}`,
       { signal: AbortSignal.timeout(10000) }
     )
-    if (!res.ok) return null
     const data = await res.json()
-    if (data.error || !data.name) return null
+    if (data.error) return { _apiError: `Graph API error ${data.error.code}: ${data.error.message}` }
+    if (!res.ok || !data.name) return { _apiError: `Graph API returned status ${res.status} with no event name` }
 
     let dateStr = null, timeStr = null
     const parseTime = (iso) => {
@@ -73,8 +73,8 @@ async function tryFacebookGraphAPI(eventId) {
     }
 
     return { title: data.name, date: dateStr, time_str: timeStr, location, og_image: ogImage }
-  } catch {
-    return null
+  } catch (e) {
+    return { _apiError: `Graph API request failed: ${e.message}` }
   }
 }
 
@@ -89,10 +89,11 @@ async function fetchViaJina(url) {
       },
       signal: AbortSignal.timeout(28000),
     })
-    if (!res.ok) return null
-    return await res.text()
-  } catch {
-    return null
+    if (!res.ok) return { _jinaError: `Jina returned HTTP ${res.status}` }
+    const text = await res.text()
+    return { text }
+  } catch (e) {
+    return { _jinaError: `Jina request failed: ${e.message}` }
   }
 }
 
@@ -158,12 +159,22 @@ export async function POST(request) {
   if (fbMatch) {
     const fbResult = await tryFacebookGraphAPI(fbMatch[1])
     if (fbResult?._needsCreds) {
-      return NextResponse.json({
-        error: 'Facebook events need a one-time setup: add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to your Vercel environment variables.',
-      }, { status: 400 })
+      return NextResponse.json({ error: 'Facebook credentials not configured in Vercel env vars.' }, { status: 400 })
+    }
+    if (fbResult?._apiError) {
+      // Graph API failed — try Jina and surface the real error if Jina also fails
+      const jinaResult = await fetchViaJina(url)
+      if (jinaResult._jinaError) {
+        return NextResponse.json({ error: `[DEBUG] ${fbResult._apiError} | ${jinaResult._jinaError}` }, { status: 400 })
+      }
+      if (!jinaResult.text || jinaResult.text.length <= 100) {
+        return NextResponse.json({ error: `[DEBUG] ${fbResult._apiError} | Jina returned ${jinaResult.text?.length ?? 0} chars` }, { status: 400 })
+      }
+      const data = await callGemini(jinaResult.text, apiKey)
+      if (data?.title) return NextResponse.json({ ...data, og_image: null })
+      return NextResponse.json({ error: `[DEBUG] ${fbResult._apiError} | Jina got ${jinaResult.text.length} chars but Gemini found no event` }, { status: 400 })
     }
     if (fbResult) return NextResponse.json(fbResult)
-    // Graph API failed — fall through to Jina
   }
 
   // Step 1: Direct HTML fetch
@@ -226,16 +237,14 @@ export async function POST(request) {
     textForGemini = [structuredInfo, metaDesc && `Meta: ${metaDesc}`, `Page text:\n${pageText}`].filter(Boolean).join('\n\n')
   }
 
-  // Step 2: Jina AI Reader fallback
   if (blocked || !html) {
-    const jinaText = await fetchViaJina(url)
-    if (jinaText && jinaText.length > 100) {
-      textForGemini = jinaText
-      const imgMatch = jinaText.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
-      if (imgMatch) ogImageUrl = imgMatch[1]
-    } else {
+    const jinaResult = await fetchViaJina(url)
+    if (jinaResult._jinaError || !jinaResult.text || jinaResult.text.length <= 100) {
       return NextResponse.json({ error: 'Could not access that page. Try a different URL or paste an image of the event instead.' }, { status: 400 })
     }
+    textForGemini = jinaResult.text
+    const imgMatch = jinaResult.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
+    if (imgMatch) ogImageUrl = imgMatch[1]
   }
 
   const ogImageData = await proxyImage(ogImageUrl, url)
