@@ -86,6 +86,7 @@ export default function CalendarClient({ initialEvents, user }) {
   const [addingToDate, setAddingToDate] = useState(null)
   const [dayViewDate, setDayViewDate] = useState(null)
   const [notifEnabled, setNotifEnabled] = useState(false)
+  const [notifToast, setNotifToast] = useState(null)
   const [themeId, setThemeId] = useState('dreamy')
   const [showThemePicker, setShowThemePicker] = useState(false)
   const router = useRouter()
@@ -103,6 +104,11 @@ export default function CalendarClient({ initialEvents, user }) {
     document.addEventListener('click', close)
     return () => document.removeEventListener('click', close)
   }, [showThemePicker])
+
+  const showToast = (msg) => {
+    setNotifToast(msg)
+    setTimeout(() => setNotifToast(null), 4000)
+  }
 
   const applyTheme = (id) => {
     setThemeId(id)
@@ -148,7 +154,17 @@ export default function CalendarClient({ initialEvents, user }) {
       localStorage.setItem('notificationsEnabled', 'false')
       return
     }
-    if (!('Notification' in window)) { alert('Your browser does not support notifications.'); return }
+
+    if (!('Notification' in window)) {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+      if (isIOS) {
+        showToast('On iPhone, add this app to your Home Screen first, then enable notifications.')
+      } else {
+        showToast('Notifications not supported in this browser. Try Chrome.')
+      }
+      return
+    }
+
     let perm = Notification.permission
     if (perm === 'default') perm = await Notification.requestPermission()
     if (perm === 'granted') {
@@ -156,7 +172,7 @@ export default function CalendarClient({ initialEvents, user }) {
       localStorage.setItem('notificationsEnabled', 'true')
       checkAndNotify(events)
     } else {
-      alert('Notification permission was denied. Please enable it in your browser/phone settings.')
+      showToast('Notifications blocked — enable them in your phone settings for this site.')
     }
   }
 
@@ -174,7 +190,6 @@ export default function CalendarClient({ initialEvents, user }) {
   const addEvent = async (eventData) => {
     let result = await supabase.from('events').insert({ ...eventData, user_id: user.id }).select().single()
 
-    // If insert failed because source_url column doesn't exist yet, retry without it
     if (result.error && result.error.message?.includes('source_url')) {
       const { source_url, ...rest } = eventData
       result = await supabase.from('events').insert({ ...rest, user_id: user.id }).select().single()
@@ -270,6 +285,22 @@ export default function CalendarClient({ initialEvents, user }) {
           </button>
         </div>
       </header>
+
+      {notifToast && (
+        <div
+          style={{
+            position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(30,30,40,0.96)', color: 'white',
+            padding: '12px 18px', borderRadius: 14, fontSize: 13,
+            maxWidth: 'calc(100vw - 40px)', textAlign: 'center',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+            zIndex: 9999, backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+          }}
+        >
+          {notifToast}
+        </div>
+      )}
 
       <main className="flex-1 px-3 md:px-6 py-5 pb-24 max-w-4xl mx-auto w-full">
         <Calendar
