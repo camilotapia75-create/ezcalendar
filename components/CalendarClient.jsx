@@ -154,7 +154,6 @@ export default function CalendarClient({ initialEvents, user }) {
       localStorage.setItem('notificationsEnabled', 'false')
       return
     }
-
     if (!('Notification' in window)) {
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
       if (isIOS) {
@@ -164,7 +163,6 @@ export default function CalendarClient({ initialEvents, user }) {
       }
       return
     }
-
     let perm = Notification.permission
     if (perm === 'default') perm = await Notification.requestPermission()
     if (perm === 'granted') {
@@ -189,14 +187,11 @@ export default function CalendarClient({ initialEvents, user }) {
 
   const addEvent = async (eventData) => {
     let result = await supabase.from('events').insert({ ...eventData, user_id: user.id }).select().single()
-
     if (result.error && result.error.message?.includes('source_url')) {
       const { source_url, ...rest } = eventData
       result = await supabase.from('events').insert({ ...rest, user_id: user.id }).select().single()
     }
-
     if (result.error) throw new Error(result.error.message)
-
     setEvents(prev => [...prev, result.data])
     if (eventData.date) {
       const [year, month] = eventData.date.split('-').map(Number)
@@ -217,8 +212,10 @@ export default function CalendarClient({ initialEvents, user }) {
     <div className="min-h-screen flex flex-col" style={buildBg(themeId)}>
 
       <header
-        className="flex items-center justify-between px-5 py-4"
+        className="flex items-center justify-between px-5"
         style={{
+          paddingTop: 'calc(env(safe-area-inset-top) + 1rem)',
+          paddingBottom: '1rem',
           background: 'rgba(255,255,255,0.72)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid rgba(255,255,255,0.5)',
@@ -289,7 +286,9 @@ export default function CalendarClient({ initialEvents, user }) {
       {notifToast && (
         <div
           style={{
-            position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)',
+            position: 'fixed',
+            bottom: 'calc(env(safe-area-inset-bottom) + 88px)',
+            left: '50%', transform: 'translateX(-50%)',
             background: 'rgba(30,30,40,0.96)', color: 'white',
             padding: '12px 18px', borderRadius: 14, fontSize: 13,
             maxWidth: 'calc(100vw - 40px)', textAlign: 'center',
@@ -315,8 +314,12 @@ export default function CalendarClient({ initialEvents, user }) {
 
       <button
         onClick={() => { setAddingToDate(null); setShowAddModal(true) }}
-        className="fixed bottom-6 right-5 flex items-center gap-2 px-5 py-3.5 rounded-2xl font-semibold text-sm text-white transition-all active:scale-95 hover:scale-105"
-        style={{ background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}bb)`, boxShadow: `0 4px 24px ${theme.accent}55` }}
+        className="fixed right-5 flex items-center gap-2 px-5 py-3.5 rounded-2xl font-semibold text-sm text-white transition-all active:scale-95 hover:scale-105"
+        style={{
+          bottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)',
+          background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}bb)`,
+          boxShadow: `0 4px 24px ${theme.accent}55`,
+        }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
