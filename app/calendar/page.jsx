@@ -7,29 +7,35 @@ export default async function CalendarPage({ searchParams }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/')
 
-  // Get or create user's invite code
-  let { data: invite } = await supabase
-    .from('calendar_invites')
-    .select('invite_code')
-    .eq('owner_id', user.id)
-    .single()
-
-  if (!invite) {
-    const { data: newInvite } = await supabase
+  // Get or create user's invite code (gracefully no-ops if table doesn't exist yet)
+  let inviteCode = ''
+  try {
+    let { data: invite, error } = await supabase
       .from('calendar_invites')
-      .insert({ owner_id: user.id })
       .select('invite_code')
+      .eq('owner_id', user.id)
       .single()
-    invite = newInvite
-  }
 
-  // Count connected friends
-  const { data: connections } = await supabase
-    .from('calendar_connections')
-    .select('user_a_id, user_b_id')
-    .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
+    if (!invite) {
+      const { data: newInvite } = await supabase
+        .from('calendar_invites')
+        .insert({ owner_id: user.id })
+        .select('invite_code')
+        .single()
+      invite = newInvite
+    }
+    inviteCode = invite?.invite_code || ''
+  } catch (_) {}
 
-  const connectedCount = (connections || []).length
+  // Count connected friends (gracefully no-ops if table doesn't exist yet)
+  let connectedCount = 0
+  try {
+    const { data: connections } = await supabase
+      .from('calendar_connections')
+      .select('user_a_id, user_b_id')
+      .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
+    connectedCount = (connections || []).length
+  } catch (_) {}
 
   // Fetch events — RLS includes connected users' events automatically
   const { data: events } = await supabase
@@ -41,7 +47,7 @@ export default async function CalendarPage({ searchParams }) {
     <CalendarClient
       initialEvents={events || []}
       user={user}
-      inviteCode={invite?.invite_code || ''}
+      inviteCode={inviteCode}
       connectedCount={connectedCount}
       joined={searchParams?.joined === '1'}
       joinErr={searchParams?.join_err}
