@@ -5,7 +5,8 @@ import AuthForm from '@/components/AuthForm'
 export default async function Home({ searchParams }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (user) redirect('/calendar')
+  const next = searchParams?.next
+  if (user) redirect(next || '/calendar')
 
   const authError = searchParams?.error === 'auth'
 
@@ -30,7 +31,7 @@ export default async function Home({ searchParams }) {
             Link expired or already used — request a new one below.
           </div>
         )}
-        <AuthForm />
+        <AuthForm next={next} />
       </div>
     </div>
   )

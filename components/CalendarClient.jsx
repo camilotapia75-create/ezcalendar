@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Calendar from './Calendar'
 import AddFlyerModal from './AddFlyerModal'
 import DayView from './DayView'
+import ShareModal from './ShareModal'
 
 const THEMES = {
   dreamy: {
@@ -79,7 +80,7 @@ function buildBg(tid) {
   }
 }
 
-export default function CalendarClient({ initialEvents, user }) {
+export default function CalendarClient({ initialEvents, user, inviteCode, connectedCount = 0, joined = false, joinErr }) {
   const [events, setEvents] = useState(initialEvents)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [showAddModal, setShowAddModal] = useState(false)
@@ -89,6 +90,7 @@ export default function CalendarClient({ initialEvents, user }) {
   const [notifToast, setNotifToast] = useState(null)
   const [themeId, setThemeId] = useState('dreamy')
   const [showThemePicker, setShowThemePicker] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -96,6 +98,9 @@ export default function CalendarClient({ initialEvents, user }) {
     const saved = localStorage.getItem('calendarTheme')
     if (saved && THEMES[saved]) setThemeId(saved)
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
+    if (joined) showToast('🎉 Connected! You now see your friend\'s events too.')
+    else if (joinErr === 'self') showToast("That's your own invite link!")
+    else if (joinErr === 'notfound') showToast('Invite link not found — ask your friend for a new one.')
   }, [])
 
   useEffect(() => {
@@ -211,6 +216,7 @@ export default function CalendarClient({ initialEvents, user }) {
   return (
     <div className="min-h-screen flex flex-col" style={buildBg(themeId)}>
 
+      {/* Header — position:relative so the theme picker can anchor to its bottom edge */}
       <header
         className="flex items-center justify-between px-5"
         style={{
@@ -220,7 +226,6 @@ export default function CalendarClient({ initialEvents, user }) {
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid rgba(255,255,255,0.5)',
           boxShadow: '0 1px 12px rgba(124,58,237,0.08)',
-          overflow: 'visible',
           position: 'relative',
           zIndex: 50,
         }}
@@ -234,53 +239,78 @@ export default function CalendarClient({ initialEvents, user }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowThemePicker(p => !p) }}
-              title="Change color theme"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '2px 4px' }}
-            >
-              &#127912;
-            </button>
-            {showThemePicker && (
-              <div
-                onClick={e => e.stopPropagation()}
-                style={{
-                  position: 'absolute', top: 'calc(100% + 12px)', right: '-8px',
-                  background: 'white', borderRadius: 18, padding: '10px 14px',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.18)', border: '1px solid rgba(0,0,0,0.08)',
-                  display: 'flex', gap: 10, zIndex: 9999, whiteSpace: 'nowrap',
-                }}
-              >
-                {Object.entries(THEMES).map(([id, t]) => (
-                  <button
-                    key={id}
-                    onClick={() => applyTheme(id)}
-                    title={id.charAt(0).toUpperCase() + id.slice(1)}
-                    style={{
-                      width: 28, height: 28, borderRadius: '50%', background: t.sw,
-                      border: themeId === id ? `3px solid ${t.accent}` : '3px solid transparent',
-                      cursor: 'pointer', outline: 'none', flexShrink: 0,
-                      boxShadow: themeId === id ? `0 0 0 2px ${t.accent}55, 0 2px 8px rgba(0,0,0,0.15)` : '0 2px 6px rgba(0,0,0,0.15)',
-                    }}
-                  />
-                ))}
-              </div>
+          {/* Palette button — picker now anchors to the header, not this button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowThemePicker(p => !p) }}
+            title="Change color theme"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '2px 4px' }}
+          >
+            &#127912;
+          </button>
+
+          <button
+            onClick={() => setShowShareModal(true)}
+            title={connectedCount === 0 ? 'Invite a friend to share calendars' : `${connectedCount} friend${connectedCount > 1 ? 's' : ''} connected`}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '2px 4px', position: 'relative' }}
+          >
+            &#128101;
+            {connectedCount > 0 && (
+              <span style={{
+                position: 'absolute', top: -4, right: -4,
+                background: theme.accent, color: '#fff',
+                borderRadius: '50%', width: 14, height: 14,
+                fontSize: 8, fontWeight: 800,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>{connectedCount}</span>
             )}
-          </div>
+          </button>
 
           <button
             onClick={toggleNotifications}
             title={notifEnabled ? 'Notifications on — tap to turn off' : 'Tap to enable event reminders'}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '2px 4px' }}
           >
-            {notifEnabled ? '🔔' : '🔕'}
+            {notifEnabled ? '&#128276;' : '&#128277;'}
           </button>
 
           <button onClick={handleSignOut} className="text-[11px] transition-colors hover:text-violet-500" style={{ color: theme.accent }}>
-            {user.email} &middot; sign out
+            <span className="hidden sm:inline">{user.email} &middot; </span>sign out
           </button>
         </div>
+
+        {/* Theme picker — anchored to header bottom-right, always visible on any screen size */}
+        {showThemePicker && (
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 10px)',
+              right: 16,
+              background: 'white',
+              borderRadius: 18,
+              padding: '10px 14px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+              border: '1px solid rgba(0,0,0,0.08)',
+              display: 'flex',
+              gap: 10,
+              zIndex: 9999,
+            }}
+          >
+            {Object.entries(THEMES).map(([id, t]) => (
+              <button
+                key={id}
+                onClick={() => applyTheme(id)}
+                title={id.charAt(0).toUpperCase() + id.slice(1)}
+                style={{
+                  width: 28, height: 28, borderRadius: '50%', background: t.sw,
+                  border: themeId === id ? `3px solid ${t.accent}` : '3px solid transparent',
+                  cursor: 'pointer', outline: 'none', flexShrink: 0,
+                  boxShadow: themeId === id ? `0 0 0 2px ${t.accent}55, 0 2px 8px rgba(0,0,0,0.15)` : '0 2px 6px rgba(0,0,0,0.15)',
+                }}
+              />
+            ))}
+          </div>
+        )}
       </header>
 
       {notifToast && (
@@ -344,6 +374,14 @@ export default function CalendarClient({ initialEvents, user }) {
           onClose={() => setDayViewDate(null)}
           onAdd={() => { setAddingToDate(dayViewDate); setDayViewDate(null); setShowAddModal(true) }}
           onDelete={deleteEvent}
+        />
+      )}
+
+      {showShareModal && (
+        <ShareModal
+          inviteCode={inviteCode}
+          connectedCount={connectedCount}
+          onClose={() => setShowShareModal(false)}
         />
       )}
     </div>

@@ -15,18 +15,12 @@ const PushPin = ({ color }) => (
   </div>
 )
 
-const getGrid = (count) => {
-  if (count <= 3) return { cols: count, rows: 1 }
-  if (count === 4) return { cols: 2, rows: 2 }
-  if (count <= 6) return { cols: 3, rows: 2 }
-  return { cols: 3, rows: 3 }
-}
-
 const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
 
 export default function DayView({ date, events, onClose, onAdd, onDelete }) {
   const [notifEvents, setNotifEvents] = useState({})
   const [globalNotifOn, setGlobalNotifOn] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState(null)
 
   useEffect(() => {
     try {
@@ -57,11 +51,92 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
   const MAX = 9
   const shown = events.slice(0, MAX)
   const extra = events.length - MAX
-  const { cols, rows } = getGrid(shown.length)
 
-  const imgVh = rows === 1 ? 36 : rows === 2 ? 18 : 11
-  const cardVw = (imgVh * 0.82).toFixed(1)
-  const rotScale = rows > 1 ? 0.4 : 1
+  // Full-screen detail popup for a tapped event
+  if (selectedEvent) {
+    return (
+      <div
+        className="fixed inset-0 z-50"
+        style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(12px)' }}
+        onClick={() => setSelectedEvent(null)}
+      >
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: '5%', left: '5%', right: '5%', bottom: '5%',
+            background: '#fffaee',
+            border: '4px solid #1a1a1a',
+            borderRadius: 8,
+            boxShadow: '10px 10px 0 rgba(0,0,0,0.40)',
+            display: 'flex', flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative', background: '#f5f0e8' }}>
+            {selectedEvent.image_url ? (
+              <img
+                src={selectedEvent.image_url}
+                alt={selectedEvent.title || ''}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            ) : (
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
+                <p style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', color: '#5b21b6', padding: 24 }}>{selectedEvent.title}</p>
+              </div>
+            )}
+            <button
+              onClick={() => setSelectedEvent(null)}
+              style={{ position: 'absolute', top: 12, right: 12, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', fontSize: 16, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+            >&#10005;</button>
+          </div>
+
+          <div style={{ flexShrink: 0, padding: '16px 20px 20px', borderTop: '2px solid #e9e0cc', background: '#fff' }}>
+            {selectedEvent.title && (
+              <p style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800, color: '#1a1a2e', lineHeight: 1.3 }}>{selectedEvent.title}</p>
+            )}
+            {selectedEvent.time_str && (
+              <p style={{ margin: '0 0 4px', fontSize: 14, color: '#6b7280' }}>&#128336; {selectedEvent.time_str}</p>
+            )}
+            {selectedEvent.location && (
+              <p style={{ margin: '0 0 4px', fontSize: 14, color: '#6b7280' }}>&#128205; {selectedEvent.location}</p>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
+              {selectedEvent.source_url ? (
+                <a
+                  href={selectedEvent.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  style={{ fontSize: 13, color: '#7c3aed', fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}
+                >
+                  &#128279; View original
+                </a>
+              ) : <span />}
+              <button
+                onClick={() => toggleEventNotif(selectedEvent.id)}
+                style={{
+                  padding: '7px 16px', borderRadius: 20,
+                  background: isEventOn(selectedEvent.id) ? 'rgba(234,179,8,0.90)' : 'rgba(200,200,200,0.65)',
+                  border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  color: isEventOn(selectedEvent.id) ? '#92400e' : '#6b7280',
+                  transition: 'background 0.15s',
+                }}
+              >
+                {isEventOn(selectedEvent.id) ? '&#128276; Reminder on' : '&#128277; Reminder off'}
+              </button>
+            </div>
+            {!globalNotifOn && (
+              <p style={{ margin: '8px 0 0', fontSize: 11, color: '#9ca3af', textAlign: 'right' }}>
+                Enable notifications (&#128277; in header) to get reminders
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -78,15 +153,13 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
           border: '5px solid #1a1a1a',
           borderRadius: 6,
           boxShadow: '10px 10px 0 rgba(0,0,0,0.40)',
-          display: 'flex',
-          flexDirection: 'column',
+          display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
         }}
       >
         {/* Header */}
         <div style={{
-          flexShrink: 0,
-          padding: '14px 18px 12px',
+          flexShrink: 0, padding: '14px 18px 12px',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
           borderBottom: '2px solid #e9e0cc',
         }}>
@@ -99,45 +172,46 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
           <button
             onClick={onClose}
             style={{ marginTop: 2, width: 32, height: 32, borderRadius: '50%', background: '#e5e5e5', border: 'none', cursor: 'pointer', fontSize: 14, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}
-          >
-            &#10005;
-          </button>
+          >&#10005;</button>
         </div>
 
-        {/* Pinboard */}
-        <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+        {/* Pinboard - responsive scrollable grid */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {shown.length === 0 ? (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 32 }}>
               <span style={{ fontSize: 52 }}>&#128204;</span>
               <p style={{ fontSize: 15, fontWeight: 600, color: '#9ca3af', margin: 0 }}>Nothing pinned yet</p>
               <p style={{ fontSize: 13, color: '#d1d5db', margin: 0 }}>Tap Scan to add a flyer</p>
             </div>
           ) : (
             <div style={{
-              position: 'absolute', inset: 0,
               display: 'grid',
-              gridTemplateColumns: `repeat(${cols}, ${cardVw}vh)`,
-              gridAutoRows: 'max-content',
-              gap: rows > 1 ? '14px 14px' : '0 4%',
-              justifyContent: 'center',
-              alignContent: 'center',
-              padding: '36px 5% 14px',
+              gridTemplateColumns: shown.length === 1
+                ? 'minmax(0, 260px)'
+                : shown.length === 2
+                  ? 'repeat(2, 1fr)'
+                  : 'repeat(3, 1fr)',
+              gap: shown.length === 1 ? 0 : '20px 12px',
+              justifyContent: shown.length === 1 ? 'center' : 'stretch',
+              padding: shown.length === 1 ? '40px 20px 20px' : '36px 12px 20px',
               boxSizing: 'border-box',
-              overflow: 'hidden',
             }}>
               {shown.map((event, idx) => (
                 <div
                   key={event.id}
+                  onClick={() => setSelectedEvent(event)}
                   style={{
                     position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
+                    display: 'flex', flexDirection: 'column',
                     background: '#fff',
                     border: '3px solid #fff',
                     boxShadow: '0 6px 24px rgba(0,0,0,0.22)',
-                    transform: `rotate(${rots[idx] * rotScale}deg)`,
+                    transform: `rotate(${rots[idx]}deg)`,
                     transformOrigin: 'top center',
-                    marginTop: rows === 1 && idx === 1 ? 20 : rows === 1 && idx === 2 ? 10 : 0,
+                    cursor: 'pointer',
+                    marginTop: shown.length <= 3 && idx === 1 ? 20 : shown.length <= 3 && idx === 2 ? 10 : 0,
+                    userSelect: 'none',
+                    WebkitTapHighlightColor: 'transparent',
                   }}
                 >
                   <PushPin color={PIN_COLORS[idx % PIN_COLORS.length]} />
@@ -146,58 +220,44 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                     <img
                       src={event.image_url}
                       alt={event.title || ''}
-                      style={{ width: '100%', height: `${imgVh}vh`, objectFit: 'cover', display: 'block' }}
+                      style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }}
                     />
                   ) : (
-                    <div style={{ width: '100%', height: `${imgVh}vh`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
-                      <p style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 6 }}>{event.title}</p>
+                    <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
+                      <p style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 6, padding: '0 4px' }}>{event.title}</p>
                     </div>
                   )}
 
-                  {/* Info strip */}
                   <div style={{ flexShrink: 0, padding: '5px 7px 7px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        {event.title && <p style={{ margin: '0 0 2px', fontSize: 9, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3 }}>{event.title}</p>}
-                        {event.time_str && <p style={{ margin: '0 0 2px', fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128336; {event.time_str}</p>}
-                        {event.location && <p style={{ margin: '0 0 2px', fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#128205; {event.location}</p>}
-                        {event.source_url && (
-                          <a
-                            href={event.source_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 2, marginTop: 2, fontSize: 8, color: '#7c3aed', textDecoration: 'none', fontWeight: 600, opacity: 0.85 }}
-                          >
-                            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
-                              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
-                            </svg>
-                            View original
-                          </a>
+                        {event.title && (
+                          <p style={{ margin: '0 0 2px', fontSize: 9, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {event.title}
+                          </p>
+                        )}
+                        {event.time_str && (
+                          <p style={{ margin: 0, fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>&#9200; {event.time_str}</p>
                         )}
                       </div>
-                      {globalNotifOn && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); toggleEventNotif(event.id) }}
-                          title={isEventOn(event.id) ? 'Mute reminder' : 'Enable reminder'}
-                          style={{
-                            flexShrink: 0, width: 18, height: 18, borderRadius: '50%', marginTop: 1,
-                            background: isEventOn(event.id) ? 'rgba(234,179,8,0.90)' : 'rgba(200,200,200,0.65)',
-                            border: 'none', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 9, transition: 'background 0.15s',
-                          }}
-                        >
-                          {isEventOn(event.id) ? '🔔' : '🔕'}
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleEventNotif(event.id) }}
+                        title={isEventOn(event.id) ? 'Mute reminder' : 'Enable reminder'}
+                        style={{
+                          flexShrink: 0, width: 18, height: 18, borderRadius: '50%', marginTop: 1,
+                          background: isEventOn(event.id) ? 'rgba(234,179,8,0.90)' : 'rgba(200,200,200,0.65)',
+                          border: 'none', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 9, transition: 'background 0.15s',
+                        }}
+                      >
+                        {isEventOn(event.id) ? '&#128276;' : '&#128277;'}
+                      </button>
                     </div>
                   </div>
 
-                  {/* Delete button */}
                   <button
-                    onClick={() => onDelete(event.id)}
+                    onClick={(e) => { e.stopPropagation(); onDelete(event.id) }}
                     style={{
                       position: 'absolute', top: 4, right: 4,
                       width: 18, height: 18, borderRadius: '50%',
@@ -207,23 +267,26 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       zIndex: 20, boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
                     }}
-                  >
-                    &#10005;
-                  </button>
+                  >&#10005;</button>
                 </div>
               ))}
             </div>
           )}
 
           {extra > 0 && (
-            <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: '#ede9fe', color: '#7c3aed', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 700, zIndex: 20, whiteSpace: 'nowrap' }}>
-              +{extra} more
+            <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
+              <span style={{ background: '#ede9fe', color: '#7c3aed', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 700 }}>
+                +{extra} more
+              </span>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px 14px', borderTop: '2px solid #e9e0cc' }}>
+        <div style={{
+          flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 16px 14px', borderTop: '2px solid #e9e0cc',
+        }}>
           <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 12, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Close</button>
           <button onClick={onAdd} style={{ padding: '9px 22px', borderRadius: 12, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 14px rgba(124,58,237,0.38)' }}>+ Scan</button>
         </div>

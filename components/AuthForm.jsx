@@ -3,8 +3,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function AuthForm() {
-  const [mode, setMode] = useState('signin') // 'signin' | 'signup' | 'reset'
+export default function AuthForm({ next }) {
+  const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -15,6 +15,7 @@ export default function AuthForm() {
   const supabase = createClient()
 
   const switchMode = (m) => { setMode(m); setError(null); setInfo(null) }
+  const dest = next || '/calendar'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -41,8 +42,6 @@ export default function AuthForm() {
           : error.message)
         return
       }
-      // If email confirmation is required, Supabase won't return a session yet
-      // Try to sign in — if it fails with "not confirmed", show helpful message
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
       if (signInErr) {
         if (signInErr.message.toLowerCase().includes('confirm')) {
@@ -52,11 +51,10 @@ export default function AuthForm() {
         }
         return
       }
-      router.push('/calendar')
+      router.push(dest)
       return
     }
 
-    // Sign in
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
     if (error) {
@@ -67,14 +65,14 @@ export default function AuthForm() {
       )
       return
     }
-    router.push('/calendar')
+    router.push(dest)
   }
 
   if (mode === 'reset') {
     return (
       <form onSubmit={handleSubmit} className="space-y-3">
         <p className="text-sm text-white/40 text-center pb-1">
-          Enter your email — we’ll send a link to set your password.
+          Enter your email — we'll send a link to set your password.
         </p>
         <input
           type="email" placeholder="your@email.com" value={email}
