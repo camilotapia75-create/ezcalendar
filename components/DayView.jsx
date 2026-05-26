@@ -209,7 +209,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                     background: '#fff',
                     border: '3px solid #fff',
                     boxShadow: '0 6px 24px rgba(0,0,0,0.22)',
-                    transform: `rotate(${shown.length === 1 ? rots[idx] : rots[idx] * 0.4}deg)`,
+                    transform: shown.length === 1 ? `rotate(${rots[idx]}deg)` : 'none',
                     transformOrigin: 'top center',
                     cursor: 'pointer',
                     userSelect: 'none',
