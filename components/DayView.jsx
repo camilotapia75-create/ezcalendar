@@ -190,9 +190,12 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                 ? 'minmax(0, min(75%, 380px))'
                 : shown.length === 2
                   ? 'repeat(2, minmax(0, 1fr))'
-                  : 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))',
+                  : 'repeat(3, minmax(0, 1fr))',
               gap: shown.length === 1 ? 0 : '28px 16px',
-              justifyContent: shown.length === 1 ? 'center' : 'stretch',
+              justifyContent: 'center',
+              maxWidth: shown.length === 1 ? '100%' : shown.length === 2 ? 560 : 860,
+              margin: '0 auto',
+              width: '100%',
               padding: shown.length === 1 ? '48px 24px 24px' : '44px 20px 24px',
               boxSizing: 'border-box',
             }}>
