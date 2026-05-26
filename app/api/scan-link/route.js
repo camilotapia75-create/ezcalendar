@@ -31,6 +31,23 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary)
 }
 
+async function tryInstagramOembed(url) {
+  const appId = process.env.FACEBOOK_APP_ID
+  const appSecret = process.env.FACEBOOK_APP_SECRET
+  if (!appId || !appSecret) return { _err: 'NO_CREDS' }
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/instagram_oembed?url=${encodeURIComponent(url)}&fields=thumbnail_url,title,author_name&access_token=${appId}|${appSecret}`,
+      { signal: AbortSignal.timeout(10000) }
+    )
+    const data = await res.json()
+    if (data.error) return { _err: `IG_OEMBED_${data.error.code}: ${data.error.message}` }
+    return { thumbnail_url: data.thumbnail_url || null, caption: data.title || '' }
+  } catch (e) {
+    return { _err: `IG_OEMBED_THROW: ${e.message}` }
+  }
+}
+
 async function tryFacebookGraphAPI(eventId) {
   const appId = process.env.FACEBOOK_APP_ID
   const appSecret = process.env.FACEBOOK_APP_SECRET
@@ -165,6 +182,48 @@ export async function POST(request) {
 
   let baseUrl = url
   try { baseUrl = new URL(url).origin } catch {}
+
+  // —— Instagram posts / reels ——
+  const igMatch = url.match(/instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)/i)
+  if (igMatch) {
+    const errors = []
+    let igText = ''
+    let igImage = null
+
+    // 1) oEmbed API gives thumbnail + caption without requiring user login
+    const oembed = await tryInstagramOembed(url)
+    if (!oembed._err) {
+      igImage = oembed.thumbnail_url || null
+      igText = oembed.caption || ''
+    } else {
+      errors.push(oembed._err)
+    }
+
+    // 2) Jina fallback for richer text
+    const jina = await fetchViaJina(url)
+    if (!jina._err && jina.text && jina.chars > 100) {
+      igText = igText ? `${igText}\n\n${jina.text}` : jina.text
+      if (!igImage) {
+        const imgMatch = jina.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
+        if (imgMatch) igImage = imgMatch[1]
+      }
+    } else {
+      errors.push(jina._err || `JINA_SHORT(${jina.chars ?? 0}chars)`)
+    }
+
+    if (igText.length > 50) {
+      const data = await callGemini(igText, apiKey)
+      if (data?.title || data?.date) {
+        const imageData = await proxyImage(igImage, url)
+        return NextResponse.json({ ...data, og_image: imageData || igImage })
+      }
+      errors.push('GEMINI_NO_TITLE')
+    }
+
+    return NextResponse.json({
+      error: `Could not read Instagram post. Instagram often requires login — try saving the flyer image and uploading it instead. [${errors.join(' | ')}]`,
+    }, { status: 400 })
+  }
 
   // —— Facebook events ——
   const fbMatch = url.match(/facebook\.com\/events\/(\d+)/i)

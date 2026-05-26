@@ -346,7 +346,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-white/70">Paste a link</p>
-                  <p className="text-xs text-white/25 mt-0.5">AI reads the event from the URL</p>
+                  <p className="text-xs text-white/25 mt-0.5">Instagram, Facebook, or any event page</p>
                 </div>
               </button>
               <p className="text-center text-[11px] text-white/15 pt-1">AI reads the date, time &amp; location automatically</p>
