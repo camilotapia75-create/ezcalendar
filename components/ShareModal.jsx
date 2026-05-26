@@ -78,7 +78,7 @@ export default function ShareModal({ inviteCode, connectedCount, onClose }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            {copied ? '&#10003; Copied!' : '&#128203; Copy invite link'}
+            {copied ? '✓ Copied!' : '📋 Copy invite link'}
           </button>
         </div>
 

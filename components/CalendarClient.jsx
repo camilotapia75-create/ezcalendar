@@ -270,7 +270,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
             title={notifEnabled ? 'Notifications on — tap to turn off' : 'Tap to enable event reminders'}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '2px 4px' }}
           >
-            {notifEnabled ? '&#128276;' : '&#128277;'}
+            {notifEnabled ? '🔔' : '🔕'}
           </button>
 
           <button onClick={handleSignOut} className="text-[11px] transition-colors hover:text-violet-500" style={{ color: theme.accent }}>

@@ -124,7 +124,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                   transition: 'background 0.15s',
                 }}
               >
-                {isEventOn(selectedEvent.id) ? '&#128276; Reminder on' : '&#128277; Reminder off'}
+                {isEventOn(selectedEvent.id) ? '🔔 Reminder on' : '🔕 Reminder off'}
               </button>
             </div>
             {!globalNotifOn && (
@@ -251,7 +251,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                           fontSize: 9, transition: 'background 0.15s',
                         }}
                       >
-                        {isEventOn(event.id) ? '&#128276;' : '&#128277;'}
+                        {isEventOn(event.id) ? '🔔' : '🔕'}
                       </button>
                     </div>
                   </div>
