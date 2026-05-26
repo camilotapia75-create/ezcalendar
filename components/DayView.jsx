@@ -187,13 +187,13 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
             <div style={{
               display: 'grid',
               gridTemplateColumns: shown.length === 1
-                ? 'minmax(0, 260px)'
+                ? 'minmax(0, min(75%, 380px))'
                 : shown.length === 2
-                  ? 'repeat(2, 1fr)'
-                  : 'repeat(3, 1fr)',
-              gap: shown.length === 1 ? 0 : '20px 12px',
+                  ? 'repeat(2, minmax(0, 1fr))'
+                  : 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))',
+              gap: shown.length === 1 ? 0 : '28px 16px',
               justifyContent: shown.length === 1 ? 'center' : 'stretch',
-              padding: shown.length === 1 ? '40px 20px 20px' : '36px 12px 20px',
+              padding: shown.length === 1 ? '48px 24px 24px' : '44px 20px 24px',
               boxSizing: 'border-box',
             }}>
               {shown.map((event, idx) => (
@@ -206,10 +206,9 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                     background: '#fff',
                     border: '3px solid #fff',
                     boxShadow: '0 6px 24px rgba(0,0,0,0.22)',
-                    transform: `rotate(${rots[idx]}deg)`,
+                    transform: `rotate(${shown.length === 1 ? rots[idx] : rots[idx] * 0.4}deg)`,
                     transformOrigin: 'top center',
                     cursor: 'pointer',
-                    marginTop: shown.length <= 3 && idx === 1 ? 20 : shown.length <= 3 && idx === 2 ? 10 : 0,
                     userSelect: 'none',
                     WebkitTapHighlightColor: 'transparent',
                   }}
