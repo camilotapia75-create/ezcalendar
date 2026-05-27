@@ -38,37 +38,47 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
   const count = displayed.length
   const accent = theme?.accent || '#7c3aed'
 
-  const cellBg = !currentMonth
-    ? (theme?.inactiveBg || 'rgba(150,100,45,0.30)')
-    : isWeekend
-    ? (theme?.weekendBg || 'rgba(255,245,225,0.82)')
-    : (theme?.cellBg || 'rgba(255,250,238,0.90)')
+  const numColor = isToday ? '#fff'
+    : !currentMonth ? 'rgba(0,0,0,0.18)'
+    : isWeekend ? accent
+    : '#111'
 
   return (
     <div
       onClick={onClick}
       className={[
         'relative flex flex-col',
-        'min-h-[108px] md:min-h-[128px]',
+        'min-h-[88px] md:min-h-[112px]',
         currentMonth ? 'cursor-pointer' : 'pointer-events-none',
       ].join(' ')}
-      style={{ borderRight: '3px solid #111', borderBottom: '3px solid #111', background: cellBg }}
+      style={{
+        borderRight: '2px solid #111',
+        borderBottom: '2px solid #111',
+        background: !currentMonth ? 'rgba(0,0,0,0.025)' : 'transparent',
+      }}
     >
-      <div className="p-1.5 md:p-2 flex items-start justify-between">
+      <div style={{ padding: '5px 5px 3px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <span
-          className="inline-flex w-6 h-6 text-[11px] items-center justify-center rounded-full font-semibold"
           style={{
+            display: 'inline-flex',
+            width: isToday ? 26 : 'auto',
+            height: isToday ? 26 : 'auto',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: isToday ? '50%' : undefined,
             background: isToday ? accent : 'transparent',
-            color: isToday ? '#fff'
-              : !currentMonth ? 'rgba(110,70,20,0.45)'
-              : isWeekend ? '#92400e'
-              : '#374151',
+            color: numColor,
+            fontSize: 'clamp(14px, 2.8vw, 20px)',
+            fontWeight: isWeekend || isToday ? 800 : 600,
+            lineHeight: 1,
+            letterSpacing: '-0.5px',
+            fontFamily: 'var(--font-caveat), Caveat, cursive',
           }}
         >
           {day}
         </span>
         {hasNote && currentMonth && (
-          <span style={{ fontSize: 10, lineHeight: 1, opacity: 0.7 }}>📝</span>
+          <span style={{ fontSize: 9, lineHeight: 1, opacity: 0.6 }}>📝</span>
         )}
       </div>
 

@@ -5,21 +5,7 @@ const MONTHS = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
 ]
-
-const BOARD_BG = {
-  backgroundColor: '#d6eeff',
-  backgroundImage: [
-    'repeating-linear-gradient(112deg, rgba(100,160,220,0.10) 0px, rgba(100,160,220,0.10) 1px, transparent 1px, transparent 9px)',
-    'repeating-linear-gradient(22deg, rgba(120,180,240,0.07) 0px, rgba(120,180,240,0.07) 1px, transparent 1px, transparent 11px)',
-    'radial-gradient(ellipse 14% 9% at 7% 14%, rgba(100,160,220,0.22) 0%, transparent 100%)',
-    'radial-gradient(ellipse 9% 15% at 35% 70%, rgba(100,160,220,0.18) 0%, transparent 100%)',
-    'radial-gradient(ellipse 16% 8% at 62% 32%, rgba(100,160,220,0.20) 0%, transparent 100%)',
-    'radial-gradient(ellipse 11% 13% at 18% 82%, rgba(160,210,255,0.18) 0%, transparent 100%)',
-    'radial-gradient(ellipse 17% 7% at 50% 6%, rgba(100,160,220,0.16) 0%, transparent 100%)',
-    'radial-gradient(ellipse 8% 16% at 85% 72%, rgba(100,160,220,0.20) 0%, transparent 100%)',
-    'linear-gradient(160deg, #e8f4ff 0%, #c8e6ff 40%, #d8eeff 70%, #b8deff 100%)',
-  ].join(', '),
-}
+const ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
 
 export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick, theme, pinStyle, notes = {} }) {
   const year = currentDate.getFullYear()
@@ -50,65 +36,98 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
 
   const eventsForDate = (date) => events.filter(e => e.date === dateKey(date))
 
+  const accent = theme?.accent || '#7c3aed'
+
   return (
     <div style={{
-      borderRadius: '18px',
+      borderRadius: 6,
       overflow: 'hidden',
-      boxShadow: '0 12px 48px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.6)',
-      border: '10px solid #7bb8e8',
-      outline: '2px solid #5a9fd4',
-      ...BOARD_BG,
+      border: '3px solid #111',
+      boxShadow: '5px 5px 0 rgba(0,0,0,0.30)',
     }}>
 
-      {/* Month nav */}
-      <div
-        className="flex items-center justify-between py-4 px-5"
-        style={{ background: 'linear-gradient(90deg, #7bb8e8, #9ecef5, #7bb8e8)', borderBottom: '4px solid #5a9fd4' }}
-      >
-        <button
-          onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-          className="w-9 h-9 flex items-center justify-center rounded-xl transition-all text-2xl hover:bg-white/20"
-          style={{ color: '#fff' }}
-        >
-          &#8249;
-        </button>
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold tracking-tight" style={{ color: '#fff' }}>
-            {MONTHS[month]}
-            <span className="font-normal ml-2" style={{ color: 'rgba(255,255,255,0.80)' }}>{year}</span>
-          </h2>
+      {/* Big month header */}
+      <div style={{ background: '#faf7f2', borderBottom: '3px solid #111', padding: '12px 14px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', lineHeight: 1 }}>
+          <div style={{
+            fontSize: 'clamp(48px, 13vw, 80px)',
+            fontWeight: 900,
+            letterSpacing: '-4px',
+            color: accent,
+            fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif',
+            lineHeight: 0.88,
+          }}>
+            {ABBR[month]}
+          </div>
+          <div style={{
+            fontSize: 'clamp(40px, 11vw, 68px)',
+            fontWeight: 900,
+            letterSpacing: '-3px',
+            color: `${accent}28`,
+            fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif',
+            lineHeight: 0.88,
+          }}>
+            {String(month + 1).padStart(2, '0')}
+          </div>
+        </div>
+
+        {/* Nav row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0 12px' }}>
           <button
-            onClick={() => setCurrentDate(new Date())}
-            className="text-[11px] px-3 py-1 rounded-full font-semibold transition-all hover:bg-white/20"
-            style={{ color: '#fff', border: '1px solid rgba(255,255,255,0.5)' }}
+            onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
+            style={{ background: 'none', border: `1.5px solid ${accent}66`, borderRadius: 5, cursor: 'pointer', color: accent, width: 30, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700 }}
           >
-            today
+            ‹
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 15, color: '#6b7280' }}>{MONTHS[month]} {year}</span>
+            <button
+              onClick={() => setCurrentDate(new Date())}
+              style={{ fontSize: 14, padding: '2px 10px', borderRadius: 20, background: 'none', border: `1.5px solid ${accent}55`, color: accent, cursor: 'pointer' }}
+            >
+              today
+            </button>
+          </div>
+          <button
+            onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
+            style={{ background: 'none', border: `1.5px solid ${accent}66`, borderRadius: 5, cursor: 'pointer', color: accent, width: 30, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700 }}
+          >
+            ›
           </button>
         </div>
-        <button
-          onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-          className="w-9 h-9 flex items-center justify-center rounded-xl transition-all text-2xl hover:bg-white/20"
-          style={{ color: '#fff' }}
-        >
-          &#8250;
-        </button>
       </div>
 
       {/* Day headers */}
-      <div className="grid grid-cols-7" style={{ background: 'rgba(100,160,220,0.25)', borderBottom: '4px solid #5a9fd4' }}>
+      <div className="grid grid-cols-7" style={{ background: accent, borderBottom: '3px solid #111' }}>
         {DAYS.map((d, i) => (
           <div
             key={d}
-            className="py-2.5 text-center text-[10px] font-bold tracking-widest"
-            style={{ color: i === 0 || i === 6 ? '#3a7abf' : '#4a8fcf' }}
+            className="py-2 text-center"
+            style={{
+              fontSize: 9,
+              fontWeight: 800,
+              letterSpacing: '0.1em',
+              color: i === 0 || i === 6 ? 'rgba(255,255,255,0.65)' : '#fff',
+              fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif',
+            }}
           >
             {d}
           </div>
         ))}
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-7" style={{ borderLeft: '3px solid #5a9fd4' }}>
+      {/* Grid — graph paper background */}
+      <div
+        className="grid grid-cols-7"
+        style={{
+          borderLeft: '2px solid #111',
+          backgroundImage: [
+            'repeating-linear-gradient(0deg, rgba(0,0,0,0.045) 0px, rgba(0,0,0,0.045) 1px, transparent 1px, transparent 24px)',
+            'repeating-linear-gradient(90deg, rgba(0,0,0,0.035) 0px, rgba(0,0,0,0.035) 1px, transparent 1px, transparent 24px)',
+            'linear-gradient(#faf7f2, #faf7f2)',
+          ].join(', '),
+        }}
+      >
         {cells.map((cell, i) => (
           <DayCell
             key={i}
