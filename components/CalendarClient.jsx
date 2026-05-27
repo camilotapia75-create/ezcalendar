@@ -6,6 +6,7 @@ import Calendar from './Calendar'
 import AddFlyerModal from './AddFlyerModal'
 import DayView from './DayView'
 import ShareModal from './ShareModal'
+import DayNoteModal from './DayNoteModal'
 
 const THEMES = {
   dreamy: {
@@ -92,6 +93,8 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const [showThemePicker, setShowThemePicker] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [pinStyle, setPinStyle] = useState('classic')
+  const [notes, setNotes] = useState({})
+  const [noteDate, setNoteDate] = useState(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -104,7 +107,31 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     if (joined) showToast('🎉 Connected! You now see your friend\'s events too.')
     else if (joinErr === 'self') showToast("That's your own invite link!")
     else if (joinErr === 'notfound') showToast('Invite link not found — ask your friend for a new one.')
+    // Fetch notes
+    supabase.from('day_notes').select('date, text_note, drawing_data').then(({ data }) => {
+      if (!data) return
+      const map = {}
+      data.forEach(n => { map[n.date] = n })
+      setNotes(map)
+    })
   }, [])
+
+  const saveNote = async (dateStr, data) => {
+    const { error } = await supabase.from('day_notes').upsert(
+      { user_id: user.id, date: dateStr, text_note: data.text_note, drawing_data: data.drawing_data, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,date' }
+    )
+    if (!error) {
+      setNotes(prev => ({ ...prev, [dateStr]: data }))
+      setNoteDate(null)
+    }
+  }
+
+  const deleteNote = async (dateStr) => {
+    await supabase.from('day_notes').delete().eq('date', dateStr).eq('user_id', user.id)
+    setNotes(prev => { const n = { ...prev }; delete n[dateStr]; return n })
+    setNoteDate(null)
+  }
 
   useEffect(() => {
     if (!showThemePicker) return
@@ -343,6 +370,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           onEventClick={(date) => setDayViewDate(date)}
           theme={theme}
           pinStyle={pinStyle}
+          notes={notes}
         />
       </main>
 
@@ -375,10 +403,12 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         <DayView
           date={dayViewDate}
           events={getDayEvents(dayViewDate)}
+          note={notes[dayViewDate ? [dayViewDate.getFullYear(), String(dayViewDate.getMonth()+1).padStart(2,'0'), String(dayViewDate.getDate()).padStart(2,'0')].join('-') : ''] || null}
           onClose={() => setDayViewDate(null)}
           onAdd={() => { setAddingToDate(dayViewDate); setDayViewDate(null); setShowAddModal(true) }}
           onDelete={deleteEvent}
           onPinStyleChange={(id) => setPinStyle(id)}
+          onEditNote={(dateStr) => setNoteDate(dateStr)}
         />
       )}
 
@@ -387,6 +417,16 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           inviteCode={inviteCode}
           connectedCount={connectedCount}
           onClose={() => setShowShareModal(false)}
+        />
+      )}
+
+      {noteDate && (
+        <DayNoteModal
+          dateStr={noteDate}
+          existingNote={notes[noteDate] || null}
+          onSave={saveNote}
+          onDelete={deleteNote}
+          onClose={() => setNoteDate(null)}
         />
       )}
     </div>

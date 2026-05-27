@@ -1,7 +1,8 @@
-import { Inter } from 'next/font/google'
+import { Inter, Caveat } from 'next/font/google'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
+const caveat = Caveat({ subsets: ['latin'], variable: '--font-caveat', display: 'swap' })
 
 export const viewport = {
   themeColor: '#0c0c0e',
@@ -25,7 +26,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${caveat.variable}`}>
       <body className="bg-[#0c0c0e] text-white antialiased font-[var(--font-inter)]">
         {children}
       </body>

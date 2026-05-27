@@ -76,3 +76,20 @@ create policy "Connected users can see shared events" on events
          or (user_b_id = auth.uid() and user_a_id = events.user_id)
     )
   );
+
+-- ─── Day notes (handwritten / drawn notes per calendar day) ──────────────────
+create table if not exists day_notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  date text not null,
+  text_note text,
+  drawing_data text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_id, date)
+);
+
+alter table day_notes enable row level security;
+
+create policy "Users can manage their own notes" on day_notes
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

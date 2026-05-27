@@ -21,7 +21,7 @@ const BOARD_BG = {
   ].join(', '),
 }
 
-export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick, theme, pinStyle }) {
+export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick, theme, pinStyle, notes = {} }) {
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
@@ -42,14 +42,13 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
     date.getMonth() === today.getMonth() &&
     date.getFullYear() === today.getFullYear()
 
-  const eventsForDate = (date) => {
-    const key = [
-      date.getFullYear(),
-      String(date.getMonth() + 1).padStart(2, '0'),
-      String(date.getDate()).padStart(2, '0'),
-    ].join('-')
-    return events.filter(e => e.date === key)
-  }
+  const dateKey = (date) => [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+
+  const eventsForDate = (date) => events.filter(e => e.date === dateKey(date))
 
   return (
     <div style={{
@@ -118,6 +117,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
             isToday={isToday(cell.date)}
             isWeekend={cell.date.getDay() === 0 || cell.date.getDay() === 6}
             events={eventsForDate(cell.date)}
+            hasNote={!!notes[dateKey(cell.date)]}
             onClick={() => cell.current && onDayClick(cell.date)}
             onEventClick={() => cell.current && onEventClick(cell.date)}
             theme={theme}

@@ -33,7 +33,7 @@ const getFanStyle = (idx, total) => {
   return { left: '44%', right: '-6%', rotate: 13 }
 }
 
-export default function DayCell({ day, currentMonth, isToday, isWeekend, events, onClick, onEventClick, theme, pinStyle }) {
+export default function DayCell({ day, currentMonth, isToday, isWeekend, events, hasNote, onClick, onEventClick, theme, pinStyle }) {
   const displayed = events.slice(0, 3)
   const count = displayed.length
   const accent = theme?.accent || '#7c3aed'
@@ -54,7 +54,7 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
       ].join(' ')}
       style={{ borderRight: '3px solid #111', borderBottom: '3px solid #111', background: cellBg }}
     >
-      <div className="p-1.5 md:p-2">
+      <div className="p-1.5 md:p-2 flex items-start justify-between">
         <span
           className="inline-flex w-6 h-6 text-[11px] items-center justify-center rounded-full font-semibold"
           style={{
@@ -67,6 +67,9 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
         >
           {day}
         </span>
+        {hasNote && currentMonth && (
+          <span style={{ fontSize: 10, lineHeight: 1, opacity: 0.7 }}>📝</span>
+        )}
       </div>
 
       {count > 0 && (

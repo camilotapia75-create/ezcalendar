@@ -51,7 +51,7 @@ function Pin({ styleId, colorIdx }) {
 
 const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
 
-export default function DayView({ date, events, onClose, onAdd, onDelete, onPinStyleChange }) {
+export default function DayView({ date, events, note, onClose, onAdd, onDelete, onPinStyleChange, onEditNote }) {
   const [notifEvents, setNotifEvents] = useState({})
   const [globalNotifOn, setGlobalNotifOn] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
@@ -215,6 +215,12 @@ export default function DayView({ date, events, onClose, onAdd, onDelete, onPinS
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+            {/* Note button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); const key = [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-'); onEditNote?.(key) }}
+              title={note ? 'Edit note' : 'Add a note'}
+              style={{ width: 32, height: 32, borderRadius: '50%', background: note ? '#fef9c3' : '#e5e5e5', border: note ? '2px solid #ca8a04' : '2px solid transparent', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >📝</button>
             {/* Pin style picker button */}
             <button
               onClick={(e) => { e.stopPropagation(); setShowPinPicker(p => !p) }}
@@ -280,6 +286,23 @@ export default function DayView({ date, events, onClose, onAdd, onDelete, onPinS
           style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
           onClick={() => setShowPinPicker(false)}
         >
+          {/* Note preview */}
+          {note && (
+            <div
+              onClick={(e) => { e.stopPropagation(); const key = [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-'); onEditNote?.(key) }}
+              style={{ margin: '14px 18px 0', padding: '10px 14px', background: '#fefce8', border: '1.5px solid #fde047', borderRadius: 10, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }}
+            >
+              {note.text_note && (
+                <p style={{ margin: 0, fontSize: 18, fontFamily: 'var(--font-caveat), Caveat, cursive', color: '#1a1a2e', lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {note.text_note}
+                </p>
+              )}
+              {note.drawing_data && (
+                <img src={note.drawing_data} alt="note drawing" style={{ marginTop: note.text_note ? 8 : 0, width: '100%', borderRadius: 6, display: 'block' }} />
+              )}
+            </div>
+          )}
+
           {shown.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 32 }}>
               <span style={{ fontSize: 52 }}>&#128204;</span>
