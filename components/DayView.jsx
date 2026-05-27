@@ -44,9 +44,123 @@ function Pin({ styleId, colorIdx }) {
 const PEN_COLORS = ['#1a1a2e', '#7c3aed', '#dc2626', '#2563eb', '#f59e0b', '#16a34a', '#db2777', '#ffffff']
 const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
 
+// Replay vector ops onto a 2D context. Coordinates are fractions (0–1) of w/h.
+function replayOps(ctx, ops, w, h) {
+  for (const op of (ops || [])) {
+    if (op.type === 'text') {
+      const fontSize = op.size * 9
+      ctx.font = `bold ${fontSize}px Caveat, cursive`
+      ctx.fillStyle = op.color
+      ctx.fillText(op.text, op.x * w, op.y * h)
+    } else {
+      const pts = (op.points || []).map(p => ({ x: p.x * w, y: p.y * h }))
+      if (!pts.length) continue
+      if (op.isEraser) {
+        ctx.save()
+        ctx.globalCompositeOperation = 'destination-out'
+        for (const pt of pts) {
+          ctx.beginPath()
+          ctx.arc(pt.x, pt.y, op.size * 7, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        ctx.restore()
+      } else {
+        ctx.beginPath()
+        pts.forEach((pt, i) => i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y))
+        ctx.strokeStyle = op.color
+        ctx.lineWidth = op.size
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+        ctx.stroke()
+      }
+    }
+  }
+}
+
+// Full-board note overlay — rerenders on resize, crisp at any DPR
+function NoteCanvas({ data, boardRef, highlighted }) {
+  const elRef = useRef()
+
+  useEffect(() => {
+    if (!data) return
+    // Legacy PNG (saved before vector format) — handled by the img fallback below
+    if (data.startsWith('data:')) return
+
+    let parsed
+    try { parsed = JSON.parse(data) } catch { return }
+    const ops = parsed.ops || []
+
+    const draw = () => {
+      const canvas = elRef.current
+      const board = boardRef?.current
+      if (!canvas || !board) return
+      const w = board.clientWidth
+      const h = board.clientHeight
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = Math.round(w * dpr)
+      canvas.height = Math.round(h * dpr)
+      canvas.style.width = w + 'px'
+      canvas.style.height = h + 'px'
+      const ctx = canvas.getContext('2d')
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      replayOps(ctx, ops, w, h)
+    }
+
+    draw()
+    window.addEventListener('resize', draw)
+    return () => window.removeEventListener('resize', draw)
+  }, [data, boardRef])
+
+  const glow = highlighted
+    ? 'drop-shadow(0 0 6px #fbbf24) drop-shadow(0 0 14px #f59e0b) brightness(1.15) saturate(1.4)'
+    : 'none'
+
+  if (data?.startsWith('data:')) {
+    return <img src={data} alt="" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'fill', pointerEvents: 'none', zIndex: 25, filter: glow, transition: 'filter 0.2s' }} />
+  }
+  return (
+    <canvas ref={elRef} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 25, filter: glow, transition: 'filter 0.2s' }} />
+  )
+}
+
+// Small thumbnail used in the note manager popover
+function NoteThumbnail({ data, highlighted }) {
+  const elRef = useRef()
+  const W = 56, H = 42
+
+  useEffect(() => {
+    if (!data || data.startsWith('data:')) return
+    let parsed
+    try { parsed = JSON.parse(data) } catch { return }
+    const ops = parsed.ops || []
+    const canvas = elRef.current
+    if (!canvas) return
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = Math.round(W * dpr)
+    canvas.height = Math.round(H * dpr)
+    canvas.style.width = W + 'px'
+    canvas.style.height = H + 'px'
+    const ctx = canvas.getContext('2d')
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    // Scale line widths down for the thumbnail
+    replayOps(ctx, ops.map(op =>
+      op.type === 'text' ? { ...op, size: Math.max(0.4, op.size * 0.32) }
+                         : { ...op, size: Math.max(0.5, op.size * 0.38) }
+    ), W, H)
+  }, [data])
+
+  const border = highlighted ? '2px solid #ca8a04' : '1px solid #e9e0cc'
+
+  if (data?.startsWith('data:')) {
+    return <img src={data} alt="" style={{ width: W, height: H, objectFit: 'cover', borderRadius: 5, border, flexShrink: 0 }} />
+  }
+  return (
+    <canvas ref={elRef} style={{ width: W, height: H, borderRadius: 5, border, flexShrink: 0, background: '#fffaee' }} />
+  )
+}
+
 export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onPinStyleChange, onSaveNote, onDeleteNote }) {
   const [notifEvents, setNotifEvents] = useState({})
-  const [globalNotifOn, setGlobalNotifOn] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [pinStyle, setPinStyle] = useState('classic')
   const [showPinPicker, setShowPinPicker] = useState(false)
@@ -58,7 +172,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
   const [penColor, setPenColor] = useState('#1a1a2e')
   const [penSize, setPenSize] = useState(3)
   const [erasing, setErasing] = useState(false)
-  const [pendingText, setPendingText] = useState(null) // {x, y}
+  const [pendingText, setPendingText] = useState(null)
   const [pendingTextVal, setPendingTextVal] = useState('')
 
   const canvasRef = useRef()
@@ -67,16 +181,23 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
   const isDrawingRef = useRef(false)
   const lastPtRef = useRef(null)
   const hasChanges = useRef(false)
-  // Keep stable refs for commitText closure
+
+  // Vector recording
+  const opsRef = useRef([])
+  const currentStrokeRef = useRef(null)
+
+  // Stable refs so event handlers never capture stale state
   const pendingTextRef = useRef(null)
   const pendingTextValRef = useRef('')
   const penColorRef = useRef('#1a1a2e')
   const penSizeRef = useRef(3)
+  const erasingRef = useRef(false)
 
   useEffect(() => { pendingTextRef.current = pendingText }, [pendingText])
   useEffect(() => { pendingTextValRef.current = pendingTextVal }, [pendingTextVal])
   useEffect(() => { penColorRef.current = penColor }, [penColor])
   useEffect(() => { penSizeRef.current = penSize }, [penSize])
+  useEffect(() => { erasingRef.current = erasing }, [erasing])
 
   const dateKey = [
     date.getFullYear(),
@@ -87,21 +208,25 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
   useEffect(() => {
     try {
       setNotifEvents(JSON.parse(localStorage.getItem('eventNotifs') || '{}'))
-      setGlobalNotifOn(localStorage.getItem('notificationsEnabled') === 'true')
       const saved = localStorage.getItem('pinStyle')
       if (saved) setPinStyle(saved)
     } catch {}
   }, [])
 
-  // Init canvas when entering write mode — use CSS pixels, no DPR scaling
+  // Init drawing canvas with full DPR resolution
   useEffect(() => {
     if (!writeMode || !canvasRef.current || !boardRef.current) return
     const canvas = canvasRef.current
     const board = boardRef.current
     const w = board.clientWidth
     const h = board.clientHeight
-    canvas.width = w
-    canvas.height = h
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = Math.round(w * dpr)
+    canvas.height = Math.round(h * dpr)
+    canvas.style.width = w + 'px'
+    canvas.style.height = h + 'px'
+    canvas.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0)
+    opsRef.current = []
     hasChanges.current = false
   }, [writeMode])
 
@@ -127,7 +252,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
   }
   const isEventOn = (id) => notifEvents[id] !== false
 
-  // Coordinates relative to canvas element in CSS pixels (no DPR)
+  // CSS pixel coords — ctx.setTransform(dpr…) handles the rest
   const getPoint = (e) => {
     const rect = canvasRef.current.getBoundingClientRect()
     const src = e.touches?.[0] ?? e
@@ -136,7 +261,6 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
 
   const onCanvasDown = (e) => {
     if (writeTool === 'text') {
-      // Commit any in-flight text first
       if (pendingTextValRef.current.trim()) flushText()
       const rect = canvasRef.current.getBoundingClientRect()
       const src = e.touches?.[0] ?? e
@@ -146,7 +270,16 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
     }
     e.preventDefault()
     isDrawingRef.current = true
-    lastPtRef.current = getPoint(e)
+    const pt = getPoint(e)
+    lastPtRef.current = pt
+    const board = boardRef.current
+    currentStrokeRef.current = {
+      type: 'stroke',
+      color: erasingRef.current ? null : penColorRef.current,
+      size: penSizeRef.current,
+      isEraser: erasingRef.current,
+      points: [{ x: pt.x / board.clientWidth, y: pt.y / board.clientHeight }],
+    }
   }
 
   const onCanvasMove = (e) => {
@@ -155,7 +288,9 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const pt = getPoint(e)
-    if (erasing) {
+    const board = boardRef.current
+
+    if (erasingRef.current) {
       ctx.save()
       ctx.globalCompositeOperation = 'destination-out'
       ctx.beginPath()
@@ -172,12 +307,18 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
       ctx.lineJoin = 'round'
       ctx.stroke()
     }
+
     lastPtRef.current = pt
+    currentStrokeRef.current?.points.push({ x: pt.x / board.clientWidth, y: pt.y / board.clientHeight })
     hasChanges.current = true
   }
 
   const onCanvasUp = () => {
     isDrawingRef.current = false
+    if (currentStrokeRef.current) {
+      opsRef.current.push(currentStrokeRef.current)
+      currentStrokeRef.current = null
+    }
     lastPtRef.current = null
   }
 
@@ -192,30 +333,37 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
     const fontSize = penSizeRef.current * 9
     ctx.font = `bold ${fontSize}px Caveat, cursive`
     ctx.fillStyle = penColorRef.current
-    ctx.fillText(text, pt.x, pt.y + fontSize * 0.8)
+    const drawY = pt.y + fontSize * 0.8
+    ctx.fillText(text, pt.x, drawY)
+    const board = boardRef.current
+    opsRef.current.push({
+      type: 'text',
+      text,
+      x: pt.x / board.clientWidth,
+      y: drawY / board.clientHeight,
+      size: penSizeRef.current,
+      color: penColorRef.current,
+    })
     hasChanges.current = true
   }
 
   const clearCanvas = () => {
     const canvas = canvasRef.current
     if (!canvas) return
-    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+    const board = boardRef.current
+    canvas.getContext('2d').clearRect(0, 0, board.clientWidth, board.clientHeight)
+    opsRef.current = []
     hasChanges.current = true
   }
 
   const exitWriteMode = async () => {
     if (pendingTextValRef.current.trim()) flushText()
     try {
-      if (hasChanges.current && canvasRef.current) {
-        const canvas = canvasRef.current
-        if (canvas.width > 0 && canvas.height > 0) {
-          const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
-          const hasPixels = pixels.some((v, i) => i % 4 === 3 && v > 0)
-          await onSaveNote?.(dateKey, {
-            text_note: null,
-            drawing_data: hasPixels ? canvas.toDataURL('image/png') : null,
-          })
-        }
+      if (hasChanges.current && opsRef.current.length > 0) {
+        await onSaveNote?.(dateKey, {
+          drawing_data: JSON.stringify({ ops: opsRef.current }),
+          text_note: null,
+        })
       }
     } catch (err) {
       console.error('Failed to save note:', err)
@@ -300,45 +448,30 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           )}
         </div>
 
-        {/* Board — canvas overlay lives here */}
+        {/* Board */}
         <div ref={boardRef} style={{ flex: 1, minHeight: 0, position: 'relative', overflow: writeMode ? 'hidden' : 'auto', WebkitOverflowScrolling: 'touch' }} onClick={() => setShowPinPicker(false)}>
 
-          {/* Stacked note overlays — appear as writing directly on the board */}
+          {/* Note overlays — vector, crisp at any DPR, scale to current board size */}
           {notes.map(n => n.drawing_data && (
-            <img key={n.id} src={n.drawing_data} alt=""
-              style={{
-                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                objectFit: 'fill', pointerEvents: 'none', zIndex: 25,
-                filter: hoveredNoteId === n.id
-                  ? 'drop-shadow(0 0 6px #fbbf24) drop-shadow(0 0 14px #f59e0b) brightness(1.15) saturate(1.4)'
-                  : 'none',
-                transition: 'filter 0.2s',
-              }} />
+            <NoteCanvas key={n.id} data={n.drawing_data} boardRef={boardRef} highlighted={hoveredNoteId === n.id} />
           ))}
 
-          {/* Small "manage notes" button — only visible when notes exist and not in write mode */}
+          {/* Note manager button */}
           {notes.length > 0 && !writeMode && (
             <div style={{ position: 'absolute', bottom: 10, right: 10, zIndex: 35 }} onClick={e => e.stopPropagation()}>
-              <button
-                onClick={() => setShowNoteManager(p => !p)}
-                title="Manage notes"
+              <button onClick={() => setShowNoteManager(p => !p)} title="Manage notes"
                 style={{ width: 28, height: 28, borderRadius: '50%', background: showNoteManager ? '#7c3aed' : 'rgba(0,0,0,0.32)', border: 'none', color: '#fff', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
                 ✏️
               </button>
               {showNoteManager && (
                 <div style={{ position: 'absolute', bottom: 34, right: 0, background: '#fff', borderRadius: 12, padding: '10px 10px 8px', boxShadow: '0 6px 24px rgba(0,0,0,0.18)', border: '1.5px solid #e9e0cc', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 130 }}>
                   <div style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>Delete a note</div>
-                  {notes.map((n) => (
+                  {notes.map(n => (
                     <div key={n.id}
                       onMouseEnter={() => setHoveredNoteId(n.id)}
                       onMouseLeave={() => setHoveredNoteId(null)}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 4px', borderRadius: 7, background: hoveredNoteId === n.id ? 'rgba(253,224,71,0.35)' : 'transparent', transition: 'background 0.15s' }}>
-                      {n.drawing_data
-                        ? <img src={n.drawing_data} alt="" style={{ width: 56, height: 42, objectFit: 'cover', borderRadius: 5, border: hoveredNoteId === n.id ? '2px solid #ca8a04' : '1px solid #e9e0cc', flexShrink: 0 }} />
-                        : <div style={{ width: 56, height: 42, borderRadius: 5, border: hoveredNoteId === n.id ? '2px solid #ca8a04' : '1px solid #e9e0cc', background: '#fffaee', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px 4px', flexShrink: 0 }}>
-                            <p style={{ fontSize: 10, fontFamily: 'var(--font-caveat), Caveat, cursive', fontWeight: 700, color: '#1a1a2e', margin: 0, textAlign: 'center', overflow: 'hidden' }}>{n.text_note?.slice(0, 24)}</p>
-                          </div>
-                      }
+                      <NoteThumbnail data={n.drawing_data} highlighted={hoveredNoteId === n.id} />
                       <button
                         onClick={() => { onDeleteNote(n.id, dateKey); setHoveredNoteId(null); if (notes.length === 1) setShowNoteManager(false) }}
                         style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(239,68,68,0.88)', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>✕</button>
@@ -351,8 +484,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
 
           {/* Drawing canvas (write mode) */}
           {writeMode && (
-            <canvas
-              ref={canvasRef}
+            <canvas ref={canvasRef}
               style={{ position: 'absolute', top: 0, left: 0, zIndex: 30, touchAction: 'none', cursor: writeTool === 'text' ? 'text' : erasing ? 'cell' : 'crosshair' }}
               onPointerDown={onCanvasDown}
               onPointerMove={onCanvasMove}
@@ -362,25 +494,19 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
             />
           )}
 
-          {/* Text input (write mode, text tool) */}
+          {/* Floating text input (write mode, text tool) */}
           {writeMode && pendingText && (
             <div style={{ position: 'absolute', left: pendingText.x, top: pendingText.y, zIndex: 40, display: 'flex', alignItems: 'flex-start', gap: 4 }} onClick={e => e.stopPropagation()}>
-              <textarea
-                ref={textInputRef}
-                value={pendingTextVal}
-                onChange={e => setPendingTextVal(e.target.value)}
+              <textarea ref={textInputRef} value={pendingTextVal} onChange={e => setPendingTextVal(e.target.value)}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); flushText() }
                   if (e.key === 'Escape') { setPendingText(null); setPendingTextVal('') }
                 }}
-                rows={1}
-                placeholder="Type…"
+                rows={1} placeholder="Type…"
                 style={{ background: 'transparent', border: 'none', outline: '1.5px dashed rgba(124,58,237,0.4)', resize: 'none', fontSize: penSize * 9, fontFamily: 'var(--font-caveat), Caveat, cursive', fontWeight: 700, color: penColor, minWidth: 100, lineHeight: 1.2, padding: '1px 4px', borderRadius: 3 }}
               />
               <button onPointerDown={e => { e.preventDefault(); flushText() }}
-                style={{ width: 24, height: 24, borderRadius: '50%', background: '#7c3aed', border: 'none', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
-                ✓
-              </button>
+                style={{ width: 24, height: 24, borderRadius: '50%', background: '#7c3aed', border: 'none', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>✓</button>
             </div>
           )}
 
@@ -428,28 +554,24 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           )}
         </div>
 
-        {/* Footer — always outside the canvas, always tappable */}
+        {/* Footer */}
         {!writeMode ? (
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px 14px', borderTop: '2px solid #e9e0cc' }}>
             <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 12, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Close</button>
             <button onClick={onAdd} style={{ padding: '9px 22px', borderRadius: 12, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 14px rgba(124,58,237,0.38)' }}>+ Scan</button>
           </div>
         ) : (
-          /* Write mode toolbar — in footer so it's NEVER covered by the canvas */
           <div style={{ flexShrink: 0, borderTop: '2px solid #e9e0cc', background: '#fff8e0', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {/* Draw / Text */}
             <div style={{ display: 'flex', borderRadius: 20, overflow: 'hidden', border: '1.5px solid #e9e0cc', flexShrink: 0 }}>
               <button onClick={() => { setWriteTool('draw'); setPendingText(null) }}
                 style={{ padding: '4px 10px', fontSize: 12, border: 'none', cursor: 'pointer', background: writeTool === 'draw' ? '#7c3aed' : 'white', color: writeTool === 'draw' ? '#fff' : '#555', fontWeight: 700 }}>✏️ Draw</button>
               <button onClick={() => setWriteTool('text')}
                 style={{ padding: '4px 10px', fontSize: 12, border: 'none', cursor: 'pointer', background: writeTool === 'text' ? '#7c3aed' : 'white', color: writeTool === 'text' ? '#fff' : '#555', fontWeight: 700 }}>Aa Text</button>
             </div>
-            {/* Colors */}
             {PEN_COLORS.map(c => (
               <button key={c} onClick={() => { setPenColor(c); setErasing(false) }}
                 style={{ width: penColor === c && !erasing ? 22 : 17, height: penColor === c && !erasing ? 22 : 17, borderRadius: '50%', background: c, border: penColor === c && !erasing ? '3px solid #1a1a1a' : '1.5px solid rgba(0,0,0,0.18)', cursor: 'pointer', flexShrink: 0, transition: 'all 0.1s', boxShadow: c === '#ffffff' ? 'inset 0 0 0 1px #ccc' : undefined }} />
             ))}
-            {/* Sizes */}
             {[2, 4, 8].map(s => (
               <button key={s} onClick={() => { setPenSize(s); setErasing(false) }}
                 style={{ width: 24, height: 24, borderRadius: 6, border: penSize === s && !erasing ? '2px solid #7c3aed' : '1.5px solid #e5e5e5', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
