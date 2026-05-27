@@ -1,15 +1,27 @@
-const PushPin = () => (
-  <div style={{
-    position: 'absolute', top: -10, left: '50%',
-    transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none',
-  }}>
-    <svg width="13" height="17" viewBox="0 0 13 17" fill="none">
-      <circle cx="6.5" cy="5" r="5" fill="#ef4444" />
-      <circle cx="4.8" cy="3.2" r="1.8" fill="rgba(255,255,255,0.32)" />
-      <line x1="6.5" y1="9.5" x2="6.5" y2="16.5" stroke="#9ca3af" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  </div>
-)
+const EMOJI_PINS = {
+  star: '⭐', heart: '❤️', flower: '🌸', gem: '💎',
+  ribbon: '🎀', butterfly: '🦋', moon: '🌙',
+  fire: '🔥', rainbow: '🌈', lightning: '⚡', sparkle: '✨',
+}
+
+const Pin = ({ styleId }) => {
+  if (!styleId || styleId === 'classic') {
+    return (
+      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none' }}>
+        <svg width="13" height="17" viewBox="0 0 13 17" fill="none">
+          <circle cx="6.5" cy="5" r="5" fill="#ef4444" />
+          <circle cx="4.8" cy="3.2" r="1.8" fill="rgba(255,255,255,0.32)" />
+          <line x1="6.5" y1="9.5" x2="6.5" y2="16.5" stroke="#9ca3af" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      </div>
+    )
+  }
+  return (
+    <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none', fontSize: 14, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.25))' }}>
+      {EMOJI_PINS[styleId] || '📌'}
+    </div>
+  )
+}
 
 const getFanStyle = (idx, total) => {
   if (total === 1) return { left: '6%', right: '6%', rotate: -1 }
@@ -21,7 +33,7 @@ const getFanStyle = (idx, total) => {
   return { left: '44%', right: '-6%', rotate: 13 }
 }
 
-export default function DayCell({ day, currentMonth, isToday, isWeekend, events, onClick, onEventClick, theme }) {
+export default function DayCell({ day, currentMonth, isToday, isWeekend, events, onClick, onEventClick, theme, pinStyle }) {
   const displayed = events.slice(0, 3)
   const count = displayed.length
   const accent = theme?.accent || '#7c3aed'
@@ -72,7 +84,7 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
                   className="absolute"
                   style={{ left: s.left, right: s.right, bottom: 10, height: 54, transform: `rotate(${s.rotate}deg)`, zIndex: idx + 1 }}
                 >
-                  <PushPin />
+                  <Pin styleId={pinStyle} />
                   {event.image_url ? (
                     <img
                       src={event.image_url}

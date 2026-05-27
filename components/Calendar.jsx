@@ -21,7 +21,7 @@ const BOARD_BG = {
   ].join(', '),
 }
 
-export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick, theme }) {
+export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick, theme, pinStyle }) {
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
@@ -121,6 +121,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
             onClick={() => cell.current && onDayClick(cell.date)}
             onEventClick={() => cell.current && onEventClick(cell.date)}
             theme={theme}
+            pinStyle={pinStyle}
           />
         ))}
       </div>

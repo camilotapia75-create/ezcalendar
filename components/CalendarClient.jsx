@@ -91,6 +91,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const [themeId, setThemeId] = useState('dreamy')
   const [showThemePicker, setShowThemePicker] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [pinStyle, setPinStyle] = useState('classic')
   const router = useRouter()
   const supabase = createClient()
 
@@ -98,6 +99,8 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     const saved = localStorage.getItem('calendarTheme')
     if (saved && THEMES[saved]) setThemeId(saved)
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
+    const savedPin = localStorage.getItem('pinStyle')
+    if (savedPin) setPinStyle(savedPin)
     if (joined) showToast('🎉 Connected! You now see your friend\'s events too.')
     else if (joinErr === 'self') showToast("That's your own invite link!")
     else if (joinErr === 'notfound') showToast('Invite link not found — ask your friend for a new one.')
@@ -339,6 +342,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           onDayClick={(date) => setDayViewDate(date)}
           onEventClick={(date) => setDayViewDate(date)}
           theme={theme}
+          pinStyle={pinStyle}
         />
       </main>
 
@@ -374,6 +378,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           onClose={() => setDayViewDate(null)}
           onAdd={() => { setAddingToDate(dayViewDate); setDayViewDate(null); setShowAddModal(true) }}
           onDelete={deleteEvent}
+          onPinStyleChange={(id) => setPinStyle(id)}
         />
       )}
 

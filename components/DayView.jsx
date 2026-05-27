@@ -51,7 +51,7 @@ function Pin({ styleId, colorIdx }) {
 
 const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
 
-export default function DayView({ date, events, onClose, onAdd, onDelete }) {
+export default function DayView({ date, events, onClose, onAdd, onDelete, onPinStyleChange }) {
   const [notifEvents, setNotifEvents] = useState({})
   const [globalNotifOn, setGlobalNotifOn] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
@@ -71,6 +71,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
     setPinStyle(id)
     setShowPinPicker(false)
     try { localStorage.setItem('pinStyle', id) } catch {}
+    onPinStyleChange?.(id)
   }
 
   const toggleEventNotif = (id) => {
