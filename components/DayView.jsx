@@ -193,7 +193,7 @@ export default function DayView({ date, events, note, onClose, onAdd, onDelete, 
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const fontSize = penSizeRef.current * 9
-    ctx.font = `${fontSize}px Caveat, cursive`
+    ctx.font = `bold ${fontSize}px Caveat, cursive`
     ctx.fillStyle = penColorRef.current
     ctx.fillText(text, pt.x, pt.y + fontSize * 0.8)
     hasChanges.current = true
@@ -208,14 +208,20 @@ export default function DayView({ date, events, note, onClose, onAdd, onDelete, 
 
   const exitWriteMode = async () => {
     if (pendingTextValRef.current.trim()) flushText()
-    if (hasChanges.current && canvasRef.current) {
-      const canvas = canvasRef.current
-      const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
-      const hasPixels = pixels.some((v, i) => i % 4 === 3 && v > 0)
-      await onSaveNote?.(dateKey, {
-        text_note: note?.text_note || null,
-        drawing_data: hasPixels ? canvas.toDataURL('image/png') : null,
-      })
+    try {
+      if (hasChanges.current && canvasRef.current) {
+        const canvas = canvasRef.current
+        if (canvas.width > 0 && canvas.height > 0) {
+          const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
+          const hasPixels = pixels.some((v, i) => i % 4 === 3 && v > 0)
+          await onSaveNote?.(dateKey, {
+            text_note: note?.text_note || null,
+            drawing_data: hasPixels ? canvas.toDataURL('image/png') : null,
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Failed to save note:', err)
     }
     setWriteMode(false)
     setPendingText(null)
@@ -331,7 +337,7 @@ export default function DayView({ date, events, note, onClose, onAdd, onDelete, 
                 }}
                 rows={1}
                 placeholder="Type…"
-                style={{ background: 'transparent', border: 'none', outline: '1.5px dashed rgba(124,58,237,0.4)', resize: 'none', fontSize: penSize * 9, fontFamily: 'var(--font-caveat), Caveat, cursive', color: penColor, minWidth: 100, lineHeight: 1.2, padding: '1px 4px', borderRadius: 3 }}
+                style={{ background: 'transparent', border: 'none', outline: '1.5px dashed rgba(124,58,237,0.4)', resize: 'none', fontSize: penSize * 9, fontFamily: 'var(--font-caveat), Caveat, cursive', fontWeight: 700, color: penColor, minWidth: 100, lineHeight: 1.2, padding: '1px 4px', borderRadius: 3 }}
               />
               <button onPointerDown={e => { e.preventDefault(); flushText() }}
                 style={{ width: 24, height: 24, borderRadius: '50%', background: '#7c3aed', border: 'none', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
