@@ -5,15 +5,49 @@ const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satur
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#8b5cf6']
 
-const PushPin = ({ color }) => (
-  <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
-    <svg width="24" height="32" viewBox="0 0 24 32" fill="none">
-      <circle cx="12" cy="10" r="10" fill={color} />
-      <circle cx="8.5" cy="6.5" r="4" fill="rgba(255,255,255,0.30)" />
-      <line x1="12" y1="19" x2="12" y2="31" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
-  </div>
-)
+const PIN_STYLES = [
+  { id: 'classic',    emoji: '📌', label: 'Classic' },
+  { id: 'star',       emoji: '⭐', label: 'Star' },
+  { id: 'heart',      emoji: '❤️', label: 'Heart' },
+  { id: 'flower',     emoji: '🌸', label: 'Flower' },
+  { id: 'gem',        emoji: '💎', label: 'Gem' },
+  { id: 'ribbon',     emoji: '🎀', label: 'Bow' },
+  { id: 'butterfly',  emoji: '🦋', label: 'Butterfly' },
+  { id: 'moon',       emoji: '🌙', label: 'Moon' },
+  { id: 'fire',       emoji: '🔥', label: 'Fire' },
+  { id: 'rainbow',    emoji: '🌈', label: 'Rainbow' },
+  { id: 'lightning',  emoji: '⚡', label: 'Lightning' },
+  { id: 'sparkle',    emoji: '✨', label: 'Sparkle' },
+]
+
+const EMOJI_PINS = Object.fromEntries(PIN_STYLES.slice(1).map(p => [p.id, p.emoji]))
+
+function Pin({ styleId, colorIdx }) {
+  const color = PIN_COLORS[colorIdx % PIN_COLORS.length]
+
+  if (styleId === 'classic') {
+    return (
+      <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
+        <svg width="24" height="32" viewBox="0 0 24 32" fill="none">
+          <circle cx="12" cy="10" r="10" fill={color} />
+          <circle cx="8.5" cy="6.5" r="4" fill="rgba(255,255,255,0.30)" />
+          <line x1="12" y1="19" x2="12" y2="31" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 10, pointerEvents: 'none',
+      fontSize: 26, lineHeight: 1,
+      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.28))',
+    }}>
+      {EMOJI_PINS[styleId] || '📌'}
+    </div>
+  )
+}
 
 const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
 
@@ -21,22 +55,29 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
   const [notifEvents, setNotifEvents] = useState({})
   const [globalNotifOn, setGlobalNotifOn] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
+  const [pinStyle, setPinStyle] = useState('classic')
+  const [showPinPicker, setShowPinPicker] = useState(false)
 
   useEffect(() => {
     try {
       setNotifEvents(JSON.parse(localStorage.getItem('eventNotifs') || '{}'))
       setGlobalNotifOn(localStorage.getItem('notificationsEnabled') === 'true')
+      const saved = localStorage.getItem('pinStyle')
+      if (saved) setPinStyle(saved)
     } catch {}
   }, [])
+
+  const selectPinStyle = (id) => {
+    setPinStyle(id)
+    setShowPinPicker(false)
+    try { localStorage.setItem('pinStyle', id) } catch {}
+  }
 
   const toggleEventNotif = (id) => {
     setNotifEvents(prev => {
       const next = { ...prev }
-      if (prev[id] === false) {
-        delete next[id]
-      } else {
-        next[id] = false
-      }
+      if (prev[id] === false) delete next[id]
+      else next[id] = false
       localStorage.setItem('eventNotifs', JSON.stringify(next))
       return next
     })
@@ -51,6 +92,8 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
   const MAX = 9
   const shown = events.slice(0, MAX)
   const extra = events.length - MAX
+
+  const currentPin = PIN_STYLES.find(p => p.id === pinStyle) || PIN_STYLES[0]
 
   // Full-screen detail popup for a tapped event
   if (selectedEvent) {
@@ -162,6 +205,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
           flexShrink: 0, padding: '14px 18px 12px',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
           borderBottom: '2px solid #e9e0cc',
+          position: 'relative',
         }}>
           <div>
             <div style={{ fontSize: 52, fontWeight: 900, lineHeight: 1, color: '#1a1a1a', letterSpacing: '-2px' }}>{dayNum}</div>
@@ -169,14 +213,72 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
               {dayName} &middot; {monthName} {year}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{ marginTop: 2, width: 32, height: 32, borderRadius: '50%', background: '#e5e5e5', border: 'none', cursor: 'pointer', fontSize: 14, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}
-          >&#10005;</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+            {/* Pin style picker button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowPinPicker(p => !p) }}
+              title="Change pin style"
+              style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: showPinPicker ? '#ede9fe' : '#e5e5e5',
+                border: showPinPicker ? '2px solid #7c3aed' : '2px solid transparent',
+                cursor: 'pointer', fontSize: 15,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background 0.15s',
+              }}
+            >
+              {currentPin.emoji}
+            </button>
+            <button
+              onClick={onClose}
+              style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e5e5', border: 'none', cursor: 'pointer', fontSize: 14, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+            >&#10005;</button>
+          </div>
+
+          {/* Pin picker popover */}
+          {showPinPicker && (
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                position: 'absolute', top: 'calc(100% + 8px)', right: 18, zIndex: 100,
+                background: '#fff',
+                borderRadius: 18,
+                padding: '12px 14px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                border: '2px solid #e9e0cc',
+                display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6,
+                width: 208,
+              }}
+            >
+              <div style={{ gridColumn: '1 / -1', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 4 }}>
+                Choose a pin
+              </div>
+              {PIN_STYLES.map(ps => (
+                <button
+                  key={ps.id}
+                  onClick={() => selectPinStyle(ps.id)}
+                  title={ps.label}
+                  style={{
+                    width: 40, height: 40, borderRadius: 10,
+                    background: pinStyle === ps.id ? '#ede9fe' : 'rgba(0,0,0,0.03)',
+                    border: pinStyle === ps.id ? '2px solid #7c3aed' : '2px solid transparent',
+                    cursor: 'pointer', fontSize: 20,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 0.12s, border-color 0.12s',
+                  }}
+                >
+                  {ps.emoji}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Pinboard - responsive scrollable grid */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        {/* Pinboard */}
+        <div
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
+          onClick={() => setShowPinPicker(false)}
+        >
           {shown.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 32 }}>
               <span style={{ fontSize: 52 }}>&#128204;</span>
@@ -216,7 +318,7 @@ export default function DayView({ date, events, onClose, onAdd, onDelete }) {
                     WebkitTapHighlightColor: 'transparent',
                   }}
                 >
-                  <PushPin color={PIN_COLORS[idx % PIN_COLORS.length]} />
+                  <Pin styleId={pinStyle} colorIdx={idx} />
 
                   {event.image_url ? (
                     <img
