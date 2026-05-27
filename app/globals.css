@@ -5,10 +5,11 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-caveat), 'Caveat', cursive;
   background: #f5eef8;
   color: #111;
   -webkit-font-smoothing: antialiased;
+  font-size: 17px;
 }
 
 ::-webkit-scrollbar { width: 4px; }

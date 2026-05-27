@@ -261,12 +261,8 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           zIndex: 50,
         }}
       >
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black tracking-tighter text-white"
-            style={{ background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}cc)` }}>
-            ez
-          </div>
-          <span className="font-semibold text-[15px] tracking-tight" style={{ color: '#1a1a2e' }}>calendar</span>
+        <div className="flex items-center">
+          <span style={{ fontSize: 26, color: '#1a1a2e', fontWeight: 700, letterSpacing: '-0.5px', fontFamily: 'var(--font-caveat), Caveat, cursive' }}>📌 ezcalendar</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -377,11 +373,17 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
 
       <button
         onClick={() => { setAddingToDate(null); setShowAddModal(true) }}
-        className="fixed right-5 flex items-center gap-2 px-5 py-3.5 rounded-2xl font-semibold text-sm text-white transition-all active:scale-95 hover:scale-105"
+        className="fixed right-5 flex items-center gap-2 px-5 py-3 transition-all active:translate-y-0.5"
         style={{
           bottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)',
-          background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}bb)`,
-          boxShadow: `0 4px 24px ${theme.accent}55`,
+          background: '#1a1a2e',
+          color: '#fff',
+          border: '2px solid #1a1a2e',
+          borderRadius: 8,
+          boxShadow: `3px 3px 0 ${theme.accent}`,
+          fontSize: 19,
+          fontFamily: 'var(--font-caveat), Caveat, cursive',
+          fontWeight: 700,
         }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

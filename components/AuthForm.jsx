@@ -3,6 +3,33 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
+const INPUT_STYLE = {
+  width: '100%',
+  background: 'transparent',
+  border: 'none',
+  borderBottom: '1.5px solid #c8b4a0',
+  outline: 'none',
+  fontSize: 18,
+  color: '#1a1a2e',
+  padding: '8px 2px',
+  fontFamily: 'var(--font-caveat), Caveat, cursive',
+}
+
+const BTN_STYLE = {
+  width: '100%',
+  padding: '11px',
+  background: '#1a1a2e',
+  color: '#fff',
+  border: '2px solid #1a1a2e',
+  borderRadius: 6,
+  boxShadow: '3px 3px 0 #7c3aed',
+  fontSize: 20,
+  fontFamily: 'var(--font-caveat), Caveat, cursive',
+  cursor: 'pointer',
+  fontWeight: 700,
+  transition: 'opacity 0.15s',
+}
+
 export default function AuthForm({ next, isInvite }) {
   const [mode, setMode] = useState(isInvite ? 'signup' : 'signin')
   const [email, setEmail] = useState('')
@@ -70,73 +97,74 @@ export default function AuthForm({ next, isInvite }) {
 
   if (mode === 'reset') {
     return (
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <p className="text-sm text-white/40 text-center pb-1">
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <p style={{ fontSize: 16, color: '#7c6a56', textAlign: 'center', margin: 0 }}>
           Enter your email — we'll send a link to set your password.
         </p>
         <input
           type="email" placeholder="your@email.com" value={email}
           onChange={e => setEmail(e.target.value)} required autoFocus
-          className="w-full rounded-2xl px-4 py-3.5 text-sm placeholder-white/20 focus:outline-none transition-all"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#f0f0f0' }}
-          onFocus={e => e.target.style.borderColor = 'rgba(124,58,237,0.5)'}
-          onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+          style={INPUT_STYLE}
+          onFocus={e => e.target.style.borderBottomColor = '#7c3aed'}
+          onBlur={e => e.target.style.borderBottomColor = '#c8b4a0'}
         />
-        {error && <p className="text-xs px-1" style={{ color: 'rgba(248,113,113,0.9)' }}>{error}</p>}
-        {info && <p className="text-xs px-1" style={{ color: 'rgba(134,239,172,0.9)' }}>{info}</p>}
-        <button type="submit" disabled={loading}
-          className="w-full py-3.5 rounded-2xl text-sm font-semibold text-white disabled:opacity-40"
-          style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-        >
+        {error && <p style={{ fontSize: 15, color: '#b91c1c', margin: 0 }}>{error}</p>}
+        {info && <p style={{ fontSize: 15, color: '#166534', margin: 0 }}>{info}</p>}
+        <button type="submit" disabled={loading} style={{ ...BTN_STYLE, opacity: loading ? 0.55 : 1 }}>
           {loading ? 'Sending…' : 'Send reset link'}
         </button>
         <button type="button" onClick={() => switchMode('signin')}
-          className="w-full text-sm text-white/30 hover:text-white/60 py-1"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#a89888', fontFamily: 'var(--font-caveat), Caveat, cursive' }}
         >
-          Back to sign in
+          ← Back to sign in
         </button>
       </form>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="flex rounded-2xl p-1" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <button type="button" onClick={() => switchMode('signin')}
-          className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
-          style={mode === 'signin'
-            ? { background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: 'white' }
-            : { color: 'rgba(255,255,255,0.35)' }}
-        >Sign in</button>
-        <button type="button" onClick={() => switchMode('signup')}
-          className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
-          style={mode === 'signup'
-            ? { background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: 'white' }
-            : { color: 'rgba(255,255,255,0.35)' }}
-        >Create account</button>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', borderBottom: '1.5px solid #e0ccb4' }}>
+        {['signin', 'signup'].map(m => (
+          <button key={m} type="button" onClick={() => switchMode(m)}
+            style={{
+              flex: 1,
+              paddingBottom: 10,
+              background: 'none',
+              border: 'none',
+              borderBottom: mode === m ? '2.5px solid #1a1a2e' : '2.5px solid transparent',
+              marginBottom: -1.5,
+              cursor: 'pointer',
+              fontSize: 18,
+              color: mode === m ? '#1a1a2e' : '#a89888',
+              fontFamily: 'var(--font-caveat), Caveat, cursive',
+              fontWeight: mode === m ? 700 : 400,
+            }}
+          >
+            {m === 'signin' ? 'Sign in' : 'Create account'}
+          </button>
+        ))}
       </div>
 
       <input
         type="email" placeholder="your@email.com" value={email}
         onChange={e => setEmail(e.target.value)} required autoFocus
-        className="w-full rounded-2xl px-4 py-3.5 text-sm placeholder-white/20 focus:outline-none transition-all"
-        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#f0f0f0' }}
-        onFocus={e => e.target.style.borderColor = 'rgba(124,58,237,0.5)'}
-        onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+        style={INPUT_STYLE}
+        onFocus={e => e.target.style.borderBottomColor = '#7c3aed'}
+        onBlur={e => e.target.style.borderBottomColor = '#c8b4a0'}
       />
 
-      <div className="relative">
+      <div style={{ position: 'relative' }}>
         <input
           type={showPassword ? 'text' : 'password'} placeholder="Password"
           value={password} onChange={e => setPassword(e.target.value)}
           required minLength={6}
-          className="w-full rounded-2xl px-4 py-3.5 pr-12 text-sm placeholder-white/20 focus:outline-none transition-all"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#f0f0f0' }}
-          onFocus={e => e.target.style.borderColor = 'rgba(124,58,237,0.5)'}
-          onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+          style={{ ...INPUT_STYLE, paddingRight: 32 }}
+          onFocus={e => e.target.style.borderBottomColor = '#7c3aed'}
+          onBlur={e => e.target.style.borderBottomColor = '#c8b4a0'}
         />
         <button type="button" onClick={() => setShowPassword(p => !p)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+          style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#a89888', padding: 2 }}
           tabIndex={-1}
         >
           {showPassword
@@ -146,13 +174,10 @@ export default function AuthForm({ next, isInvite }) {
         </button>
       </div>
 
-      {error && <p className="text-xs px-1" style={{ color: 'rgba(248,113,113,0.9)' }}>{error}</p>}
-      {info && <p className="text-xs px-1" style={{ color: 'rgba(134,239,172,0.9)' }}>{info}</p>}
+      {error && <p style={{ fontSize: 15, color: '#b91c1c', margin: 0 }}>{error}</p>}
+      {info && <p style={{ fontSize: 15, color: '#166534', margin: 0 }}>{info}</p>}
 
-      <button type="submit" disabled={loading}
-        className="w-full py-3.5 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-opacity"
-        style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-      >
+      <button type="submit" disabled={loading} style={{ ...BTN_STYLE, opacity: loading ? 0.55 : 1 }}>
         {loading
           ? (mode === 'signup' ? 'Creating account…' : 'Signing in…')
           : (mode === 'signup' ? 'Create account' : 'Sign in')}
@@ -160,13 +185,13 @@ export default function AuthForm({ next, isInvite }) {
 
       {mode === 'signin' && (
         <button type="button" onClick={() => switchMode('reset')}
-          className="w-full text-xs text-white/25 hover:text-white/50 transition-colors pt-1"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#a89888', fontFamily: 'var(--font-caveat), Caveat, cursive' }}
         >
           Forgot password?
         </button>
       )}
       {mode === 'signup' && (
-        <p className="text-center text-xs text-white/15 pt-1">Min. 6 characters</p>
+        <p style={{ textAlign: 'center', fontSize: 14, color: '#c8b4a0', margin: 0 }}>Min. 6 characters</p>
       )}
     </form>
   )

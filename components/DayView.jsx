@@ -521,7 +521,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
             <div style={{ display: 'grid', gridTemplateColumns: shown.length === 1 ? 'minmax(0, min(75%, 380px))' : shown.length === 2 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: shown.length === 1 ? 0 : '28px 16px', justifyContent: 'center', maxWidth: shown.length === 1 ? '100%' : shown.length === 2 ? 560 : 860, margin: '0 auto', width: '100%', padding: '44px 20px 24px', boxSizing: 'border-box' }}>
               {shown.map((event, idx) => (
                 <div key={event.id} onClick={() => !writeMode && setSelectedEvent(event)}
-                  style={{ position: 'relative', display: 'flex', flexDirection: 'column', background: '#fff', border: '3px solid #fff', boxShadow: '0 6px 24px rgba(0,0,0,0.22)', transform: shown.length === 1 ? `rotate(${rots[idx]}deg)` : 'none', transformOrigin: 'top center', cursor: writeMode ? 'default' : 'pointer', userSelect: 'none', WebkitTapHighlightColor: 'transparent' }}>
+                  style={{ position: 'relative', display: 'flex', flexDirection: 'column', background: '#fff', border: '3px solid #fff', boxShadow: '0 6px 24px rgba(0,0,0,0.22)', transform: shown.length === 1 ? `rotate(${rots[idx]}deg)` : 'none', transformOrigin: 'top center', cursor: writeMode ? 'default' : 'pointer', userSelect: 'none', WebkitTapHighlightColor: 'transparent', zIndex: writeMode ? 'auto' : 28 }}>
                   <Pin styleId={pinStyle} colorIdx={idx} />
                   {event.image_url
                     ? <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }} />

@@ -9,41 +9,49 @@ export default async function Home({ searchParams }) {
   if (user) redirect(next || '/calendar')
 
   const authError = searchParams?.error === 'auth'
-
   const isInvite = next?.startsWith('/join/')
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-6"
+      style={{
+        backgroundImage: [
+          'linear-gradient(160deg, #fef9f2 0%, #fff5e8 55%, #fef2f8 100%)',
+          'repeating-linear-gradient(transparent 0px, transparent 27px, rgba(180,140,100,0.07) 28px)',
+        ].join(', '),
+      }}
+    >
       <div className="w-full max-w-xs">
-        <div className="text-center mb-10">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black mx-auto mb-5"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-          >
-            ez
+        <div className="text-center mb-8">
+          <div style={{ fontSize: 54, lineHeight: 1, color: '#1a1a2e', fontWeight: 700, marginBottom: 8, letterSpacing: '-1px' }}>
+            📌 ezcalendar
           </div>
-          <h1 className="text-2xl font-bold tracking-tight mb-1.5">ezcalendar</h1>
-          <p className="text-sm text-zinc-500">
-            {isInvite ? 'A friend invited you to share their calendar.' : 'Snap a flyer. AI pins it to the date.'}
+          <p style={{ fontSize: 17, color: '#7c6a56' }}>
+            {isInvite ? 'A friend invited you to share their calendar.' : 'Snap a flyer. It lands on the right date.'}
           </p>
         </div>
+
         {isInvite && (
           <div
-            className="mb-4 px-4 py-3 rounded-xl text-sm text-center"
-            style={{ background: 'rgba(124,58,237,0.1)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.25)' }}
+            className="mb-4 px-4 py-3 text-center"
+            style={{ background: 'rgba(124,58,237,0.07)', color: '#5b21b6', border: '1.5px solid rgba(124,58,237,0.18)', borderRadius: 4, fontSize: 16 }}
           >
             Create a free account to accept the invite and see their events.
           </div>
         )}
         {authError && (
           <div
-            className="mb-4 px-4 py-3 rounded-xl text-sm text-center"
-            style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
+            className="mb-4 px-4 py-3 text-center"
+            style={{ background: 'rgba(239,68,68,0.06)', color: '#b91c1c', border: '1.5px solid rgba(239,68,68,0.18)', borderRadius: 4, fontSize: 16 }}
           >
             Link expired or already used — request a new one below.
           </div>
         )}
-        <AuthForm next={next} isInvite={isInvite} />
+
+        <div style={{ position: 'relative', background: '#fffdf8', border: '1.5px solid #e0ccb4', borderRadius: 4, boxShadow: '4px 4px 0 rgba(140,100,60,0.15)', padding: '28px 24px 24px' }}>
+          <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', width: 44, height: 20, background: 'rgba(253,224,71,0.75)', borderRadius: 3, boxShadow: '0 1px 4px rgba(0,0,0,0.09)' }} />
+          <AuthForm next={next} isInvite={isInvite} />
+        </div>
       </div>
     </div>
   )
