@@ -77,19 +77,20 @@ create policy "Connected users can see shared events" on events
     )
   );
 
--- ─── Day notes (handwritten / drawn notes per calendar day) ──────────────────
+-- ─── Day notes (multiple per day, individually deletable) ────────────────────
 create table if not exists day_notes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade not null,
   date text not null,
   text_note text,
   drawing_data text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  unique(user_id, date)
+  created_at timestamptz default now()
 );
 
 alter table day_notes enable row level security;
 
 create policy "Users can manage their own notes" on day_notes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Migration: if you already created day_notes with a unique constraint, run:
+-- alter table day_notes drop constraint if exists day_notes_user_id_date_key;

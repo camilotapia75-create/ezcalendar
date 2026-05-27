@@ -44,7 +44,7 @@ function Pin({ styleId, colorIdx }) {
 const PEN_COLORS = ['#1a1a2e', '#7c3aed', '#dc2626', '#2563eb', '#f59e0b', '#16a34a', '#db2777', '#ffffff']
 const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
 
-export default function DayView({ date, events, note, onClose, onAdd, onDelete, onPinStyleChange, onSaveNote }) {
+export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onPinStyleChange, onSaveNote, onDeleteNote }) {
   const [notifEvents, setNotifEvents] = useState({})
   const [globalNotifOn, setGlobalNotifOn] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
@@ -101,11 +101,6 @@ export default function DayView({ date, events, note, onClose, onAdd, onDelete, 
     canvas.width = w
     canvas.height = h
     hasChanges.current = false
-    if (note?.drawing_data) {
-      const img = new Image()
-      img.onload = () => canvasRef.current?.getContext('2d').drawImage(img, 0, 0, w, h)
-      img.src = note.drawing_data
-    }
   }, [writeMode])
 
   useEffect(() => {
@@ -215,7 +210,7 @@ export default function DayView({ date, events, note, onClose, onAdd, onDelete, 
           const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
           const hasPixels = pixels.some((v, i) => i % 4 === 3 && v > 0)
           await onSaveNote?.(dateKey, {
-            text_note: note?.text_note || null,
+            text_note: null,
             drawing_data: hasPixels ? canvas.toDataURL('image/png') : null,
           })
         }
@@ -277,7 +272,7 @@ export default function DayView({ date, events, note, onClose, onAdd, onDelete, 
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
             <button onClick={() => writeMode ? exitWriteMode() : setWriteMode(true)} title={writeMode ? 'Done writing' : 'Write on this day'}
-              style={{ width: 32, height: 32, borderRadius: '50%', background: writeMode ? '#7c3aed' : note?.drawing_data ? '#fef9c3' : '#e5e5e5', border: writeMode ? '2px solid #5b21b6' : note?.drawing_data ? '2px solid #ca8a04' : '2px solid transparent', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', color: writeMode ? '#fff' : undefined }}>
+              style={{ width: 32, height: 32, borderRadius: '50%', background: writeMode ? '#7c3aed' : notes.length > 0 ? '#fef9c3' : '#e5e5e5', border: writeMode ? '2px solid #5b21b6' : notes.length > 0 ? '2px solid #ca8a04' : '2px solid transparent', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', color: writeMode ? '#fff' : undefined }}>
               {writeMode ? '✓' : '✏️'}
             </button>
             {!writeMode && (
@@ -306,9 +301,24 @@ export default function DayView({ date, events, note, onClose, onAdd, onDelete, 
         {/* Board — canvas overlay lives here */}
         <div ref={boardRef} style={{ flex: 1, minHeight: 0, position: 'relative', overflow: writeMode ? 'hidden' : 'auto', WebkitOverflowScrolling: 'touch' }} onClick={() => setShowPinPicker(false)}>
 
-          {/* Saved annotation overlay (view mode) */}
-          {note?.drawing_data && !writeMode && (
-            <img src={note.drawing_data} alt="" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 25, objectFit: 'fill' }} />
+          {/* Individual note thumbnails */}
+          {notes.length > 0 && !writeMode && (
+            <div style={{ padding: '10px 14px 4px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {notes.map(n => (
+                <div key={n.id} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '2px solid #e9e0cc', boxShadow: '0 2px 8px rgba(0,0,0,0.13)', background: '#fff', flexShrink: 0 }}>
+                  {n.drawing_data ? (
+                    <img src={n.drawing_data} alt="" style={{ width: 96, height: 76, objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <div style={{ width: 96, height: 76, padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fffaee' }}>
+                      <p style={{ fontSize: 13, fontFamily: 'var(--font-caveat), Caveat, cursive', fontWeight: 700, color: '#1a1a2e', margin: 0, textAlign: 'center', wordBreak: 'break-word' }}>{n.text_note}</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={e => { e.stopPropagation(); onDeleteNote(n.id, dateKey) }}
+                    style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: '50%', background: 'rgba(239,68,68,0.88)', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5, boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>✕</button>
+                </div>
+              ))}
+            </div>
           )}
 
           {/* Drawing canvas (write mode) */}

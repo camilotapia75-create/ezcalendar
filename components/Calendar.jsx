@@ -117,7 +117,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
             isToday={isToday(cell.date)}
             isWeekend={cell.date.getDay() === 0 || cell.date.getDay() === 6}
             events={eventsForDate(cell.date)}
-            hasNote={!!notes[dateKey(cell.date)]}
+            hasNote={(notes[dateKey(cell.date)]?.length > 0)}
             onClick={() => cell.current && onDayClick(cell.date)}
             onEventClick={() => cell.current && onEventClick(cell.date)}
             theme={theme}

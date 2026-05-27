@@ -105,30 +105,33 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     if (joined) showToast('🎉 Connected! You now see your friend\'s events too.')
     else if (joinErr === 'self') showToast("That's your own invite link!")
     else if (joinErr === 'notfound') showToast('Invite link not found — ask your friend for a new one.')
-    // Fetch notes
-    supabase.from('day_notes').select('date, text_note, drawing_data').then(({ data }) => {
+    // Fetch notes — multiple per day
+    supabase.from('day_notes').select('id, date, text_note, drawing_data').then(({ data }) => {
       if (!data) return
       const map = {}
-      data.forEach(n => { map[n.date] = n })
+      data.forEach(n => {
+        if (!map[n.date]) map[n.date] = []
+        map[n.date].push({ id: n.id, text_note: n.text_note, drawing_data: n.drawing_data })
+      })
       setNotes(map)
     })
   }, [])
 
-  const saveNote = async (dateStr, data) => {
-    const { error } = await supabase.from('day_notes').upsert(
-      { user_id: user.id, date: dateStr, text_note: data.text_note, drawing_data: data.drawing_data, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,date' }
-    )
-    if (!error) {
-      setNotes(prev => ({ ...prev, [dateStr]: data }))
-      setNoteDate(null)
+  const saveNote = async (dateStr, noteData) => {
+    const { data, error } = await supabase.from('day_notes')
+      .insert({ user_id: user.id, date: dateStr, text_note: noteData.text_note, drawing_data: noteData.drawing_data })
+      .select('id, text_note, drawing_data').single()
+    if (!error && data) {
+      setNotes(prev => ({ ...prev, [dateStr]: [...(prev[dateStr] || []), data] }))
     }
   }
 
-  const deleteNote = async (dateStr) => {
-    await supabase.from('day_notes').delete().eq('date', dateStr).eq('user_id', user.id)
-    setNotes(prev => { const n = { ...prev }; delete n[dateStr]; return n })
-    setNoteDate(null)
+  const deleteNote = async (noteId, dateStr) => {
+    await supabase.from('day_notes').delete().eq('id', noteId)
+    setNotes(prev => ({
+      ...prev,
+      [dateStr]: (prev[dateStr] || []).filter(n => n.id !== noteId),
+    }))
   }
 
   useEffect(() => {
@@ -401,12 +404,13 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         <DayView
           date={dayViewDate}
           events={getDayEvents(dayViewDate)}
-          note={notes[dayViewDate ? [dayViewDate.getFullYear(), String(dayViewDate.getMonth()+1).padStart(2,'0'), String(dayViewDate.getDate()).padStart(2,'0')].join('-') : ''] || null}
+          notes={notes[[dayViewDate.getFullYear(), String(dayViewDate.getMonth()+1).padStart(2,'0'), String(dayViewDate.getDate()).padStart(2,'0')].join('-')] || []}
           onClose={() => setDayViewDate(null)}
           onAdd={() => { setAddingToDate(dayViewDate); setDayViewDate(null); setShowAddModal(true) }}
           onDelete={deleteEvent}
           onPinStyleChange={(id) => setPinStyle(id)}
           onSaveNote={saveNote}
+          onDeleteNote={deleteNote}
         />
       )}
 
