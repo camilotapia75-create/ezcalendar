@@ -52,6 +52,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
   const [showPinPicker, setShowPinPicker] = useState(false)
 
   const [showNoteManager, setShowNoteManager] = useState(false)
+  const [hoveredNoteId, setHoveredNoteId] = useState(null)
   const [writeMode, setWriteMode] = useState(false)
   const [writeTool, setWriteTool] = useState('draw')
   const [penColor, setPenColor] = useState('#1a1a2e')
@@ -304,8 +305,12 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
 
           {/* Stacked note overlays — appear as writing directly on the board */}
           {notes.map(n => n.drawing_data && (
-            <img key={n.id} src={n.drawing_data} alt=""
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 25, objectFit: 'fill' }} />
+            <div key={n.id} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 25, pointerEvents: 'none' }}>
+              <img src={n.drawing_data} alt="" style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }} />
+              {hoveredNoteId === n.id && (
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(253, 224, 71, 0.45)', mixBlendMode: 'multiply', transition: 'opacity 0.15s' }} />
+              )}
+            </div>
           ))}
 
           {/* Small "manage notes" button — only visible when notes exist and not in write mode */}
@@ -320,16 +325,19 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
               {showNoteManager && (
                 <div style={{ position: 'absolute', bottom: 34, right: 0, background: '#fff', borderRadius: 12, padding: '10px 10px 8px', boxShadow: '0 6px 24px rgba(0,0,0,0.18)', border: '1.5px solid #e9e0cc', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 130 }}>
                   <div style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>Delete a note</div>
-                  {notes.map((n, i) => (
-                    <div key={n.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {notes.map((n) => (
+                    <div key={n.id}
+                      onMouseEnter={() => setHoveredNoteId(n.id)}
+                      onMouseLeave={() => setHoveredNoteId(null)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 4px', borderRadius: 7, background: hoveredNoteId === n.id ? 'rgba(253,224,71,0.35)' : 'transparent', transition: 'background 0.15s' }}>
                       {n.drawing_data
-                        ? <img src={n.drawing_data} alt="" style={{ width: 56, height: 42, objectFit: 'cover', borderRadius: 5, border: '1px solid #e9e0cc', flexShrink: 0 }} />
-                        : <div style={{ width: 56, height: 42, borderRadius: 5, border: '1px solid #e9e0cc', background: '#fffaee', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px 4px', flexShrink: 0 }}>
+                        ? <img src={n.drawing_data} alt="" style={{ width: 56, height: 42, objectFit: 'cover', borderRadius: 5, border: hoveredNoteId === n.id ? '2px solid #ca8a04' : '1px solid #e9e0cc', flexShrink: 0 }} />
+                        : <div style={{ width: 56, height: 42, borderRadius: 5, border: hoveredNoteId === n.id ? '2px solid #ca8a04' : '1px solid #e9e0cc', background: '#fffaee', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px 4px', flexShrink: 0 }}>
                             <p style={{ fontSize: 10, fontFamily: 'var(--font-caveat), Caveat, cursive', fontWeight: 700, color: '#1a1a2e', margin: 0, textAlign: 'center', overflow: 'hidden' }}>{n.text_note?.slice(0, 24)}</p>
                           </div>
                       }
                       <button
-                        onClick={() => { onDeleteNote(n.id, dateKey); if (notes.length === 1) setShowNoteManager(false) }}
+                        onClick={() => { onDeleteNote(n.id, dateKey); setHoveredNoteId(null); if (notes.length === 1) setShowNoteManager(false) }}
                         style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(239,68,68,0.88)', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>✕</button>
                     </div>
                   ))}
