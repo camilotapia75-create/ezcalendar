@@ -3,8 +3,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function AuthForm({ next }) {
-  const [mode, setMode] = useState('signin')
+export default function AuthForm({ next, isInvite }) {
+  const [mode, setMode] = useState(isInvite ? 'signup' : 'signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)

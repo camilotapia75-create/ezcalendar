@@ -10,6 +10,8 @@ export default async function Home({ searchParams }) {
 
   const authError = searchParams?.error === 'auth'
 
+  const isInvite = next?.startsWith('/join/')
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-xs">
@@ -21,8 +23,18 @@ export default async function Home({ searchParams }) {
             ez
           </div>
           <h1 className="text-2xl font-bold tracking-tight mb-1.5">ezcalendar</h1>
-          <p className="text-sm text-zinc-500">Snap a flyer. AI pins it to the date.</p>
+          <p className="text-sm text-zinc-500">
+            {isInvite ? 'A friend invited you to share their calendar.' : 'Snap a flyer. AI pins it to the date.'}
+          </p>
         </div>
+        {isInvite && (
+          <div
+            className="mb-4 px-4 py-3 rounded-xl text-sm text-center"
+            style={{ background: 'rgba(124,58,237,0.1)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.25)' }}
+          >
+            Create a free account to accept the invite and see their events.
+          </div>
+        )}
         {authError && (
           <div
             className="mb-4 px-4 py-3 rounded-xl text-sm text-center"
@@ -31,7 +43,7 @@ export default async function Home({ searchParams }) {
             Link expired or already used — request a new one below.
           </div>
         )}
-        <AuthForm next={next} />
+        <AuthForm next={next} isInvite={isInvite} />
       </div>
     </div>
   )
