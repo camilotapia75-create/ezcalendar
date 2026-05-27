@@ -6,7 +6,6 @@ import Calendar from './Calendar'
 import AddFlyerModal from './AddFlyerModal'
 import DayView from './DayView'
 import ShareModal from './ShareModal'
-import DayNoteModal from './DayNoteModal'
 
 const THEMES = {
   dreamy: {
@@ -94,7 +93,6 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const [showShareModal, setShowShareModal] = useState(false)
   const [pinStyle, setPinStyle] = useState('classic')
   const [notes, setNotes] = useState({})
-  const [noteDate, setNoteDate] = useState(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -408,7 +406,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           onAdd={() => { setAddingToDate(dayViewDate); setDayViewDate(null); setShowAddModal(true) }}
           onDelete={deleteEvent}
           onPinStyleChange={(id) => setPinStyle(id)}
-          onEditNote={(dateStr) => setNoteDate(dateStr)}
+          onSaveNote={saveNote}
         />
       )}
 
@@ -420,15 +418,6 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         />
       )}
 
-      {noteDate && (
-        <DayNoteModal
-          dateStr={noteDate}
-          existingNote={notes[noteDate] || null}
-          onSave={saveNote}
-          onDelete={deleteNote}
-          onClose={() => setNoteDate(null)}
-        />
-      )}
     </div>
   )
 }
