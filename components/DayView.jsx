@@ -305,12 +305,15 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
 
           {/* Stacked note overlays — appear as writing directly on the board */}
           {notes.map(n => n.drawing_data && (
-            <div key={n.id} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 25, pointerEvents: 'none' }}>
-              <img src={n.drawing_data} alt="" style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }} />
-              {hoveredNoteId === n.id && (
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(253, 224, 71, 0.45)', mixBlendMode: 'multiply', transition: 'opacity 0.15s' }} />
-              )}
-            </div>
+            <img key={n.id} src={n.drawing_data} alt=""
+              style={{
+                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                objectFit: 'fill', pointerEvents: 'none', zIndex: 25,
+                filter: hoveredNoteId === n.id
+                  ? 'drop-shadow(0 0 6px #fbbf24) drop-shadow(0 0 14px #f59e0b) brightness(1.15) saturate(1.4)'
+                  : 'none',
+                transition: 'filter 0.2s',
+              }} />
           ))}
 
           {/* Small "manage notes" button — only visible when notes exist and not in write mode */}
