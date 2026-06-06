@@ -412,6 +412,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           onPinStyleChange={id => setPinStyle(id)}
           onSaveNote={saveNote}
           onDeleteNote={deleteNote}
+          accent={theme.accent}
         />
       )}
       {eventDetail && (

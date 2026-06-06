@@ -81,6 +81,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
   const [linkWarning, setLinkWarning] = useState(null)
   const [ogImageUrl, setOgImageUrl] = useState(null)
   const [linkScanned, setLinkScanned] = useState(false)
+  const [manualMode, setManualMode] = useState(false)
 
   const videoRef = useRef()
   const fileRef = useRef()
@@ -204,18 +205,21 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
     setTitle(''); setLocation(''); setTimeStr(''); setEndDate('')
     setLinkMode(false); setLinkUrl(''); setLinkScanning(false)
     setLinkError(null); setLinkWarning(null); setOgImageUrl(null); setLinkScanned(false)
+    setManualMode(false)
     if (!date) setEventDate('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!eventDate) return
-    if (!linkMode && !imageForStorage) return
+    if (!linkMode && !manualMode && !imageForStorage) return
     setSaveError(null)
     setUploading(true)
     try {
       let image_url = null
-      if (linkMode) {
+      if (manualMode) {
+        // no image
+      } else if (linkMode) {
         if (ogImageUrl?.startsWith('data:')) {
           try {
             const uploadRes = await fetch('/api/upload-image', {
@@ -255,8 +259,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
     }
   }
 
-  const showForm = imagePreview || linkScanned
-  const canSubmit = eventDate && (linkMode ? true : !!imageForStorage)
+  const showForm = imagePreview || linkScanned || manualMode
+  const canSubmit = eventDate && (linkMode || manualMode ? true : !!imageForStorage)
 
   if (cameraActive) {
     return (
@@ -304,6 +308,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
           <span className="text-[15px] font-semibold text-white">
             {!showForm
               ? (linkMode ? 'Paste a link' : 'Add a flyer')
+              : manualMode ? 'New event'
               : analyzing || linkScanning ? 'Reading…'
               : aiDetectedDate ? `Placing on ${formatNice(eventDate)}`
               : 'Fill in details'}
@@ -354,6 +359,18 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                   <p className="text-xs text-white/25 mt-0.5">Instagram, Facebook, or any event page</p>
                 </div>
               </button>
+              <button type="button" onClick={() => setManualMode(true)}
+                className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all active:scale-[0.98]"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 flex-shrink-0 text-lg" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  ✏️
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white/70">Type it in</p>
+                  <p className="text-xs text-white/25 mt-0.5">Enter event details manually, no image needed</p>
+                </div>
+              </button>
               <p className="text-center text-[11px] text-white/15 pt-1">AI reads the date, time &amp; location automatically</p>
             </div>
           )}
@@ -392,7 +409,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
 
           {showForm && (
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="relative rounded-2xl overflow-hidden bg-black" style={{ height: 180 }}>
+              {!manualMode && <div className="relative rounded-2xl overflow-hidden bg-black" style={{ height: 180 }}>
                 {imagePreview ? (
                   <img src={imagePreview} alt="flyer" className="w-full h-full object-contain" />
                 ) : ogImageUrl ? (
@@ -415,14 +432,14 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                     style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
                   >Retake</button>
                 )}
-              </div>
+              </div>}
 
-              {linkWarning && !analyzing && (
+              {!manualMode && linkWarning && !analyzing && (
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.40)' }}>
                   {linkWarning}
                 </div>
               )}
-              {aiError && !analyzing && (
+              {!manualMode && aiError && !analyzing && (
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{
                   background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
                   color: aiError === 'quota' ? 'rgba(248,113,113,0.9)' : 'rgba(255,255,255,0.35)',
@@ -437,7 +454,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                 </div>
               )}
 
-              {!analyzing && !linkScanning && (
+              {(manualMode || (!analyzing && !linkScanning)) && (
                 <>
                   <div className="space-y-2">
                     <div className="relative">

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import EventDetailModal from './EventDetailModal'
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -159,7 +160,7 @@ function NoteThumbnail({ data, highlighted }) {
   )
 }
 
-export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onPinStyleChange, onSaveNote, onDeleteNote }) {
+export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onPinStyleChange, onSaveNote, onDeleteNote, accent = '#7c3aed' }) {
   const [notifEvents, setNotifEvents] = useState({})
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [pinStyle, setPinStyle] = useState('classic')
@@ -383,30 +384,14 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
 
   if (selectedEvent) {
     return (
-      <div className="fixed inset-0 z-50" style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(12px)' }} onClick={() => setSelectedEvent(null)}>
-        <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '5%', left: '5%', right: '5%', bottom: '5%', background: '#fffaee', border: '4px solid #1a1a1a', borderRadius: 8, boxShadow: '10px 10px 0 rgba(0,0,0,0.40)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative', background: '#f5f0e8' }}>
-            {selectedEvent.image_url
-              ? <img src={selectedEvent.image_url} alt={selectedEvent.title || ''} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}><p style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', color: '#5b21b6', padding: 24 }}>{selectedEvent.title}</p></div>
-            }
-            <button onClick={() => setSelectedEvent(null)} style={{ position: 'absolute', top: 12, right: 12, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', fontSize: 16, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✕</button>
-          </div>
-          <div style={{ flexShrink: 0, padding: '16px 20px 20px', borderTop: '2px solid #e9e0cc', background: '#fff' }}>
-            {selectedEvent.title && <p style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800, color: '#1a1a2e' }}>{selectedEvent.title}</p>}
-            {selectedEvent.time_str && <p style={{ margin: '0 0 4px', fontSize: 14, color: '#6b7280' }}>🕐 {selectedEvent.time_str}</p>}
-            {selectedEvent.location && <p style={{ margin: '0 0 4px', fontSize: 14, color: '#6b7280' }}>📍 {selectedEvent.location}</p>}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
-              {selectedEvent.source_url
-                ? <a href={selectedEvent.source_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 13, color: '#7c3aed', fontWeight: 700, textDecoration: 'none' }}>🔗 View original</a>
-                : <span />}
-              <button onClick={() => toggleEventNotif(selectedEvent.id)} style={{ padding: '7px 16px', borderRadius: 20, background: isEventOn(selectedEvent.id) ? 'rgba(234,179,8,0.90)' : 'rgba(200,200,200,0.65)', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: isEventOn(selectedEvent.id) ? '#92400e' : '#6b7280' }}>
-                {isEventOn(selectedEvent.id) ? '🔔 Reminder on' : '🔕 Reminder off'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <EventDetailModal
+        event={selectedEvent}
+        accent={accent}
+        onClose={() => setSelectedEvent(null)}
+        onDelete={id => { onDelete(id); setSelectedEvent(null) }}
+        reminderOn={isEventOn(selectedEvent.id)}
+        onToggleReminder={() => toggleEventNotif(selectedEvent.id)}
+      />
     )
   }
 
