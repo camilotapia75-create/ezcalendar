@@ -23,21 +23,19 @@ export async function middleware(request) {
     }
   )
 
-  // DO NOT put any logic between createServerClient and getUser().
-  // getUser() also refreshes the session and writes updated tokens via setAll above.
-  let user = null
+  // getSession() reads from the signed cookie — no network call, safe for Edge middleware.
+  // Full token verification happens inside the calendar page via getUser() on the server.
+  let session = null
   try {
-    const { data } = await supabase.auth.getUser()
-    user = data?.user ?? null
+    const { data } = await supabase.auth.getSession()
+    session = data?.session ?? null
   } catch {
-    // Network error talking to Supabase — allow the request through.
-    // The page will handle the missing session gracefully.
     return supabaseResponse
   }
 
   const isCalendarRoute = request.nextUrl.pathname.startsWith('/calendar')
 
-  if (!user && isCalendarRoute) {
+  if (!session && isCalendarRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
