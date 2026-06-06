@@ -5,7 +5,8 @@ function getPrompt() {
   return `Today is ${today}. Extract event details from this flyer image. Return ONLY valid JSON with these exact keys (null for anything not found):
 {
   "title": "event name or title",
-  "date": "YYYY-MM-DD — if the flyer shows a partial date like 'Jul 24' or 'July 24' with no year, infer the nearest future year (use the current year if that date hasn't passed yet, otherwise next year). If the flyer shows '05.18.26' or '26' treat as 2026.",
+  "date": "YYYY-MM-DD start date — if the flyer shows a partial date like 'Jul 24' or 'July 24' with no year, infer the nearest future year (use the current year if that date hasn't passed yet, otherwise next year). If the flyer shows '05.18.26' or '26' treat as 2026. For multi-day events this is the first day.",
+  "end_date": "YYYY-MM-DD end date — only if the event explicitly spans multiple days (e.g. 'Jul 4-6', 'July 4 to July 6', 'Fri Aug 1 – Sun Aug 3', 'August 1-3'). Use same year inference rules as date. null if single-day.",
   "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM' or '4-8PM')",
   "location": "venue name and/or city"
 }`

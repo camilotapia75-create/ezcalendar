@@ -234,13 +234,17 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const getDayEvents = (date) => {
     if (!date) return []
     const key = [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
-    return events.filter(e => e.date === key)
+    return events.filter(e => e.end_date ? e.date <= key && e.end_date >= key : e.date === key)
   }
 
   const addEvent = async (eventData) => {
     let result = await supabase.from('events').insert({ ...eventData, user_id: user.id }).select().single()
     if (result.error?.message?.includes('source_url')) {
       const { source_url, ...rest } = eventData
+      result = await supabase.from('events').insert({ ...rest, user_id: user.id }).select().single()
+    }
+    if (result.error?.message?.includes('end_date')) {
+      const { end_date, source_url, ...rest } = eventData
       result = await supabase.from('events').insert({ ...rest, user_id: user.id }).select().single()
     }
     if (result.error) throw new Error(result.error.message)

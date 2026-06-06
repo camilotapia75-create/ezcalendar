@@ -21,6 +21,9 @@ create policy "Users can manage their own events" on events
 -- Migration: add source_url to existing tables
 -- alter table events add column if not exists source_url text;
 
+-- Migration: add end_date for multi-day events
+-- alter table events add column if not exists end_date text;
+
 -- ============================================================
 -- Shared Calendar: invite codes + friend connections
 -- ============================================================

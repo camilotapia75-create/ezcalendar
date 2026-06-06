@@ -37,18 +37,38 @@ function getGroups(events) {
   return groups
 }
 
-function DateBadge({ dateStr, accent, faded }) {
-  const d = parseLocalDate(dateStr)
+function DateBadge({ dateStr, endDateStr, accent, faded }) {
+  const start = parseLocalDate(dateStr)
+  const isMulti = endDateStr && endDateStr !== dateStr
+  const bg = faded ? '#e5e5e5' : accent
+  const fg = faded ? '#9ca3af' : '#fff'
+  const fgSoft = faded ? '#bbb' : 'rgba(255,255,255,0.82)'
+  const font = 'var(--font-inter), Inter, system-ui, sans-serif'
+
+  if (isMulti) {
+    const end = parseLocalDate(endDateStr)
+    const sameMonth = end.getMonth() === start.getMonth() && end.getFullYear() === start.getFullYear()
+    const label = sameMonth
+      ? `${MONTHS[start.getMonth()]} ${start.getDate()}–${end.getDate()}`
+      : `${MONTHS[start.getMonth()]} ${start.getDate()} – ${MONTHS[end.getMonth()]} ${end.getDate()}`
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: bg, borderRadius: 8, padding: '6px 10px', minWidth: 52 }}>
+        <span style={{ fontSize: 9, fontWeight: 800, color: fgSoft, letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1, fontFamily: font, marginBottom: 3 }}>MULTI-DAY</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: fg, lineHeight: 1.3, fontFamily: font, textAlign: 'center', whiteSpace: 'nowrap' }}>{label}</span>
+      </div>
+    )
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: faded ? '#e5e5e5' : accent, borderRadius: 8, padding: '6px 10px', minWidth: 44 }}>
-      <span style={{ fontSize: 11, fontWeight: 800, color: faded ? '#9ca3af' : '#fff', letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1, fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
-        {MONTHS[d.getMonth()]}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: bg, borderRadius: 8, padding: '6px 10px', minWidth: 44 }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: fg, letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1, fontFamily: font }}>
+        {MONTHS[start.getMonth()]}
       </span>
-      <span style={{ fontSize: 22, fontWeight: 700, color: faded ? '#9ca3af' : '#fff', lineHeight: 1.1, fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
-        {d.getDate()}
+      <span style={{ fontSize: 22, fontWeight: 700, color: fg, lineHeight: 1.1, fontFamily: font }}>
+        {start.getDate()}
       </span>
-      <span style={{ fontSize: 10, fontWeight: 600, color: faded ? '#bbb' : 'rgba(255,255,255,0.82)', letterSpacing: '0.06em', fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
-        {DAYS[d.getDay()]}
+      <span style={{ fontSize: 10, fontWeight: 600, color: fgSoft, letterSpacing: '0.06em', fontFamily: font }}>
+        {DAYS[start.getDay()]}
       </span>
     </div>
   )
@@ -61,7 +81,7 @@ function EventCard({ event, accent, onTap, onDelete, faded }) {
         <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', maxHeight: 420, objectFit: 'cover', display: 'block' }} />
       )}
       <div style={{ padding: '12px 14px 14px', position: 'relative', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <DateBadge dateStr={event.date} accent={accent} faded={faded} />
+        <DateBadge dateStr={event.date} endDateStr={event.end_date} accent={accent} faded={faded} />
         <div style={{ flex: 1, minWidth: 0 }}>
           {event.title && (
             <p style={{ margin: '0 0 5px', fontSize: 17, fontWeight: 700, color: '#111', lineHeight: 1.25, paddingRight: 28, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

@@ -34,7 +34,10 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
     String(date.getDate()).padStart(2, '0'),
   ].join('-')
 
-  const eventsForDate = (date) => events.filter(e => e.date === dateKey(date))
+  const eventsForDate = (date) => {
+    const key = dateKey(date)
+    return events.filter(e => e.end_date ? e.date <= key && e.end_date >= key : e.date === key)
+  }
 
   const accent = theme?.accent || '#7c3aed'
 

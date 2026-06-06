@@ -65,6 +65,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
   const [location, setLocation] = useState('')
   const [timeStr, setTimeStr] = useState('')
   const [eventDate, setEventDate] = useState(date ? toDateKey(date) : '')
+  const [endDate, setEndDate] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [saveError, setSaveError] = useState(null)
@@ -148,6 +149,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
         setEventDate(data.date)
         setAiDetectedDate(true)
       }
+      if (data.end_date && /^\d{4}-\d{2}-\d{2}$/.test(data.end_date)) {
+        setEndDate(data.end_date)
+      }
       if (!data.title && !data.date && !data.time_str && !data.location) setAiError('failed')
     } catch (err) {
       setAiError('failed'); setAiDetail(err.message)
@@ -197,7 +201,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
     stopCamera()
     setImagePreview(null); setImageForStorage(null)
     setAiDetectedDate(false); setAiError(null); setAiDetail(null); setSaveError(null)
-    setTitle(''); setLocation(''); setTimeStr('')
+    setTitle(''); setLocation(''); setTimeStr(''); setEndDate('')
     setLinkMode(false); setLinkUrl(''); setLinkScanning(false)
     setLinkError(null); setLinkWarning(null); setOgImageUrl(null); setLinkScanned(false)
     if (!date) setEventDate('')
@@ -237,6 +241,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
       }
       await onAdd({
         date: eventDate,
+        end_date: endDate || null,
         title,
         location,
         time_str: timeStr,
@@ -442,6 +447,16 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                       />
                       {aiDetectedDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 font-semibold tracking-widest">AI</span>}
                     </div>
+                    <div>
+                      <p className="text-[10px] text-white/25 px-1 mb-1">End date — optional, for multi-day events</p>
+                      <div className="relative">
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={eventDate || undefined}
+                          className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80"
+                          style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${endDate ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.08)'}` }}
+                        />
+                        {endDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 font-semibold tracking-widest">{endDate === eventDate ? 'SAME' : 'END'}</span>}
+                      </div>
+                    </div>
                     <input type="text" placeholder="Event title" value={title} onChange={e => setTitle(e.target.value)}
                       className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white"
                       style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${title ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
@@ -461,7 +476,11 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                     className="w-full py-3.5 rounded-2xl text-sm font-semibold transition-all disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.98] text-white"
                     style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
                   >
-                    {uploading ? 'Saving…' : eventDate ? `Pin to ${formatNice(eventDate)}` : 'Pick a date above'}
+                    {uploading ? 'Saving…' : eventDate
+                      ? (endDate && endDate !== eventDate
+                          ? `Pin ${formatNice(eventDate)} – ${formatNice(endDate)}`
+                          : `Pin to ${formatNice(eventDate)}`)
+                      : 'Pick a date above'}
                   </button>
                 </>
               )}
