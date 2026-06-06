@@ -138,9 +138,11 @@ function FriendsTab({ inviteCode, connectedCount, accent }) {
 export default function CalendarClient({ initialEvents, user, inviteCode, connectedCount = 0, joined = false, joinErr }) {
   const [events, setEvents]         = useState(initialEvents)
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [addingToDate, setAddingToDate] = useState(null)
-  const [dayViewDate, setDayViewDate]   = useState(null)
+  // Single modal state — only one overlay can ever show at a time
+  // null | { type: 'add', date: Date|null }
+  //      | { type: 'dayview', date: Date }
+  //      | { type: 'event', event: {} }
+  const [modal, setModal]           = useState(null)
   const [notifEnabled, setNotifEnabled] = useState(false)
   const [notifToast, setNotifToast]     = useState(null)
   const [themeId, setThemeId]           = useState('dreamy')
@@ -148,7 +150,6 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const [pinStyle, setPinStyle]         = useState('classic')
   const [notes, setNotes]               = useState({})
   const [activeTab, setActiveTab]       = useState('feed')
-  const [eventDetail, setEventDetail]   = useState(null)
   const [notifEvents, setNotifEvents]   = useState({})
   const swRegRef = useRef(null)
   const router = useRouter()
@@ -271,7 +272,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
       const [year, month] = eventData.date.split('-').map(Number)
       setCurrentDate(new Date(year, month - 1, 1))
     }
-    setShowAddModal(false); setAddingToDate(null)
+    setModal(null)
   }
 
   const deleteEvent = async (id) => {
@@ -279,13 +280,8 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     setEvents(prev => prev.filter(e => e.id !== id))
   }
 
-  const handleFeedEventTap = (event) => setEventDetail(event)
-
-  const handleDayViewEventTap = (event) => {
-    setDayViewDate(null)
-    // defer by one tick so DayView fully unmounts before EventDetailModal mounts
-    setTimeout(() => setEventDetail(event), 0)
-  }
+  const handleFeedEventTap    = (event) => setModal({ type: 'event', event })
+  const handleDayViewEventTap = (event) => setModal({ type: 'event', event })
 
   const toggleEventNotif = (id) => {
     setNotifEvents(prev => {
@@ -356,7 +352,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
             accent={theme.accent}
             onEventTap={handleFeedEventTap}
             onDeleteEvent={deleteEvent}
-            onScan={() => setShowAddModal(true)}
+            onScan={() => setModal({ type: 'add', date: null })}
           />
         )}
         {activeTab === 'calendar' && (
@@ -365,8 +361,8 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
               currentDate={currentDate}
               setCurrentDate={setCurrentDate}
               events={events}
-              onDayClick={d => setDayViewDate(d)}
-              onEventClick={d => setDayViewDate(d)}
+              onDayClick={d => setModal({ type: 'dayview', date: d })}
+              onEventClick={d => setModal({ type: 'dayview', date: d })}
               theme={theme}
               pinStyle={pinStyle}
               notes={notes}
@@ -394,7 +390,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
 
         {/* Center scan button — elevated */}
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', paddingBottom: 6 }}>
-          <button onClick={() => { setAddingToDate(null); setShowAddModal(true) }} title="Scan a flyer"
+          <button onClick={() => setModal({ type: 'add', date: null })} title="Scan a flyer"
             style={{ width: 56, height: 56, borderRadius: '50%', background: '#1a1a2e', border: '2px solid #111', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(-12px)', boxShadow: `0 0 0 4px rgba(255,255,255,0.95), 3px 3px 0 ${theme.accent}` }}>
             <CamIcon />
           </button>
@@ -410,25 +406,25 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         </button>
       </nav>
 
-      {/* ── Modals ── */}
-      {showAddModal && (
+      {/* ── Modals — single state, only one ever renders ── */}
+      {modal?.type === 'add' && (
         <Portal>
           <AddFlyerModal
-            date={addingToDate}
+            date={modal.date}
             onAdd={addEvent}
-            onClose={() => { setShowAddModal(false); setAddingToDate(null) }}
+            onClose={() => setModal(null)}
             userId={user.id}
           />
         </Portal>
       )}
-      {dayViewDate && !eventDetail && (
+      {modal?.type === 'dayview' && (
         <Portal>
           <DayView
-            date={dayViewDate}
-            events={getDayEvents(dayViewDate)}
-            notes={notes[dateKey(dayViewDate)] || []}
-            onClose={() => setDayViewDate(null)}
-            onAdd={() => { setAddingToDate(dayViewDate); setDayViewDate(null); setShowAddModal(true) }}
+            date={modal.date}
+            events={getDayEvents(modal.date)}
+            notes={notes[dateKey(modal.date)] || []}
+            onClose={() => setModal(null)}
+            onAdd={() => setModal({ type: 'add', date: modal.date })}
             onDelete={deleteEvent}
             onPinStyleChange={id => setPinStyle(id)}
             onSaveNote={saveNote}
@@ -438,15 +434,15 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           />
         </Portal>
       )}
-      {eventDetail && (
+      {modal?.type === 'event' && (
         <Portal>
           <EventDetailModal
-            event={eventDetail}
+            event={modal.event}
             accent={theme.accent}
-            onClose={() => setEventDetail(null)}
+            onClose={() => setModal(null)}
             onDelete={deleteEvent}
-            reminderOn={isEventOn(eventDetail.id)}
-            onToggleReminder={() => toggleEventNotif(eventDetail.id)}
+            reminderOn={isEventOn(modal.event.id)}
+            onToggleReminder={() => toggleEventNotif(modal.event.id)}
           />
         </Portal>
       )}
