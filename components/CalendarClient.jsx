@@ -282,7 +282,8 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
 
   const handleDayViewEventTap = (event) => {
     setDayViewDate(null)
-    setEventDetail(event)
+    // defer by one tick so DayView fully unmounts before EventDetailModal mounts
+    setTimeout(() => setEventDetail(event), 0)
   }
 
   const toggleEventNotif = (id) => {
@@ -417,7 +418,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           userId={user.id}
         />
       )}
-      {dayViewDate && (
+      {dayViewDate && !eventDetail && (
         <DayView
           date={dayViewDate}
           events={getDayEvents(dayViewDate)}
