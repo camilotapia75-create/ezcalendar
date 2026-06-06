@@ -5,65 +5,48 @@ import { createClient } from '@/lib/supabase/client'
 import Calendar from './Calendar'
 import AddFlyerModal from './AddFlyerModal'
 import DayView from './DayView'
-import ShareModal from './ShareModal'
+import FeedView from './FeedView'
 
 const THEMES = {
   dreamy: {
     bg: '#f0d8ff',
     sw: 'linear-gradient(135deg,#c084fc,#f472b6)',
     c: ['rgba(192,132,252,0.72)','rgba(244,114,182,0.62)','rgba(251,207,232,0.68)','rgba(216,180,254,0.72)','rgba(249,168,212,0.62)','rgba(233,213,255,0.68)'],
-    cellBg: 'rgba(242,228,255,0.93)',
-    weekendBg: 'rgba(255,218,245,0.87)',
-    inactiveBg: 'rgba(185,155,215,0.28)',
-    accent: '#7c3aed',
+    cellBg: 'rgba(242,228,255,0.93)', weekendBg: 'rgba(255,218,245,0.87)', inactiveBg: 'rgba(185,155,215,0.28)', accent: '#7c3aed',
   },
   ocean: {
     bg: '#b8e0f8',
     sw: 'linear-gradient(135deg,#0ea5e9,#10b981)',
     c: ['rgba(14,165,233,0.72)','rgba(16,185,129,0.65)','rgba(99,102,241,0.58)','rgba(103,232,249,0.72)','rgba(52,211,153,0.65)','rgba(147,197,253,0.65)'],
-    cellBg: 'rgba(218,242,255,0.93)',
-    weekendBg: 'rgba(200,245,235,0.87)',
-    inactiveBg: 'rgba(140,195,225,0.28)',
-    accent: '#0284c7',
+    cellBg: 'rgba(218,242,255,0.93)', weekendBg: 'rgba(200,245,235,0.87)', inactiveBg: 'rgba(140,195,225,0.28)', accent: '#0284c7',
   },
   forest: {
     bg: '#b8f0cc',
     sw: 'linear-gradient(135deg,#22c55e,#eab308)',
     c: ['rgba(34,197,94,0.72)','rgba(234,179,8,0.62)','rgba(74,222,128,0.68)','rgba(163,230,53,0.72)','rgba(187,247,208,0.65)','rgba(254,240,138,0.65)'],
-    cellBg: 'rgba(218,250,225,0.93)',
-    weekendBg: 'rgba(242,255,205,0.87)',
-    inactiveBg: 'rgba(140,200,155,0.28)',
-    accent: '#16a34a',
+    cellBg: 'rgba(218,250,225,0.93)', weekendBg: 'rgba(242,255,205,0.87)', inactiveBg: 'rgba(140,200,155,0.28)', accent: '#16a34a',
   },
   sunset: {
     bg: '#fdd0a0',
     sw: 'linear-gradient(135deg,#f97316,#ef4444)',
     c: ['rgba(249,115,22,0.75)','rgba(239,68,68,0.65)','rgba(251,146,60,0.72)','rgba(252,165,165,0.68)','rgba(254,215,170,0.72)','rgba(253,186,116,0.68)'],
-    cellBg: 'rgba(255,238,218,0.93)',
-    weekendBg: 'rgba(255,218,215,0.87)',
-    inactiveBg: 'rgba(215,165,130,0.28)',
-    accent: '#ea580c',
+    cellBg: 'rgba(255,238,218,0.93)', weekendBg: 'rgba(255,218,215,0.87)', inactiveBg: 'rgba(215,165,130,0.28)', accent: '#ea580c',
   },
   midnight: {
     bg: '#c8c0f8',
     sw: 'linear-gradient(135deg,#6366f1,#3b82f6)',
     c: ['rgba(99,102,241,0.75)','rgba(139,92,246,0.68)','rgba(59,130,246,0.62)','rgba(167,139,250,0.75)','rgba(196,181,253,0.68)','rgba(147,197,253,0.65)'],
-    cellBg: 'rgba(225,220,255,0.93)',
-    weekendBg: 'rgba(215,225,255,0.87)',
-    inactiveBg: 'rgba(155,145,215,0.28)',
-    accent: '#4f46e5',
+    cellBg: 'rgba(225,220,255,0.93)', weekendBg: 'rgba(215,225,255,0.87)', inactiveBg: 'rgba(155,145,215,0.28)', accent: '#4f46e5',
   },
   rose: {
     bg: '#f8c0e0',
     sw: 'linear-gradient(135deg,#ec4899,#f59e0b)',
     c: ['rgba(236,72,153,0.72)','rgba(245,158,11,0.62)','rgba(249,168,212,0.72)','rgba(253,224,71,0.65)','rgba(252,207,232,0.72)','rgba(254,243,199,0.65)'],
-    cellBg: 'rgba(255,225,240,0.93)',
-    weekendBg: 'rgba(255,245,205,0.87)',
-    inactiveBg: 'rgba(215,155,185,0.28)',
-    accent: '#db2777',
+    cellBg: 'rgba(255,225,240,0.93)', weekendBg: 'rgba(255,245,205,0.87)', inactiveBg: 'rgba(215,155,185,0.28)', accent: '#db2777',
   },
 }
-const POS = ['75% 65% at 3% 4%','55% 55% at 52% 18%','45% 55% at 97% 12%','50% 50% at 93% 88%','65% 52% at 18% 80%','40% 40% at 75% 60%']
+
+const POS   = ['75% 65% at 3% 4%','55% 55% at 52% 18%','45% 55% at 97% 12%','50% 50% at 93% 88%','65% 52% at 18% 80%','40% 40% at 75% 60%']
 const STOPS = [58,55,50,52,55,50]
 
 function buildBg(tid) {
@@ -80,19 +63,89 @@ function buildBg(tid) {
   }
 }
 
+// ── Nav icons ──────────────────────────────────────────────────────────────
+const FeedIcon = ({ active }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="16" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+)
+const CalIcon = ({ active }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+)
+const PeopleIcon = ({ active }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+)
+const CamIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+    <circle cx="12" cy="13" r="4"/>
+  </svg>
+)
+
+// ── Friends tab ────────────────────────────────────────────────────────────
+function FriendsTab({ inviteCode, connectedCount, accent }) {
+  const [inviteUrl, setInviteUrl] = useState('')
+  const [copied, setCopied]     = useState(false)
+
+  useEffect(() => { setInviteUrl(`${window.location.origin}/join/${inviteCode}`) }, [inviteCode])
+
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(inviteUrl) } catch {
+      const el = document.createElement('textarea')
+      el.value = inviteUrl; el.style.cssText = 'position:fixed;opacity:0'
+      document.body.appendChild(el); el.focus(); el.select()
+      document.execCommand('copy'); document.body.removeChild(el)
+    }
+    setCopied(true); setTimeout(() => setCopied(false), 2500)
+  }
+
+  return (
+    <div style={{ padding: '28px 20px 20px', maxWidth: 440, margin: '0 auto' }}>
+      <h1 style={{ fontSize: 38, fontWeight: 700, color: '#111', margin: '0 0 6px' }}>Friends</h1>
+      <p style={{ fontSize: 16, color: '#7c6a56', margin: '0 0 28px', lineHeight: 1.5 }}>
+        {connectedCount === 0
+          ? "Invite a friend — you'll both see each other's pinned events."
+          : `${connectedCount} friend${connectedCount > 1 ? 's' : ''} connected. You see each other's events!`}
+      </p>
+      {connectedCount > 0 && (
+        <div style={{ background: 'rgba(34,197,94,0.08)', border: '1.5px solid rgba(34,197,94,0.28)', borderRadius: 4, padding: '11px 16px', marginBottom: 20, fontSize: 15, color: '#166534' }}>
+          🎉 {connectedCount} friend{connectedCount > 1 ? 's' : ''} connected!
+        </div>
+      )}
+      <div style={{ position: 'relative', background: '#fffdf8', border: '1.5px solid #e0ccb4', borderRadius: 4, boxShadow: '4px 4px 0 rgba(0,0,0,0.11)', padding: '24px 20px 20px' }}>
+        <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', width: 44, height: 20, background: 'rgba(253,224,71,0.75)', borderRadius: 3 }} />
+        <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: '#a89888', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Your invite link</p>
+        <p style={{ margin: '0 0 14px', fontSize: 13, color: '#4b5563', wordBreak: 'break-all', fontFamily: 'monospace', lineHeight: 1.5 }}>{inviteUrl || `…/${inviteCode}`}</p>
+        <button onClick={copyLink} style={{ width: '100%', padding: '11px', background: copied ? 'rgba(34,197,94,0.10)' : '#1a1a2e', color: copied ? '#166534' : '#fff', border: copied ? '1.5px solid rgba(34,197,94,0.3)' : '2px solid #1a1a2e', borderRadius: 6, boxShadow: copied ? 'none' : `3px 3px 0 ${accent}`, cursor: 'pointer', fontSize: 18, fontWeight: 700, transition: 'all 0.2s', fontFamily: 'var(--font-caveat), Caveat, cursive', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          {copied ? '✓ Copied!' : '📋 Copy invite link'}
+        </button>
+      </div>
+      <p style={{ marginTop: 20, fontSize: 15, color: '#a89888', lineHeight: 1.6, textAlign: 'center' }}>
+        Send this link to a friend. When they sign in, you'll both see each other's pinned events.
+      </p>
+    </div>
+  )
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
 export default function CalendarClient({ initialEvents, user, inviteCode, connectedCount = 0, joined = false, joinErr }) {
-  const [events, setEvents] = useState(initialEvents)
+  const [events, setEvents]         = useState(initialEvents)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [showAddModal, setShowAddModal] = useState(false)
   const [addingToDate, setAddingToDate] = useState(null)
-  const [dayViewDate, setDayViewDate] = useState(null)
+  const [dayViewDate, setDayViewDate]   = useState(null)
   const [notifEnabled, setNotifEnabled] = useState(false)
-  const [notifToast, setNotifToast] = useState(null)
-  const [themeId, setThemeId] = useState('dreamy')
+  const [notifToast, setNotifToast]     = useState(null)
+  const [themeId, setThemeId]           = useState('dreamy')
   const [showThemePicker, setShowThemePicker] = useState(false)
-  const [showShareModal, setShowShareModal] = useState(false)
-  const [pinStyle, setPinStyle] = useState('classic')
-  const [notes, setNotes] = useState({})
+  const [pinStyle, setPinStyle]         = useState('classic')
+  const [notes, setNotes]               = useState({})
+  const [activeTab, setActiveTab]       = useState('feed')
   const router = useRouter()
   const supabase = createClient()
 
@@ -102,10 +155,9 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
     const savedPin = localStorage.getItem('pinStyle')
     if (savedPin) setPinStyle(savedPin)
-    if (joined) showToast('🎉 Connected! You now see your friend\'s events too.')
-    else if (joinErr === 'self') showToast("That's your own invite link!")
+    if (joined)                showToast('🎉 Connected! You now see your friend\'s events too.')
+    else if (joinErr === 'self')     showToast("That's your own invite link!")
     else if (joinErr === 'notfound') showToast('Invite link not found — ask your friend for a new one.')
-    // Fetch notes — multiple per day
     supabase.from('day_notes').select('id, date, text_note, drawing_data').then(({ data }) => {
       if (!data) return
       const map = {}
@@ -117,23 +169,6 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     })
   }, [])
 
-  const saveNote = async (dateStr, noteData) => {
-    const { data, error } = await supabase.from('day_notes')
-      .insert({ user_id: user.id, date: dateStr, text_note: noteData.text_note, drawing_data: noteData.drawing_data })
-      .select('id, text_note, drawing_data').single()
-    if (!error && data) {
-      setNotes(prev => ({ ...prev, [dateStr]: [...(prev[dateStr] || []), data] }))
-    }
-  }
-
-  const deleteNote = async (noteId, dateStr) => {
-    await supabase.from('day_notes').delete().eq('id', noteId)
-    setNotes(prev => ({
-      ...prev,
-      [dateStr]: (prev[dateStr] || []).filter(n => n.id !== noteId),
-    }))
-  }
-
   useEffect(() => {
     if (!showThemePicker) return
     const close = () => setShowThemePicker(false)
@@ -141,15 +176,19 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     return () => document.removeEventListener('click', close)
   }, [showThemePicker])
 
-  const showToast = (msg) => {
-    setNotifToast(msg)
-    setTimeout(() => setNotifToast(null), 4000)
+  const showToast = (msg) => { setNotifToast(msg); setTimeout(() => setNotifToast(null), 4000) }
+  const applyTheme = (id) => { setThemeId(id); localStorage.setItem('calendarTheme', id); setShowThemePicker(false) }
+
+  const saveNote = async (dateStr, noteData) => {
+    const { data, error } = await supabase.from('day_notes')
+      .insert({ user_id: user.id, date: dateStr, text_note: noteData.text_note, drawing_data: noteData.drawing_data })
+      .select('id, text_note, drawing_data').single()
+    if (!error && data) setNotes(prev => ({ ...prev, [dateStr]: [...(prev[dateStr] || []), data] }))
   }
 
-  const applyTheme = (id) => {
-    setThemeId(id)
-    localStorage.setItem('calendarTheme', id)
-    setShowThemePicker(false)
+  const deleteNote = async (noteId, dateStr) => {
+    await supabase.from('day_notes').delete().eq('id', noteId)
+    setNotes(prev => ({ ...prev, [dateStr]: (prev[dateStr] || []).filter(n => n.id !== noteId) }))
   }
 
   const checkAndNotify = useCallback((eventsToCheck) => {
@@ -163,57 +202,34 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
     const tomorrowKey = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}`
     if (localStorage.getItem(`notified_${todayKey}`)) return
-    const todayEvents = eventsToCheck.filter(e => e.date === todayKey && notifEvts[e.id] !== false)
+    const todayEvents    = eventsToCheck.filter(e => e.date === todayKey    && notifEvts[e.id] !== false)
     const tomorrowEvents = eventsToCheck.filter(e => e.date === tomorrowKey && notifEvts[e.id] !== false)
     if (todayEvents.length > 0) {
-      new Notification(`${todayEvents.length} event${todayEvents.length > 1 ? 's' : ''} today! 📌`, {
-        body: todayEvents.map(e => e.title || 'Event').join(' • '),
-        icon: '/favicon.ico',
-      })
+      new Notification(`${todayEvents.length} event${todayEvents.length > 1 ? 's' : ''} today! 📌`, { body: todayEvents.map(e => e.title || 'Event').join(' • '), icon: '/favicon.ico' })
       localStorage.setItem(`notified_${todayKey}`, '1')
     } else if (tomorrowEvents.length > 0) {
-      new Notification(`${tomorrowEvents.length} event${tomorrowEvents.length > 1 ? 's' : ''} tomorrow 📌`, {
-        body: tomorrowEvents.map(e => e.title || 'Event').join(' • '),
-        icon: '/favicon.ico',
-      })
+      new Notification(`${tomorrowEvents.length} event${tomorrowEvents.length > 1 ? 's' : ''} tomorrow 📌`, { body: tomorrowEvents.map(e => e.title || 'Event').join(' • '), icon: '/favicon.ico' })
       localStorage.setItem(`notified_${todayKey}`, '1')
     }
   }, [])
 
-  useEffect(() => {
-    if (notifEnabled) checkAndNotify(events)
-  }, [notifEnabled, events, checkAndNotify])
+  useEffect(() => { if (notifEnabled) checkAndNotify(events) }, [notifEnabled, events, checkAndNotify])
 
   const toggleNotifications = async () => {
-    if (notifEnabled) {
-      setNotifEnabled(false)
-      localStorage.setItem('notificationsEnabled', 'false')
-      return
-    }
+    if (notifEnabled) { setNotifEnabled(false); localStorage.setItem('notificationsEnabled', 'false'); return }
     if (!('Notification' in window)) {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-      if (isIOS) {
-        showToast('On iPhone, add this app to your Home Screen first, then enable notifications.')
-      } else {
-        showToast('Notifications not supported in this browser. Try Chrome.')
-      }
+      showToast(/iPad|iPhone|iPod/.test(navigator.userAgent)
+        ? 'On iPhone, add to Home Screen first, then enable notifications.'
+        : 'Notifications not supported. Try Chrome.')
       return
     }
     let perm = Notification.permission
     if (perm === 'default') perm = await Notification.requestPermission()
-    if (perm === 'granted') {
-      setNotifEnabled(true)
-      localStorage.setItem('notificationsEnabled', 'true')
-      checkAndNotify(events)
-    } else {
-      showToast('Notifications blocked — enable them in your phone settings for this site.')
-    }
+    if (perm === 'granted') { setNotifEnabled(true); localStorage.setItem('notificationsEnabled', 'true'); checkAndNotify(events) }
+    else showToast('Notifications blocked — enable them in your phone settings for this site.')
   }
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+  const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/') }
 
   const getDayEvents = (date) => {
     if (!date) return []
@@ -223,7 +239,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
 
   const addEvent = async (eventData) => {
     let result = await supabase.from('events').insert({ ...eventData, user_id: user.id }).select().single()
-    if (result.error && result.error.message?.includes('source_url')) {
+    if (result.error?.message?.includes('source_url')) {
       const { source_url, ...rest } = eventData
       result = await supabase.from('events').insert({ ...rest, user_id: user.id }).select().single()
     }
@@ -233,8 +249,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
       const [year, month] = eventData.date.split('-').map(Number)
       setCurrentDate(new Date(year, month - 1, 1))
     }
-    setShowAddModal(false)
-    setAddingToDate(null)
+    setShowAddModal(false); setAddingToDate(null)
   }
 
   const deleteEvent = async (id) => {
@@ -242,157 +257,124 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     setEvents(prev => prev.filter(e => e.id !== id))
   }
 
+  const handleFeedEventTap = (event) => {
+    const [y, m, d] = event.date.split('-').map(Number)
+    setDayViewDate(new Date(y, m - 1, d))
+  }
+
   const theme = THEMES[themeId] || THEMES.dreamy
+  const dateKey = (date) => [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
 
   return (
-    <div className="min-h-screen flex flex-col" style={buildBg(themeId)}>
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', ...buildBg(themeId) }}>
 
-      {/* Header — position:relative so the theme picker can anchor to its bottom edge */}
-      <header
-        className="flex items-center justify-between px-5"
-        style={{
-          paddingTop: 'calc(env(safe-area-inset-top) + 1rem)',
-          paddingBottom: '1rem',
-          background: 'rgba(255,255,255,0.72)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.5)',
-          boxShadow: '0 1px 12px rgba(124,58,237,0.08)',
-          position: 'relative',
-          zIndex: 50,
-        }}
-      >
-        <div className="flex items-center">
-          <span style={{ fontSize: 26, color: '#1a1a2e', fontWeight: 700, letterSpacing: '-0.5px', fontFamily: 'var(--font-caveat), Caveat, cursive' }}>📌 ezcalendar</span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Palette button — picker now anchors to the header, not this button */}
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowThemePicker(p => !p) }}
-            title="Change color theme"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '2px 4px' }}
-          >
-            &#127912;
-          </button>
-
-          <button
-            onClick={() => setShowShareModal(true)}
-            title={connectedCount === 0 ? 'Invite a friend to share calendars' : `${connectedCount} friend${connectedCount > 1 ? 's' : ''} connected`}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '2px 4px', position: 'relative' }}
-          >
-            &#128101;
-            {connectedCount > 0 && (
-              <span style={{
-                position: 'absolute', top: -4, right: -4,
-                background: theme.accent, color: '#fff',
-                borderRadius: '50%', width: 14, height: 14,
-                fontSize: 8, fontWeight: 800,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>{connectedCount}</span>
-            )}
-          </button>
-
-          <button
-            onClick={toggleNotifications}
-            title={notifEnabled ? 'Notifications on — tap to turn off' : 'Tap to enable event reminders'}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '2px 4px' }}
-          >
+      {/* ── Header ── */}
+      <header style={{
+        flexShrink: 0,
+        paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)',
+        paddingBottom: '0.75rem',
+        paddingLeft: '1.25rem', paddingRight: '1.25rem',
+        background: 'rgba(255,255,255,0.82)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '1.5px solid rgba(0,0,0,0.07)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'relative', zIndex: 50,
+      }}>
+        <span style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e', letterSpacing: '-0.5px' }}>ezcalendar</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button onClick={e => { e.stopPropagation(); setShowThemePicker(p => !p) }} title="Change theme"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '4px 6px' }}>🎨</button>
+          <button onClick={toggleNotifications} title={notifEnabled ? 'Notifications on' : 'Enable notifications'}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '4px 6px' }}>
             {notifEnabled ? '🔔' : '🔕'}
           </button>
-
-          <button onClick={handleSignOut} className="text-[11px] transition-colors hover:text-violet-500" style={{ color: theme.accent }}>
-            <span className="hidden sm:inline">{user.email} &middot; </span>sign out
+          <button onClick={handleSignOut}
+            style={{ fontSize: 12, color: theme.accent, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}>
+            sign out
           </button>
         </div>
 
-        {/* Theme picker — anchored to header bottom-right, always visible on any screen size */}
         {showThemePicker && (
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 10px)',
-              right: 16,
-              background: 'white',
-              borderRadius: 18,
-              padding: '10px 14px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-              border: '1px solid rgba(0,0,0,0.08)',
-              display: 'flex',
-              gap: 10,
-              zIndex: 9999,
-            }}
-          >
+          <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 16, background: 'white', borderRadius: 18, padding: '10px 14px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', gap: 10, zIndex: 9999 }}>
             {Object.entries(THEMES).map(([id, t]) => (
-              <button
-                key={id}
-                onClick={() => applyTheme(id)}
-                title={id.charAt(0).toUpperCase() + id.slice(1)}
-                style={{
-                  width: 28, height: 28, borderRadius: '50%', background: t.sw,
-                  border: themeId === id ? `3px solid ${t.accent}` : '3px solid transparent',
-                  cursor: 'pointer', outline: 'none', flexShrink: 0,
-                  boxShadow: themeId === id ? `0 0 0 2px ${t.accent}55, 0 2px 8px rgba(0,0,0,0.15)` : '0 2px 6px rgba(0,0,0,0.15)',
-                }}
+              <button key={id} onClick={() => applyTheme(id)} title={id}
+                style={{ width: 28, height: 28, borderRadius: '50%', background: t.sw, border: themeId === id ? `3px solid ${t.accent}` : '3px solid transparent', cursor: 'pointer', outline: 'none', flexShrink: 0, boxShadow: themeId === id ? `0 0 0 2px ${t.accent}55, 0 2px 8px rgba(0,0,0,0.15)` : '0 2px 6px rgba(0,0,0,0.15)' }}
               />
             ))}
           </div>
         )}
       </header>
 
+      {/* ── Toast ── */}
       {notifToast && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 'calc(env(safe-area-inset-bottom) + 88px)',
-            left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(30,30,40,0.96)', color: 'white',
-            padding: '12px 18px', borderRadius: 14, fontSize: 13,
-            maxWidth: 'calc(100vw - 40px)', textAlign: 'center',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-            zIndex: 9999, backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255,255,255,0.1)',
-          }}
-        >
+        <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 88px)', left: '50%', transform: 'translateX(-50%)', background: 'rgba(30,30,40,0.96)', color: 'white', padding: '12px 18px', borderRadius: 14, fontSize: 13, maxWidth: 'calc(100vw - 40px)', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.3)', zIndex: 9999, backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)' }}>
           {notifToast}
         </div>
       )}
 
-      <main className="flex-1 px-3 md:px-6 py-5 pb-24 max-w-4xl mx-auto w-full">
-        <Calendar
-          currentDate={currentDate}
-          setCurrentDate={setCurrentDate}
-          events={events}
-          onDayClick={(date) => setDayViewDate(date)}
-          onEventClick={(date) => setDayViewDate(date)}
-          theme={theme}
-          pinStyle={pinStyle}
-          notes={notes}
-        />
+      {/* ── Content ── */}
+      <main style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}>
+        {activeTab === 'feed' && (
+          <FeedView
+            events={events}
+            accent={theme.accent}
+            onEventTap={handleFeedEventTap}
+            onDeleteEvent={deleteEvent}
+            onScan={() => setShowAddModal(true)}
+          />
+        )}
+        {activeTab === 'calendar' && (
+          <div style={{ padding: '16px 12px 8px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
+            <Calendar
+              currentDate={currentDate}
+              setCurrentDate={setCurrentDate}
+              events={events}
+              onDayClick={d => setDayViewDate(d)}
+              onEventClick={d => setDayViewDate(d)}
+              theme={theme}
+              pinStyle={pinStyle}
+              notes={notes}
+            />
+          </div>
+        )}
+        {activeTab === 'friends' && (
+          <FriendsTab inviteCode={inviteCode} connectedCount={connectedCount} accent={theme.accent} />
+        )}
       </main>
 
-      <button
-        onClick={() => { setAddingToDate(null); setShowAddModal(true) }}
-        className="fixed right-5 flex items-center gap-2 px-5 py-3 transition-all active:translate-y-0.5"
-        style={{
-          bottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)',
-          background: '#1a1a2e',
-          color: '#fff',
-          border: '2px solid #1a1a2e',
-          borderRadius: 8,
-          boxShadow: `3px 3px 0 ${theme.accent}`,
-          fontSize: 19,
-          fontFamily: 'var(--font-caveat), Caveat, cursive',
-          fontWeight: 700,
-        }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-          <circle cx="12" cy="13" r="4"/>
-        </svg>
-        Scan flyer
-      </button>
+      {/* ── Bottom Nav ── */}
+      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)', borderTop: '1.5px solid rgba(0,0,0,0.07)', paddingBottom: 'env(safe-area-inset-bottom)', display: 'flex', alignItems: 'stretch' }}>
+        <button onClick={() => setActiveTab('feed')}
+          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'feed' ? '#1a1a2e' : '#9ca3af' }}>
+          <FeedIcon active={activeTab === 'feed'} />
+          <span style={{ fontSize: 10, fontWeight: activeTab === 'feed' ? 700 : 400, fontFamily: 'var(--font-inter), Inter, system-ui' }}>Upcoming</span>
+        </button>
 
+        <button onClick={() => setActiveTab('calendar')}
+          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'calendar' ? '#1a1a2e' : '#9ca3af' }}>
+          <CalIcon active={activeTab === 'calendar'} />
+          <span style={{ fontSize: 10, fontWeight: activeTab === 'calendar' ? 700 : 400, fontFamily: 'var(--font-inter), Inter, system-ui' }}>Calendar</span>
+        </button>
+
+        {/* Center scan button — elevated */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', paddingBottom: 6 }}>
+          <button onClick={() => { setAddingToDate(null); setShowAddModal(true) }} title="Scan a flyer"
+            style={{ width: 56, height: 56, borderRadius: '50%', background: '#1a1a2e', border: '2px solid #111', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(-12px)', boxShadow: `0 0 0 4px rgba(255,255,255,0.95), 3px 3px 0 ${theme.accent}` }}>
+            <CamIcon />
+          </button>
+        </div>
+
+        <button onClick={() => setActiveTab('friends')}
+          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'friends' ? '#1a1a2e' : '#9ca3af', position: 'relative' }}>
+          <PeopleIcon active={activeTab === 'friends'} />
+          <span style={{ fontSize: 10, fontWeight: activeTab === 'friends' ? 700 : 400, fontFamily: 'var(--font-inter), Inter, system-ui' }}>Friends</span>
+          {connectedCount > 0 && (
+            <span style={{ position: 'absolute', top: 6, right: '50%', transform: 'translateX(12px)', background: theme.accent, color: '#fff', borderRadius: '50%', width: 14, height: 14, fontSize: 8, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{connectedCount}</span>
+          )}
+        </button>
+      </nav>
+
+      {/* ── Modals ── */}
       {showAddModal && (
         <AddFlyerModal
           date={addingToDate}
@@ -401,29 +383,19 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           userId={user.id}
         />
       )}
-
       {dayViewDate && (
         <DayView
           date={dayViewDate}
           events={getDayEvents(dayViewDate)}
-          notes={notes[[dayViewDate.getFullYear(), String(dayViewDate.getMonth()+1).padStart(2,'0'), String(dayViewDate.getDate()).padStart(2,'0')].join('-')] || []}
+          notes={notes[dateKey(dayViewDate)] || []}
           onClose={() => setDayViewDate(null)}
           onAdd={() => { setAddingToDate(dayViewDate); setDayViewDate(null); setShowAddModal(true) }}
           onDelete={deleteEvent}
-          onPinStyleChange={(id) => setPinStyle(id)}
+          onPinStyleChange={id => setPinStyle(id)}
           onSaveNote={saveNote}
           onDeleteNote={deleteNote}
         />
       )}
-
-      {showShareModal && (
-        <ShareModal
-          inviteCode={inviteCode}
-          connectedCount={connectedCount}
-          onClose={() => setShowShareModal(false)}
-        />
-      )}
-
     </div>
   )
 }
