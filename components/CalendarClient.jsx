@@ -280,8 +280,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     setEvents(prev => prev.filter(e => e.id !== id))
   }
 
-  const handleFeedEventTap    = (event) => setModal({ type: 'event', event })
-  const handleDayViewEventTap = (event) => setModal({ type: 'event', event })
+  const handleFeedEventTap = (event) => setModal({ type: 'event', event })
 
   const toggleEventNotif = (id) => {
     setNotifEvents(prev => {
@@ -427,7 +426,6 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           onSaveNote={saveNote}
           onDeleteNote={deleteNote}
           accent={theme.accent}
-          onEventTap={handleDayViewEventTap}
         />
       )}
       {modal?.type === 'event' && (

@@ -21,6 +21,14 @@ const PIN_STYLES = [
 ]
 const EMOJI_PINS = Object.fromEntries(PIN_STYLES.slice(1).map(p => [p.id, p.emoji]))
 
+function fmtDate(str) {
+  const [y, m, d] = str.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  return `${days[dt.getDay()]}, ${months[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`
+}
+
 function Pin({ styleId, colorIdx }) {
   const color = PIN_COLORS[colorIdx % PIN_COLORS.length]
   if (styleId === 'classic') {
@@ -159,9 +167,10 @@ function NoteThumbnail({ data, highlighted }) {
   )
 }
 
-export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onPinStyleChange, onSaveNote, onDeleteNote, accent = '#7c3aed', onEventTap }) {
+export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onPinStyleChange, onSaveNote, onDeleteNote, accent = '#7c3aed' }) {
   const [pinStyle, setPinStyle] = useState('classic')
   const [showPinPicker, setShowPinPicker] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState(null)
 
   const [showNoteManager, setShowNoteManager] = useState(false)
   const [hoveredNoteId, setHoveredNoteId] = useState(null)
@@ -478,7 +487,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: shown.length === 1 ? 'minmax(0, min(75%, 380px))' : shown.length === 2 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: shown.length === 1 ? 0 : '28px 16px', justifyContent: 'center', maxWidth: shown.length === 1 ? '100%' : shown.length === 2 ? 560 : 860, margin: '0 auto', width: '100%', padding: '44px 20px 24px', boxSizing: 'border-box' }}>
               {shown.map((event, idx) => (
-                <div key={event.id} onClick={() => !writeMode && onEventTap?.(event)}
+                <div key={event.id} onClick={() => !writeMode && setSelectedEvent(event)}
                   style={{ position: 'relative', display: 'flex', flexDirection: 'column', background: '#fff', border: '3px solid #fff', boxShadow: '0 6px 24px rgba(0,0,0,0.22)', transform: shown.length === 1 ? `rotate(${rots[idx]}deg)` : 'none', transformOrigin: 'top center', cursor: writeMode ? 'default' : 'pointer', userSelect: 'none', WebkitTapHighlightColor: 'transparent', zIndex: writeMode ? 'auto' : 28 }}>
                   <Pin styleId={pinStyle} colorIdx={idx} />
                   {event.image_url
@@ -536,6 +545,69 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
               style={{ padding: '3px 8px', borderRadius: 20, border: '1.5px solid #fca5a5', background: '#fff1f2', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#ef4444', flexShrink: 0 }}>Clear</button>
             <button onClick={exitWriteMode}
               style={{ padding: '5px 16px', borderRadius: 20, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Done</button>
+          </div>
+        )}
+
+        {/* Inline event detail — overlays everything inside DayView, no z-index battles */}
+        {selectedEvent && (
+          <div onClick={e => e.stopPropagation()}
+            style={{ position: 'absolute', inset: 0, zIndex: 60, background: '#fffaee', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              {selectedEvent.image_url ? (
+                <img src={selectedEvent.image_url} alt={selectedEvent.title || ''} style={{ width: '100%', maxHeight: 340, objectFit: 'cover', display: 'block' }} />
+              ) : (
+                <div style={{ width: '100%', height: 180, background: `linear-gradient(135deg, ${accent}18, ${accent}38)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 22, fontWeight: 700, color: accent, textAlign: 'center', padding: '0 24px', lineHeight: 1.3 }}>{selectedEvent.title || 'Event'}</span>
+                </div>
+              )}
+              <div style={{ padding: '18px 20px 4px' }}>
+                {selectedEvent.title && (
+                  <h2 style={{ margin: '0 0 14px', fontSize: 24, fontWeight: 800, color: '#1a1a2e', lineHeight: 1.2, fontFamily: 'var(--font-caveat), Caveat, cursive' }}>
+                    {selectedEvent.title}
+                  </h2>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <span style={{ fontSize: 17, flexShrink: 0, marginTop: 1 }}>📅</span>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 15, color: '#1a1a2e', fontWeight: 600 }}>{fmtDate(selectedEvent.date)}</p>
+                      {selectedEvent.end_date && selectedEvent.end_date !== selectedEvent.date && (
+                        <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>through {fmtDate(selectedEvent.end_date)}</p>
+                      )}
+                    </div>
+                  </div>
+                  {selectedEvent.time_str && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 17 }}>🕐</span>
+                      <p style={{ margin: 0, fontSize: 15, color: '#374151' }}>{selectedEvent.time_str}</p>
+                    </div>
+                  )}
+                  {selectedEvent.location && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <span style={{ fontSize: 17, flexShrink: 0, marginTop: 1 }}>📍</span>
+                      <p style={{ margin: 0, fontSize: 15, color: '#374151', lineHeight: 1.4 }}>{selectedEvent.location}</p>
+                    </div>
+                  )}
+                  {selectedEvent.source_url && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 17 }}>🔗</span>
+                      <a href={selectedEvent.source_url} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: 14, color: accent, fontWeight: 700, textDecoration: 'none' }}>View original</a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={{ flexShrink: 0, borderTop: '1.5px solid #e9e0cc', padding: '10px 16px 16px', display: 'flex', gap: 10 }}>
+              <button onClick={() => setSelectedEvent(null)}
+                style={{ flex: 1, padding: '12px', background: 'rgba(0,0,0,0.05)', border: '1.5px solid rgba(0,0,0,0.08)', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'var(--font-caveat), Caveat, cursive' }}>
+                Close
+              </button>
+              <button onClick={() => { onDelete(selectedEvent.id); setSelectedEvent(null) }}
+                style={{ flex: 1, padding: '12px', background: 'rgba(239,68,68,0.07)', border: '1.5px solid rgba(239,68,68,0.25)', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#dc2626', fontFamily: 'var(--font-caveat), Caveat, cursive' }}>
+                Delete event
+              </button>
+            </div>
           </div>
         )}
       </div>

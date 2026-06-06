@@ -26,16 +26,12 @@ export default function EventDetailModal({ event, accent = '#7c3aed', onClose, o
   return (
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.80)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 560, maxHeight: '92dvh', display: 'flex', flexDirection: 'column', borderRadius: '20px 20px 0 0', overflow: 'hidden', background: '#fffaee', border: '2px solid #e9e0cc', borderBottom: 'none' }}
+        style={{ width: '100%', maxWidth: 480, maxHeight: '88dvh', display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', background: '#fffaee', border: '2px solid #e9e0cc', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}
       >
-        {/* Drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10, paddingBottom: 2, flexShrink: 0, background: '#fffaee' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(0,0,0,0.12)' }} />
-        </div>
 
         {/* Scrollable body */}
         <div style={{ overflowY: 'auto', flex: 1, WebkitOverflowScrolling: 'touch' }}>
@@ -105,7 +101,7 @@ export default function EventDetailModal({ event, accent = '#7c3aed', onClose, o
               </button>
             </div>
           )}
-          <div style={{ display: 'flex', gap: 10, padding: '10px 16px', paddingBottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
+          <div style={{ display: 'flex', gap: 10, padding: '10px 16px 14px' }}>
             <button onClick={onClose}
               style={{ flex: 1, padding: '12px', background: 'rgba(0,0,0,0.05)', border: '1.5px solid rgba(0,0,0,0.08)', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'var(--font-caveat), Caveat, cursive' }}>
               Close
