@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import EventDetailModal from './EventDetailModal'
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -160,9 +159,7 @@ function NoteThumbnail({ data, highlighted }) {
   )
 }
 
-export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onPinStyleChange, onSaveNote, onDeleteNote, accent = '#7c3aed' }) {
-  const [notifEvents, setNotifEvents] = useState({})
-  const [selectedEvent, setSelectedEvent] = useState(null)
+export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onPinStyleChange, onSaveNote, onDeleteNote, accent = '#7c3aed', onEventTap }) {
   const [pinStyle, setPinStyle] = useState('classic')
   const [showPinPicker, setShowPinPicker] = useState(false)
 
@@ -208,7 +205,6 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
 
   useEffect(() => {
     try {
-      setNotifEvents(JSON.parse(localStorage.getItem('eventNotifs') || '{}'))
       const saved = localStorage.getItem('pinStyle')
       if (saved) setPinStyle(saved)
     } catch {}
@@ -242,16 +238,6 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
     onPinStyleChange?.(id)
   }
 
-  const toggleEventNotif = (id) => {
-    setNotifEvents(prev => {
-      const next = { ...prev }
-      if (prev[id] === false) delete next[id]
-      else next[id] = false
-      localStorage.setItem('eventNotifs', JSON.stringify(next))
-      return next
-    })
-  }
-  const isEventOn = (id) => notifEvents[id] !== false
 
   // CSS pixel coords — ctx.setTransform(dpr…) handles the rest
   const getPoint = (e) => {
@@ -382,19 +368,6 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
   const extra = events.length - MAX
   const currentPin = PIN_STYLES.find(p => p.id === pinStyle) || PIN_STYLES[0]
 
-  if (selectedEvent) {
-    return (
-      <EventDetailModal
-        event={selectedEvent}
-        accent={accent}
-        onClose={() => setSelectedEvent(null)}
-        onDelete={id => { onDelete(id); setSelectedEvent(null) }}
-        reminderOn={isEventOn(selectedEvent.id)}
-        onToggleReminder={() => toggleEventNotif(selectedEvent.id)}
-      />
-    )
-  }
-
   return (
     <div className="fixed inset-0 z-50" style={{ background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)' }} onClick={writeMode ? undefined : onClose}>
       <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '4%', left: '4%', right: '4%', bottom: '4%', background: '#fffaee', border: '5px solid #1a1a1a', borderRadius: 6, boxShadow: '10px 10px 0 rgba(0,0,0,0.40)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -505,7 +478,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: shown.length === 1 ? 'minmax(0, min(75%, 380px))' : shown.length === 2 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: shown.length === 1 ? 0 : '28px 16px', justifyContent: 'center', maxWidth: shown.length === 1 ? '100%' : shown.length === 2 ? 560 : 860, margin: '0 auto', width: '100%', padding: '44px 20px 24px', boxSizing: 'border-box' }}>
               {shown.map((event, idx) => (
-                <div key={event.id} onClick={() => !writeMode && setSelectedEvent(event)}
+                <div key={event.id} onClick={() => !writeMode && onEventTap?.(event)}
                   style={{ position: 'relative', display: 'flex', flexDirection: 'column', background: '#fff', border: '3px solid #fff', boxShadow: '0 6px 24px rgba(0,0,0,0.22)', transform: shown.length === 1 ? `rotate(${rots[idx]}deg)` : 'none', transformOrigin: 'top center', cursor: writeMode ? 'default' : 'pointer', userSelect: 'none', WebkitTapHighlightColor: 'transparent', zIndex: writeMode ? 'auto' : 28 }}>
                   <Pin styleId={pinStyle} colorIdx={idx} />
                   {event.image_url
@@ -513,15 +486,9 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                     : <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}><p style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 6, padding: '0 4px' }}>{event.title}</p></div>
                   }
                   <div style={{ flexShrink: 0, padding: '5px 7px 7px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        {event.title && <p style={{ margin: '0 0 2px', fontSize: 9, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</p>}
-                        {event.time_str && <p style={{ margin: 0, fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>🕐 {event.time_str}</p>}
-                      </div>
-                      <button onClick={e => { e.stopPropagation(); toggleEventNotif(event.id) }}
-                        style={{ flexShrink: 0, width: 18, height: 18, borderRadius: '50%', marginTop: 1, background: isEventOn(event.id) ? 'rgba(234,179,8,0.90)' : 'rgba(200,200,200,0.65)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>
-                        {isEventOn(event.id) ? '🔔' : '🔕'}
-                      </button>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {event.title && <p style={{ margin: '0 0 2px', fontSize: 9, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</p>}
+                      {event.time_str && <p style={{ margin: 0, fontSize: 9, color: '#6b7280', lineHeight: 1.3 }}>🕐 {event.time_str}</p>}
                     </div>
                   </div>
                   {!writeMode && (

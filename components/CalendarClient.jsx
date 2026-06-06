@@ -148,6 +148,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const [notes, setNotes]               = useState({})
   const [activeTab, setActiveTab]       = useState('feed')
   const [eventDetail, setEventDetail]   = useState(null)
+  const [notifEvents, setNotifEvents]   = useState({})
   const swRegRef = useRef(null)
   const router = useRouter()
   const supabase = createClient()
@@ -159,6 +160,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     const saved = localStorage.getItem('calendarTheme')
     if (saved && THEMES[saved]) setThemeId(saved)
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
+    try { setNotifEvents(JSON.parse(localStorage.getItem('eventNotifs') || '{}')) } catch {}
     const savedPin = localStorage.getItem('pinStyle')
     if (savedPin) setPinStyle(savedPin)
     if (joined)                showToast('🎉 Connected! You now see your friend\'s events too.')
@@ -276,9 +278,23 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     setEvents(prev => prev.filter(e => e.id !== id))
   }
 
-  const handleFeedEventTap = (event) => {
+  const handleFeedEventTap = (event) => setEventDetail(event)
+
+  const handleDayViewEventTap = (event) => {
+    setDayViewDate(null)
     setEventDetail(event)
   }
+
+  const toggleEventNotif = (id) => {
+    setNotifEvents(prev => {
+      const next = { ...prev }
+      if (prev[id] === false) delete next[id]
+      else next[id] = false
+      try { localStorage.setItem('eventNotifs', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }
+  const isEventOn = (id) => notifEvents[id] !== false
 
   const theme = THEMES[themeId] || THEMES.dreamy
   const dateKey = (date) => [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
@@ -413,6 +429,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           onSaveNote={saveNote}
           onDeleteNote={deleteNote}
           accent={theme.accent}
+          onEventTap={handleDayViewEventTap}
         />
       )}
       {eventDetail && (
@@ -421,6 +438,8 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           accent={theme.accent}
           onClose={() => setEventDetail(null)}
           onDelete={deleteEvent}
+          reminderOn={isEventOn(eventDetail.id)}
+          onToggleReminder={() => toggleEventNotif(eventDetail.id)}
         />
       )}
     </div>
