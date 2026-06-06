@@ -408,43 +408,37 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
 
       {/* ── Modals — single state, only one ever renders ── */}
       {modal?.type === 'add' && (
-        <Portal>
-          <AddFlyerModal
-            date={modal.date}
-            onAdd={addEvent}
-            onClose={() => setModal(null)}
-            userId={user.id}
-          />
-        </Portal>
+        <AddFlyerModal
+          date={modal.date}
+          onAdd={addEvent}
+          onClose={() => setModal(null)}
+          userId={user.id}
+        />
       )}
       {modal?.type === 'dayview' && (
-        <Portal>
-          <DayView
-            date={modal.date}
-            events={getDayEvents(modal.date)}
-            notes={notes[dateKey(modal.date)] || []}
-            onClose={() => setModal(null)}
-            onAdd={() => setModal({ type: 'add', date: modal.date })}
-            onDelete={deleteEvent}
-            onPinStyleChange={id => setPinStyle(id)}
-            onSaveNote={saveNote}
-            onDeleteNote={deleteNote}
-            accent={theme.accent}
-            onEventTap={handleDayViewEventTap}
-          />
-        </Portal>
+        <DayView
+          date={modal.date}
+          events={getDayEvents(modal.date)}
+          notes={notes[dateKey(modal.date)] || []}
+          onClose={() => setModal(null)}
+          onAdd={() => setModal({ type: 'add', date: modal.date })}
+          onDelete={deleteEvent}
+          onPinStyleChange={id => setPinStyle(id)}
+          onSaveNote={saveNote}
+          onDeleteNote={deleteNote}
+          accent={theme.accent}
+          onEventTap={handleDayViewEventTap}
+        />
       )}
       {modal?.type === 'event' && (
-        <Portal>
-          <EventDetailModal
-            event={modal.event}
-            accent={theme.accent}
-            onClose={() => setModal(null)}
-            onDelete={deleteEvent}
-            reminderOn={isEventOn(modal.event.id)}
-            onToggleReminder={() => toggleEventNotif(modal.event.id)}
-          />
-        </Portal>
+        <EventDetailModal
+          event={modal.event}
+          accent={theme.accent}
+          onClose={() => setModal(null)}
+          onDelete={deleteEvent}
+          reminderOn={isEventOn(modal.event.id)}
+          onToggleReminder={() => toggleEventNotif(modal.event.id)}
+        />
       )}
     </div>
   )
