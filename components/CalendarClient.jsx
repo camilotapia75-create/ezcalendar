@@ -1,11 +1,12 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Calendar from './Calendar'
 import AddFlyerModal from './AddFlyerModal'
 import DayView from './DayView'
 import FeedView from './FeedView'
+import EventDetailModal from './EventDetailModal'
 
 const THEMES = {
   dreamy: {
@@ -146,10 +147,15 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const [pinStyle, setPinStyle]         = useState('classic')
   const [notes, setNotes]               = useState({})
   const [activeTab, setActiveTab]       = useState('feed')
+  const [eventDetail, setEventDetail]   = useState(null)
+  const swRegRef = useRef(null)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(reg => { swRegRef.current = reg }).catch(() => {})
+    }
     const saved = localStorage.getItem('calendarTheme')
     if (saved && THEMES[saved]) setThemeId(saved)
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
@@ -191,7 +197,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     setNotes(prev => ({ ...prev, [dateStr]: (prev[dateStr] || []).filter(n => n.id !== noteId) }))
   }
 
-  const checkAndNotify = useCallback((eventsToCheck) => {
+  const checkAndNotify = useCallback(async (eventsToCheck) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return
     if (Notification.permission !== 'granted') return
     let notifEvts = {}
@@ -202,14 +208,23 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
     const tomorrowKey = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}`
     if (localStorage.getItem(`notified_${todayKey}`)) return
-    const todayEvents    = eventsToCheck.filter(e => e.date === todayKey    && notifEvts[e.id] !== false)
-    const tomorrowEvents = eventsToCheck.filter(e => e.date === tomorrowKey && notifEvts[e.id] !== false)
+    const inRange = (e, key) => e.end_date ? e.date <= key && e.end_date >= key : e.date === key
+    const todayEvents    = eventsToCheck.filter(e => inRange(e, todayKey)    && notifEvts[e.id] !== false)
+    const tomorrowEvents = eventsToCheck.filter(e => inRange(e, tomorrowKey) && notifEvts[e.id] !== false)
+    const fire = async (title, body) => {
+      const opts = { body, icon: '/icon', badge: '/icon' }
+      try {
+        const reg = swRegRef.current || await navigator.serviceWorker.ready
+        await reg.showNotification(title, opts)
+      } catch {
+        new Notification(title, opts)
+      }
+      localStorage.setItem(`notified_${todayKey}`, '1')
+    }
     if (todayEvents.length > 0) {
-      new Notification(`${todayEvents.length} event${todayEvents.length > 1 ? 's' : ''} today! 📌`, { body: todayEvents.map(e => e.title || 'Event').join(' • '), icon: '/favicon.ico' })
-      localStorage.setItem(`notified_${todayKey}`, '1')
+      await fire(`${todayEvents.length} event${todayEvents.length > 1 ? 's' : ''} today! 📌`, todayEvents.map(e => e.title || 'Event').join(' • '))
     } else if (tomorrowEvents.length > 0) {
-      new Notification(`${tomorrowEvents.length} event${tomorrowEvents.length > 1 ? 's' : ''} tomorrow 📌`, { body: tomorrowEvents.map(e => e.title || 'Event').join(' • '), icon: '/favicon.ico' })
-      localStorage.setItem(`notified_${todayKey}`, '1')
+      await fire(`${tomorrowEvents.length} event${tomorrowEvents.length > 1 ? 's' : ''} tomorrow 📌`, tomorrowEvents.map(e => e.title || 'Event').join(' • '))
     }
   }, [])
 
@@ -262,8 +277,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   }
 
   const handleFeedEventTap = (event) => {
-    const [y, m, d] = event.date.split('-').map(Number)
-    setDayViewDate(new Date(y, m - 1, d))
+    setEventDetail(event)
   }
 
   const theme = THEMES[themeId] || THEMES.dreamy
@@ -398,6 +412,14 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           onPinStyleChange={id => setPinStyle(id)}
           onSaveNote={saveNote}
           onDeleteNote={deleteNote}
+        />
+      )}
+      {eventDetail && (
+        <EventDetailModal
+          event={eventDetail}
+          accent={theme.accent}
+          onClose={() => setEventDetail(null)}
+          onDelete={deleteEvent}
         />
       )}
     </div>
