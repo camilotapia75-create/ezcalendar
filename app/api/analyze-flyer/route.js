@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
 
-const PROMPT = `Extract event details from this flyer. Return ONLY valid JSON with these exact keys (null for anything not found):
+function getPrompt() {
+  const today = new Date().toISOString().split('T')[0]
+  return `Today is ${today}. Extract event details from this flyer image. Return ONLY valid JSON with these exact keys (null for anything not found):
 {
   "title": "event name or title",
-  "date": "YYYY-MM-DD — if year is abbreviated like '26' treat as 2026",
-  "time_str": "time range exactly as shown on the flyer",
+  "date": "YYYY-MM-DD — if the flyer shows a partial date like 'Jul 24' or 'July 24' with no year, infer the nearest future year (use the current year if that date hasn't passed yet, otherwise next year). If the flyer shows '05.18.26' or '26' treat as 2026.",
+  "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM' or '4-8PM')",
   "location": "venue name and/or city"
 }`
+}
 
 // Confirmed available models from /api/list-models
 const MODELS = [
@@ -42,7 +45,7 @@ export async function POST(request) {
   const geminiBody = JSON.stringify({
     contents: [{ parts: [
       { inlineData: { mimeType, data: base64 } },
-      { text: PROMPT },
+      { text: getPrompt() },
     ]}],
   })
 

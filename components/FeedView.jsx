@@ -1,7 +1,8 @@
 'use client'
 
-const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 function parseLocalDate(str) {
   const [y, m, d] = str.split('-').map(Number)
@@ -18,7 +19,7 @@ function getGroups(events) {
   const tomorrowKey = toKey(tom)
 
   const future = [...events].filter(e => e.date >= todayKey).sort((a,b) => a.date.localeCompare(b.date))
-  const past   = [...events].filter(e => e.date <  todayKey).sort((a,b) => b.date.localeCompare(a.date))
+  const past   = [...events].filter(e => e.date <  todayKey).sort((a,b) => a.date.localeCompare(b.date))
 
   const buckets = { Today: [], Tomorrow: [], 'This Week': [], 'Next Week': [], 'Coming Up': [] }
   future.forEach(e => {
@@ -36,26 +37,57 @@ function getGroups(events) {
   return groups
 }
 
-function EventCard({ event, accent, onTap, onDelete, faded }) {
-  const d = parseLocalDate(event.date)
+function DateBadge({ dateStr, accent, faded }) {
+  const d = parseLocalDate(dateStr)
   return (
-    <div onClick={onTap} style={{ marginBottom: 20, borderRadius: 6, overflow: 'hidden', border: '2px solid #111', boxShadow: '3px 3px 0 rgba(0,0,0,0.20)', background: '#fff', cursor: 'pointer', opacity: faded ? 0.62 : 1 }}>
-      {event.image_url ? (
-        <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', maxHeight: 440, objectFit: 'cover', display: 'block', borderBottom: '2px solid #111' }} />
-      ) : (
-        <div style={{ width: '100%', height: 200, background: `linear-gradient(135deg, ${accent}18, ${accent}38)`, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '2px solid #111' }}>
-          <p style={{ fontSize: 22, fontWeight: 700, color: accent, textAlign: 'center', padding: '0 24px', lineHeight: 1.3 }}>{event.title || 'Event'}</p>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: faded ? '#e5e5e5' : accent, borderRadius: 8, padding: '6px 10px', minWidth: 44 }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: faded ? '#9ca3af' : '#fff', letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1, fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
+        {MONTHS[d.getMonth()]}
+      </span>
+      <span style={{ fontSize: 22, fontWeight: 700, color: faded ? '#9ca3af' : '#fff', lineHeight: 1.1, fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
+        {d.getDate()}
+      </span>
+      <span style={{ fontSize: 10, fontWeight: 600, color: faded ? '#bbb' : 'rgba(255,255,255,0.82)', letterSpacing: '0.06em', fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
+        {DAYS[d.getDay()]}
+      </span>
+    </div>
+  )
+}
+
+function EventCard({ event, accent, onTap, onDelete, faded }) {
+  return (
+    <div onClick={onTap} style={{ marginBottom: 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid rgba(0,0,0,0.10)', boxShadow: faded ? 'none' : '0 2px 12px rgba(0,0,0,0.10)', background: '#fff', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
+      {event.image_url && (
+        <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', maxHeight: 420, objectFit: 'cover', display: 'block' }} />
       )}
-      <div style={{ padding: '12px 14px', position: 'relative', background: '#fffdf8' }}>
-        {event.title && <p style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: '#111', lineHeight: 1.2, paddingRight: 30 }}>{event.title}</p>}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 14, color: '#6b7280' }}>📅 {DAYS[d.getDay()]}, {MONTHS[d.getMonth()]} {d.getDate()}, {d.getFullYear()}</span>
-          {event.time_str  && <span style={{ fontSize: 14, color: '#6b7280' }}>🕐 {event.time_str}</span>}
-          {event.location  && <span style={{ fontSize: 14, color: '#6b7280' }}>📍 {event.location}</span>}
+      <div style={{ padding: '12px 14px 14px', position: 'relative', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <DateBadge dateStr={event.date} accent={accent} faded={faded} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {event.title && (
+            <p style={{ margin: '0 0 5px', fontSize: 17, fontWeight: 700, color: '#111', lineHeight: 1.25, paddingRight: 28, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {event.title}
+            </p>
+          )}
+          {!event.image_url && (
+            <p style={{ margin: '0 0 5px', fontSize: 13, color: '#aaa', fontStyle: 'italic' }}>No flyer image</p>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 10px' }}>
+            {event.time_str && (
+              <span style={{ fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 11 }}>🕐</span> {event.time_str}
+              </span>
+            )}
+            {event.location && (
+              <span style={{ fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                <span style={{ fontSize: 11 }}>📍</span> {event.location}
+              </span>
+            )}
+          </div>
         </div>
         <button onClick={e => { e.stopPropagation(); onDelete(event.id) }}
-          style={{ position: 'absolute', top: 12, right: 12, width: 24, height: 24, borderRadius: '50%', background: 'rgba(239,68,68,0.85)', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          style={{ position: 'absolute', top: 12, right: 12, width: 22, height: 22, borderRadius: '50%', background: 'rgba(239,68,68,0.80)', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          ✕
+        </button>
       </div>
     </div>
   )
@@ -79,10 +111,10 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
   }
 
   return (
-    <div style={{ padding: '16px 14px 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
+    <div style={{ padding: '12px 12px 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
       {groups.map((group, gi) => (
         <div key={group.label}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, marginTop: gi > 0 ? 28 : 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: gi > 0 ? 24 : 0 }}>
             <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: group.past ? '#9ca3af' : '#111', whiteSpace: 'nowrap', fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
               {group.label}
             </span>
