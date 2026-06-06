@@ -280,7 +280,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     setEvents(prev => prev.filter(e => e.id !== id))
   }
 
-  const handleFeedEventTap    = (event) => setModal({ type: 'event', event })
+  const handleFeedEventTap    = (event) => { const [y,m,d] = event.date.split('-').map(Number); setModal({ type: 'dayview', date: new Date(y,m-1,d) }) }
   const handleDayViewEventTap = (event) => setModal({ type: 'event', event })
 
   const toggleEventNotif = (id) => {
