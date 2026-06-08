@@ -47,9 +47,9 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
   return (
     <div style={{
       borderRadius: 6,
-      overflow: 'hidden',
       border: calBorder,
       boxShadow: dark ? '5px 5px 0 rgba(0,0,0,0.60)' : '5px 5px 0 rgba(0,0,0,0.30)',
+      isolation: 'isolate',
     }}>
 
       {/* Big month header */}
