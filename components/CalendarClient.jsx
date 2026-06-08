@@ -363,6 +363,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           <FeedView
             events={events}
             accent={theme.accent}
+            dark={theme.dark}
             onEventTap={handleFeedEventTap}
             onDeleteEvent={deleteEvent}
             onScan={() => setModal({ type: 'add', date: null })}

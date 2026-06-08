@@ -113,17 +113,21 @@ function EventCard({ event, accent, onTap, onDelete, faded }) {
   )
 }
 
-export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan }) {
+export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark }) {
   const groups = getGroups(events)
+
+  const headingColor  = dark ? '#e2e8f0' : '#111'
+  const dividerColor  = dark ? 'rgba(255,255,255,0.18)' : '#111'
+  const dividerMuted  = dark ? 'rgba(255,255,255,0.08)' : '#e5e5e5'
 
   if (events.length === 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100dvh - 130px)', padding: 40, textAlign: 'center', gap: 16 }}>
         <div style={{ fontSize: 72, lineHeight: 1 }}>📸</div>
-        <h2 style={{ fontSize: 30, fontWeight: 700, color: '#111', margin: 0 }}>Nothing pinned yet</h2>
-        <p style={{ fontSize: 17, color: '#7c6a56', margin: 0, maxWidth: 260, lineHeight: 1.5 }}>See a flyer? Snap it and it shows up here.</p>
+        <h2 style={{ fontSize: 30, fontWeight: 700, color: headingColor, margin: 0 }}>Nothing pinned yet</h2>
+        <p style={{ fontSize: 17, color: dark ? '#9ca3af' : '#7c6a56', margin: 0, maxWidth: 260, lineHeight: 1.5 }}>See a flyer? Snap it and it shows up here.</p>
         <button onClick={onScan}
-          style={{ marginTop: 8, padding: '12px 30px', background: '#1a1a2e', color: '#fff', border: '2px solid #1a1a2e', borderRadius: 6, boxShadow: `3px 3px 0 ${accent}`, fontSize: 20, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-caveat), Caveat, cursive' }}>
+          style={{ marginTop: 8, padding: '12px 30px', background: dark ? '#e2e8f0' : '#1a1a2e', color: dark ? '#0d0d14' : '#fff', border: dark ? '2px solid rgba(255,255,255,0.15)' : '2px solid #1a1a2e', borderRadius: 6, boxShadow: `3px 3px 0 ${accent}`, fontSize: 20, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-caveat), Caveat, cursive' }}>
           📷 Scan a flyer
         </button>
       </div>
@@ -135,10 +139,10 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
       {groups.map((group, gi) => (
         <div key={group.label}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: gi > 0 ? 24 : 0 }}>
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: group.past ? '#9ca3af' : '#111', whiteSpace: 'nowrap', fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: group.past ? '#9ca3af' : headingColor, whiteSpace: 'nowrap', fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
               {group.label}
             </span>
-            <div style={{ height: 1.5, background: group.past ? '#e5e5e5' : '#111', flex: 1 }} />
+            <div style={{ height: 1.5, background: group.past ? dividerMuted : dividerColor, flex: 1 }} />
           </div>
           {group.items.map(event => (
             <EventCard key={event.id} event={event} accent={accent} faded={group.past}
