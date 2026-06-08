@@ -91,15 +91,15 @@ function EventCard({ event, accent, onTap, onDelete, faded }) {
           {!event.image_url && (
             <p style={{ margin: '0 0 5px', fontSize: 13, color: '#aaa', fontStyle: 'italic' }}>No flyer image</p>
           )}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
             {event.time_str && (
-              <span style={{ fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 3 }}>
-                <span style={{ fontSize: 11 }}>🕐</span> {event.time_str}
+              <span style={{ fontSize: 15, fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontSize: 13 }}>🕐</span> {event.time_str}
               </span>
             )}
             {event.location && (
-              <span style={{ fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                <span style={{ fontSize: 11 }}>📍</span> {event.location}
+              <span style={{ fontSize: 14, fontWeight: 500, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                <span style={{ fontSize: 13 }}>📍</span> {event.location}
               </span>
             )}
           </div>
