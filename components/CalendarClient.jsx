@@ -46,6 +46,13 @@ const THEMES = {
     c: ['rgba(236,72,153,0.72)','rgba(245,158,11,0.62)','rgba(249,168,212,0.72)','rgba(253,224,71,0.65)','rgba(252,207,232,0.72)','rgba(254,243,199,0.65)'],
     cellBg: 'rgba(255,225,240,0.93)', weekendBg: 'rgba(255,245,205,0.87)', inactiveBg: 'rgba(215,155,185,0.28)', accent: '#db2777',
   },
+  noir: {
+    bg: '#0d0d14',
+    sw: 'linear-gradient(135deg,#1a1a2e,#0d0d14)',
+    c: ['rgba(167,139,250,0.10)','rgba(99,102,241,0.08)','rgba(139,92,246,0.06)','rgba(167,139,250,0.07)','rgba(79,70,229,0.09)','rgba(109,40,217,0.06)'],
+    cellBg: 'rgba(20,20,35,0.97)', weekendBg: 'rgba(30,25,50,0.97)', inactiveBg: 'rgba(255,255,255,0.03)', accent: '#a78bfa',
+    dark: true,
+  },
 }
 
 const POS   = ['75% 65% at 3% 4%','55% 55% at 52% 18%','45% 55% at 97% 12%','50% 50% at 93% 88%','65% 52% at 18% 80%','40% 40% at 75% 60%']
@@ -57,7 +64,7 @@ function buildBg(tid) {
     backgroundColor: t.bg,
     backgroundImage: [
       ...POS.map((p, i) => `radial-gradient(ellipse ${p}, ${t.c[i]} 0%, transparent ${STOPS[i]}%)`),
-      "url('/watercolor-bg.jpg.png')",
+      ...(t.dark ? [] : ["url('/watercolor-bg.jpg.png')"]),
     ].join(', '),
     backgroundSize: 'cover',
     backgroundPosition: 'center',
@@ -297,6 +304,12 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const theme = THEMES[themeId] || THEMES.dreamy
   const dateKey = (date) => [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
 
+  const dk = theme.dark
+  const navBg    = dk ? 'rgba(10,10,18,0.98)' : 'rgba(255,255,255,0.96)'
+  const navBorder = dk ? '1.5px solid rgba(255,255,255,0.07)' : '1.5px solid rgba(0,0,0,0.07)'
+  const navActive = dk ? '#e2e8f0' : '#1a1a2e'
+  const navMuted  = dk ? '#4b5563' : '#9ca3af'
+
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', ...buildBg(themeId) }}>
 
@@ -306,13 +319,13 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)',
         paddingBottom: '0.75rem',
         paddingLeft: '1.25rem', paddingRight: '1.25rem',
-        background: 'rgba(255,255,255,0.82)',
+        background: dk ? 'rgba(10,10,18,0.92)' : 'rgba(255,255,255,0.82)',
         backdropFilter: 'blur(12px)',
-        borderBottom: '1.5px solid rgba(0,0,0,0.07)',
+        borderBottom: navBorder,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'relative', zIndex: 50,
       }}>
-        <span style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e', letterSpacing: '-0.5px' }}>ezcalendar</span>
+        <span style={{ fontSize: 24, fontWeight: 700, color: navActive, letterSpacing: '-0.5px' }}>ezcalendar</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button onClick={e => { e.stopPropagation(); setShowThemePicker(p => !p) }} title="Change theme"
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '4px 6px' }}>🎨</button>
@@ -375,15 +388,15 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
       </main>
 
       {/* ── Bottom Nav ── */}
-      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)', borderTop: '1.5px solid rgba(0,0,0,0.07)', paddingBottom: 'env(safe-area-inset-bottom)', display: 'flex', alignItems: 'stretch' }}>
+      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40, background: navBg, backdropFilter: 'blur(16px)', borderTop: navBorder, paddingBottom: 'env(safe-area-inset-bottom)', display: 'flex', alignItems: 'stretch' }}>
         <button onClick={() => setActiveTab('feed')}
-          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'feed' ? '#1a1a2e' : '#9ca3af' }}>
+          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'feed' ? navActive : navMuted }}>
           <FeedIcon active={activeTab === 'feed'} />
           <span style={{ fontSize: 10, fontWeight: activeTab === 'feed' ? 700 : 400, fontFamily: 'var(--font-inter), Inter, system-ui' }}>Upcoming</span>
         </button>
 
         <button onClick={() => setActiveTab('calendar')}
-          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'calendar' ? '#1a1a2e' : '#9ca3af' }}>
+          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'calendar' ? navActive : navMuted }}>
           <CalIcon active={activeTab === 'calendar'} />
           <span style={{ fontSize: 10, fontWeight: activeTab === 'calendar' ? 700 : 400, fontFamily: 'var(--font-inter), Inter, system-ui' }}>Calendar</span>
         </button>
@@ -391,13 +404,13 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         {/* Center scan button — elevated */}
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', paddingBottom: 6 }}>
           <button onClick={() => setModal({ type: 'add', date: null })} title="Scan a flyer"
-            style={{ width: 56, height: 56, borderRadius: '50%', background: '#1a1a2e', border: '2px solid #111', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(-12px)', boxShadow: `0 0 0 4px rgba(255,255,255,0.95), 3px 3px 0 ${theme.accent}` }}>
+            style={{ width: 56, height: 56, borderRadius: '50%', background: dk ? '#e2e8f0' : '#1a1a2e', border: dk ? '2px solid rgba(255,255,255,0.15)' : '2px solid #111', color: dk ? '#0d0d14' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(-12px)', boxShadow: `0 0 0 4px ${dk ? 'rgba(13,13,20,0.95)' : 'rgba(255,255,255,0.95)'}, 3px 3px 0 ${theme.accent}` }}>
             <CamIcon />
           </button>
         </div>
 
         <button onClick={() => setActiveTab('friends')}
-          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'friends' ? '#1a1a2e' : '#9ca3af', position: 'relative' }}>
+          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'friends' ? navActive : navMuted, position: 'relative' }}>
           <PeopleIcon active={activeTab === 'friends'} />
           <span style={{ fontSize: 10, fontWeight: activeTab === 'friends' ? 700 : 400, fontFamily: 'var(--font-inter), Inter, system-ui' }}>Friends</span>
           {connectedCount > 0 && (

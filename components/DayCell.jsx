@@ -38,10 +38,11 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
   const count = displayed.length
   const accent = theme?.accent || '#7c3aed'
 
+  const dark = theme?.dark
   const numColor = isToday ? '#fff'
-    : !currentMonth ? 'rgba(0,0,0,0.18)'
+    : !currentMonth ? (dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)')
     : isWeekend ? accent
-    : '#111'
+    : (dark ? '#d4d4d8' : '#111')
 
   return (
     <div
@@ -52,9 +53,9 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
         currentMonth ? 'cursor-pointer' : 'pointer-events-none',
       ].join(' ')}
       style={{
-        borderRight: '2px solid #111',
-        borderBottom: '2px solid #111',
-        background: !currentMonth ? 'rgba(0,0,0,0.025)' : 'transparent',
+        borderRight: dark ? '2px solid rgba(255,255,255,0.08)' : '2px solid #111',
+        borderBottom: dark ? '2px solid rgba(255,255,255,0.08)' : '2px solid #111',
+        background: !currentMonth ? (dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)') : 'transparent',
       }}
     >
       <div style={{ padding: '5px 5px 3px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>

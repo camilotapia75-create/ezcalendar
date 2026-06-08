@@ -40,17 +40,20 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
   }
 
   const accent = theme?.accent || '#7c3aed'
+  const dark = theme?.dark
+  const calBorder = dark ? '3px solid rgba(255,255,255,0.10)' : '3px solid #111'
+  const calBg     = dark ? '#0f0f1a' : '#faf7f2'
 
   return (
     <div style={{
       borderRadius: 6,
       overflow: 'hidden',
-      border: '3px solid #111',
-      boxShadow: '5px 5px 0 rgba(0,0,0,0.30)',
+      border: calBorder,
+      boxShadow: dark ? '5px 5px 0 rgba(0,0,0,0.60)' : '5px 5px 0 rgba(0,0,0,0.30)',
     }}>
 
       {/* Big month header */}
-      <div style={{ background: '#faf7f2', borderBottom: '3px solid #111', padding: '12px 14px 0' }}>
+      <div style={{ background: calBg, borderBottom: calBorder, padding: '12px 14px 0' }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', lineHeight: 1 }}>
           <div style={{
             fontSize: 'clamp(48px, 13vw, 80px)',
@@ -83,7 +86,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
             ‹
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 15, color: '#6b7280' }}>{MONTHS[month]} {year}</span>
+            <span style={{ fontSize: 15, color: dark ? '#9ca3af' : '#6b7280' }}>{MONTHS[month]} {year}</span>
             <button
               onClick={() => setCurrentDate(new Date())}
               style={{ fontSize: 14, padding: '2px 10px', borderRadius: 20, background: 'none', border: `1.5px solid ${accent}55`, color: accent, cursor: 'pointer' }}
@@ -123,8 +126,12 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
       <div
         className="grid grid-cols-7"
         style={{
-          borderLeft: '2px solid #111',
-          backgroundImage: [
+          borderLeft: calBorder,
+          backgroundImage: dark ? [
+            'repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 24px)',
+            'repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 24px)',
+            `linear-gradient(${calBg}, ${calBg})`,
+          ].join(', ') : [
             'repeating-linear-gradient(0deg, rgba(0,0,0,0.045) 0px, rgba(0,0,0,0.045) 1px, transparent 1px, transparent 24px)',
             'repeating-linear-gradient(90deg, rgba(0,0,0,0.035) 0px, rgba(0,0,0,0.035) 1px, transparent 1px, transparent 24px)',
             'linear-gradient(#faf7f2, #faf7f2)',
