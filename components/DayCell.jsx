@@ -1,6 +1,3 @@
-'use client'
-import { useState } from 'react'
-
 const EMOJI_PINS = {
   star: '⭐', heart: '❤️', flower: '🌸', gem: '💎',
   ribbon: '🎀', butterfly: '🦋', moon: '🌙',
@@ -41,8 +38,6 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
   const count = displayed.length
   const accent = theme?.accent || '#7c3aed'
   const dark = theme?.dark
-  const [hovered, setHovered] = useState(false)
-  const lift = hovered && currentMonth
 
   const numColor = isToday ? '#fff'
     : !currentMonth ? (dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)')
@@ -52,8 +47,6 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
   return (
     <div
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       className={[
         'relative flex flex-col',
         'min-h-[88px] md:min-h-[112px]',
@@ -63,11 +56,6 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
         borderRight: dark ? '2px solid rgba(255,255,255,0.08)' : '2px solid #111',
         borderBottom: dark ? '2px solid rgba(255,255,255,0.08)' : '2px solid #111',
         background: !currentMonth ? (dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)') : 'transparent',
-        transform: lift ? 'scale(1.35)' : 'scale(1)',
-        transition: 'transform 0.22s cubic-bezier(0.34,1.8,0.64,1), box-shadow 0.22s ease',
-        zIndex: lift ? 20 : 'auto',
-        boxShadow: lift ? (dark ? '0 16px 48px rgba(0,0,0,0.70)' : '0 16px 48px rgba(0,0,0,0.32)') : 'none',
-        borderRadius: lift ? 8 : 0,
       }}
     >
       <div style={{ padding: '5px 5px 3px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
