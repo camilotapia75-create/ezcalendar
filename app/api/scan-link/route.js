@@ -151,6 +151,77 @@ async function tryFacebookGraphAPI(eventId) {
   }
 }
 
+// Facebook iCal export — public events expose structured data without login
+async function tryFacebookICal(eventId) {
+  try {
+    const res = await fetch(`https://www.facebook.com/events/ical/export/?eid=${eventId}`, {
+      headers: BROWSER_HEADERS,
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return { _err: `ICAL_HTTP_${res.status}` }
+    const text = await res.text()
+    if (!text.includes('BEGIN:VEVENT')) return { _err: `ICAL_NOT_ICS(${text.length}ch)` }
+    const unesc = s => s?.replace(/\\n/g, ' ').replace(/\\,/g, ',').replace(/\\;/g, ';').trim()
+    const get = k => text.match(new RegExp(`^${k}([^:\\r\\n]*):(.+)$`, 'm'))
+    const parseDt = (m) => {
+      if (!m) return null
+      const v = m[2].trim()
+      const d = v.match(/(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2}))?/)
+      if (!d) return null
+      // Only trust clock time when it's local (TZID) — UTC would be hours off
+      const isUtc = /Z\s*$/.test(v)
+      const hasTz = /TZID=/i.test(m[1])
+      let time = null
+      if (d[4] && (hasTz || !isUtc)) {
+        const h = parseInt(d[4])
+        const h12 = h % 12 === 0 ? 12 : h % 12
+        time = `${h12}:${d[5]} ${h >= 12 ? 'PM' : 'AM'}`
+      }
+      return { date: `${d[1]}-${d[2]}-${d[3]}`, time }
+    }
+    const s = parseDt(get('DTSTART'))
+    const e = parseDt(get('DTEND'))
+    let time_str = s?.time || null
+    if (time_str && e?.time && e.date === s.date) time_str += ` – ${e.time}`
+    return {
+      title: unesc(get('SUMMARY')?.[2]) || null,
+      date: s?.date || null,
+      end_date: e && s && e.date !== s.date ? e.date : null,
+      time_str,
+      location: unesc(get('LOCATION')?.[2]) || null,
+      description: unesc(get('DESCRIPTION')?.[2])?.slice(0, 2000) || null,
+    }
+  } catch (e) {
+    return { _err: `ICAL_THROW: ${e.message}` }
+  }
+}
+
+// Facebook serves og:image/og:title/og:description to link-preview crawlers
+async function tryFacebookOg(pageUrl) {
+  try {
+    const res = await fetch(pageUrl, {
+      headers: {
+        'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'Accept': 'text/html',
+      },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return { _err: `FB_OG_HTTP_${res.status}` }
+    const html = await res.text()
+    const meta = (prop) =>
+      html.match(new RegExp(`property=["']og:${prop}["'][^>]+content=["']([^"']+)["']`, 'i'))?.[1] ||
+      html.match(new RegExp(`content=["']([^"']+)["'][^>]+property=["']og:${prop}["']`, 'i'))?.[1] || null
+    const decode = s => s?.replace(/&amp;/g, '&').replace(/&#x27;|&#039;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>') || null
+    const image = decode(meta('image'))
+    const title = decode(meta('title'))
+    const description = decode(meta('description'))
+    if (!image && !title) return { _err: `FB_OG_EMPTY(${html.length}ch)` }
+    return { image, title, description }
+  } catch (e) {
+    return { _err: `FB_OG_THROW: ${e.message}` }
+  }
+}
+
 async function fetchViaJina(url, format = 'text') {
   try {
     const headers = {
@@ -361,43 +432,79 @@ export async function POST(request) {
   }
 
   // —— Facebook events ——
-  const fbMatch = url.match(/facebook\.com\/events\/(\d+)/i)
+  const fbMatch = url.match(/facebook\.com\/events\/(\d+)(?:\/(\d+))?/i)
   if (fbMatch) {
-    const eventId = fbMatch[1]
+    const seriesId = fbMatch[1]
+    const occurrenceId = fbMatch[2] || null
+    const cleanFbUrl = url.split('?')[0]
     const errors = []
 
-    // 1) Try Graph API
-    const fbResult = await tryFacebookGraphAPI(eventId)
-    if (fbResult?._err === 'NO_CREDS') {
-      return NextResponse.json({ error: 'Facebook credentials not configured.' }, { status: 400 })
+    const merged = { title: null, date: null, end_date: null, time_str: null, location: null, og_image: null }
+    const fill = (src) => {
+      if (!src) return
+      for (const k of Object.keys(merged)) if (!merged[k] && src[k]) merged[k] = src[k]
     }
-    if (!fbResult?._err) {
-      // Graph API succeeded
-      return NextResponse.json(fbResult)
-    }
-    errors.push(fbResult._err)
+    let fbDescription = ''
 
-    // 2) Try Jina on the exact URL pasted (keeps occurrence ID for recurring events)
-    const cleanFbUrl = url.split('?')[0]
-    const jina1 = await fetchViaJina(cleanFbUrl, 'markdown')
-    if (!jina1._err && jina1.text && jina1.chars > 100) {
-      const img = extractJinaImage(jina1.text)
-      const { data, diag } = await callGemini(jina1.text, apiKey)
-      if (data?.title) return NextResponse.json({ ...data, og_image: await proxyImage(img, url) })
-      errors.push(`JINA1_NO_TITLE(${jina1.chars}ch${diag ? `;${diag}` : ''})`)
-    } else {
-      errors.push(jina1._err || `JINA1_SHORT(${jina1.chars ?? 0}chars)`)
+    // 1) iCal export — structured date/title/location, public events need no login
+    for (const id of [occurrenceId, seriesId].filter(Boolean)) {
+      const ical = await tryFacebookICal(id)
+      if (!ical._err) {
+        fill(ical)
+        if (ical.description) fbDescription = ical.description
+        break
+      }
+      errors.push(`${ical._err}@${id}`)
     }
 
-    // 3) Try Jina on mobile Facebook URL
-    const jina2 = await fetchViaJina(`https://m.facebook.com/events/${eventId}/`, 'markdown')
-    if (!jina2._err && jina2.text && jina2.chars > 100) {
-      const img = extractJinaImage(jina2.text)
-      const { data, diag } = await callGemini(jina2.text, apiKey)
-      if (data?.title) return NextResponse.json({ ...data, og_image: await proxyImage(img, url) })
-      errors.push(`JINA2_NO_TITLE(${jina2.chars}ch${diag ? `;${diag}` : ''})`)
+    // 2) Crawler-UA fetch — gets og:image (the event cover) + og:title/description
+    const og = await tryFacebookOg(cleanFbUrl)
+    if (!og._err) {
+      fill({ title: og.title, og_image: og.image })
+      if (og.description) fbDescription = `${fbDescription}\n${og.description}`.trim()
     } else {
-      errors.push(jina2._err || `JINA2_SHORT(${jina2.chars ?? 0}chars)`)
+      errors.push(og._err)
+    }
+
+    // 3) Gemini on description text for any still-missing fields
+    if ((!merged.date || !merged.time_str || !merged.location) && fbDescription.length > 30) {
+      const { data, diag } = await callGemini(`${merged.title || ''}\n${fbDescription}`, apiKey)
+      if (data) fill(data)
+      else if (diag) errors.push(`GEMINI(${diag})`)
+    }
+
+    // 4) Graph API (works only with special app permissions)
+    if (!merged.title || !merged.date) {
+      const fbResult = await tryFacebookGraphAPI(occurrenceId || seriesId)
+      if (!fbResult?._err) fill(fbResult)
+      else if (fbResult._err !== 'NO_CREDS') errors.push(fbResult._err)
+    }
+
+    // 5) Jina fallback only if still nothing usable
+    if (!merged.title && !merged.date) {
+      for (const fbUrl of [cleanFbUrl, `https://m.facebook.com/events/${occurrenceId || seriesId}/`]) {
+        const jina = await fetchViaJina(fbUrl, 'markdown')
+        if (!jina._err && jina.text && jina.chars > 100) {
+          if (!merged.og_image) merged.og_image = extractJinaImage(jina.text)
+          const { data, diag } = await callGemini(jina.text, apiKey)
+          if (data?.title) { fill(data); break }
+          errors.push(`JINA_NO_TITLE(${jina.chars}ch${diag ? `;${diag}` : ''})`)
+        } else {
+          errors.push(jina._err || `JINA_SHORT(${jina.chars ?? 0}chars)`)
+        }
+      }
+    }
+
+    if (merged.title || merged.date) {
+      merged.og_image = await proxyImage(merged.og_image, url)
+      // Cover image often holds details the page text doesn't — fill gaps with vision
+      if (!merged.date || !merged.time_str || !merged.location) {
+        fill(await callGeminiVision(merged.og_image, apiKey))
+      }
+      return NextResponse.json({
+        ...merged,
+        ...(merged.date ? {} : { warning: "Couldn't read the date — set it below." }),
+      })
     }
 
     return NextResponse.json({ error: `Could not access Facebook event. [${errors.join(' | ')}]` }, { status: 400 })
