@@ -10,6 +10,13 @@ import EventDetailModal from './EventDetailModal'
 import Portal from './Portal'
 
 const THEMES = {
+  paper: {
+    bg: '#fef9f2',
+    sw: 'linear-gradient(135deg,#fef9f2 55%,#7c3aed)',
+    c: [],
+    cellBg: 'rgba(255,253,248,0.95)', weekendBg: 'rgba(254,242,248,0.9)', inactiveBg: 'rgba(180,140,100,0.10)', accent: '#7c3aed',
+    paper: true,
+  },
   dreamy: {
     bg: '#f0d8ff',
     sw: 'linear-gradient(135deg,#c084fc,#f472b6)',
@@ -59,13 +66,21 @@ const POS   = ['75% 65% at 3% 4%','55% 55% at 52% 18%','45% 55% at 97% 12%','50%
 const STOPS = [58,55,50,52,55,50]
 
 function buildBg(tid) {
-  const t = THEMES[tid] || THEMES.dreamy
+  const t = THEMES[tid] || THEMES.paper
+  // Paper theme — the calm cream gradient + ruled lines from the login page
+  if (t.paper) {
+    return {
+      backgroundColor: t.bg,
+      backgroundImage: [
+        'linear-gradient(160deg, #fef9f2 0%, #fff5e8 55%, #fef2f8 100%)',
+        'repeating-linear-gradient(transparent 0px, transparent 27px, rgba(180,140,100,0.07) 28px)',
+      ].join(', '),
+      backgroundAttachment: 'fixed',
+    }
+  }
   return {
     backgroundColor: t.bg,
-    backgroundImage: [
-      ...POS.map((p, i) => `radial-gradient(ellipse ${p}, ${t.c[i]} 0%, transparent ${STOPS[i]}%)`),
-      ...(t.dark ? [] : ["url('/watercolor-bg.jpg.png')"]),
-    ].join(', '),
+    backgroundImage: POS.map((p, i) => `radial-gradient(ellipse ${p}, ${t.c[i]} 0%, transparent ${STOPS[i]}%)`).join(', '),
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundAttachment: 'fixed',
@@ -97,7 +112,7 @@ const CamIcon = () => (
 )
 
 // ── Friends tab ────────────────────────────────────────────────────────────
-function FriendsTab({ inviteCode, connectedCount, accent }) {
+function FriendsTab({ inviteCode, connectedCount, accent, dark }) {
   const [inviteUrl, setInviteUrl] = useState('')
   const [copied, setCopied]     = useState(false)
 
@@ -115,8 +130,8 @@ function FriendsTab({ inviteCode, connectedCount, accent }) {
 
   return (
     <div style={{ padding: '28px 20px 20px', maxWidth: 440, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 38, fontWeight: 700, color: '#111', margin: '0 0 6px' }}>Friends</h1>
-      <p style={{ fontSize: 16, color: '#7c6a56', margin: '0 0 28px', lineHeight: 1.5 }}>
+      <h1 style={{ fontSize: 38, fontWeight: 700, color: dark ? '#e2e8f0' : '#1a1a2e', margin: '0 0 6px' }}>Friends</h1>
+      <p style={{ fontSize: 16, color: dark ? '#9ca3af' : '#7c6a56', margin: '0 0 28px', lineHeight: 1.5 }}>
         {connectedCount === 0
           ? "Invite a friend — you'll both see each other's pinned events."
           : `${connectedCount} friend${connectedCount > 1 ? 's' : ''} connected. You see each other's events!`}
@@ -134,7 +149,7 @@ function FriendsTab({ inviteCode, connectedCount, accent }) {
           {copied ? '✓ Copied!' : '📋 Copy invite link'}
         </button>
       </div>
-      <p style={{ marginTop: 20, fontSize: 15, color: '#a89888', lineHeight: 1.6, textAlign: 'center' }}>
+      <p style={{ marginTop: 20, fontSize: 15, color: dark ? '#6b7280' : '#a89888', lineHeight: 1.6, textAlign: 'center' }}>
         Send this link to a friend. When they sign in, you'll both see each other's pinned events.
       </p>
     </div>
@@ -152,7 +167,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const [modal, setModal]           = useState(null)
   const [notifEnabled, setNotifEnabled] = useState(false)
   const [notifToast, setNotifToast]     = useState(null)
-  const [themeId, setThemeId]           = useState('dreamy')
+  const [themeId, setThemeId]           = useState('paper')
   const [showThemePicker, setShowThemePicker] = useState(false)
   const [pinStyle, setPinStyle]         = useState('classic')
   const [notes, setNotes]               = useState({})
@@ -301,11 +316,11 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   }
   const isEventOn = (id) => notifEvents[id] !== false
 
-  const theme = THEMES[themeId] || THEMES.dreamy
+  const theme = THEMES[themeId] || THEMES.paper
   const dateKey = (date) => [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
 
   const dk = theme.dark
-  const navBg    = dk ? 'rgba(10,10,18,0.98)' : 'rgba(255,255,255,0.96)'
+  const navBg    = dk ? 'rgba(10,10,18,0.98)' : 'rgba(255,253,248,0.96)'
   const navBorder = dk ? '1.5px solid rgba(255,255,255,0.07)' : '1.5px solid rgba(0,0,0,0.07)'
   const navActive = dk ? '#e2e8f0' : '#1a1a2e'
   const navMuted  = dk ? '#4b5563' : '#9ca3af'
@@ -319,7 +334,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)',
         paddingBottom: '0.75rem',
         paddingLeft: '1.25rem', paddingRight: '1.25rem',
-        background: dk ? 'rgba(10,10,18,0.92)' : 'rgba(255,255,255,0.82)',
+        background: dk ? 'rgba(10,10,18,0.92)' : 'rgba(255,253,248,0.88)',
         backdropFilter: 'blur(12px)',
         borderBottom: navBorder,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -384,7 +399,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           </div>
         )}
         {activeTab === 'friends' && (
-          <FriendsTab inviteCode={inviteCode} connectedCount={connectedCount} accent={theme.accent} />
+          <FriendsTab inviteCode={inviteCode} connectedCount={connectedCount} accent={theme.accent} dark={theme.dark} />
         )}
       </main>
 

@@ -370,12 +370,12 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
 
   return (
     <div className="fixed inset-0 z-50" style={{ background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)' }} onClick={writeMode ? undefined : onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '4%', left: '4%', right: '4%', bottom: '4%', background: '#fffaee', border: '5px solid #1a1a1a', borderRadius: 6, boxShadow: '10px 10px 0 rgba(0,0,0,0.40)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '4%', left: '4%', right: '4%', bottom: '4%', background: '#fffaee', border: '5px solid #1a1a2e', borderRadius: 6, boxShadow: '10px 10px 0 rgba(0,0,0,0.40)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header */}
         <div style={{ flexShrink: 0, padding: '14px 18px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '2px solid #e9e0cc', position: 'relative' }}>
           <div>
-            <div style={{ fontSize: 52, fontWeight: 900, lineHeight: 1, color: '#1a1a1a', letterSpacing: '-2px' }}>{dayNum}</div>
+            <div style={{ fontSize: 52, fontWeight: 900, lineHeight: 1, color: '#1a1a2e', letterSpacing: '-2px' }}>{dayNum}</div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#9ca3af', marginTop: 3 }}>{dayName} · {monthName} {year}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
@@ -483,7 +483,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                   <Pin styleId={pinStyle} colorIdx={idx} />
                   {event.image_url
                     ? <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }} />
-                    : <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}><p style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', color: '#5b21b6', margin: 6, padding: '0 4px' }}>{event.title}</p></div>
+                    : <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, background: `linear-gradient(135deg, ${accent}14, ${accent}30)` }}><span style={{ fontSize: 26, lineHeight: 1 }}>📌</span><p style={{ fontSize: 11, fontWeight: 700, textAlign: 'center', color: accent, margin: 0, padding: '0 6px' }}>{event.title}</p></div>
                   }
                   <div style={{ flexShrink: 0, padding: '5px 7px 7px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -502,7 +502,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           )}
           {extra > 0 && !writeMode && (
             <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
-              <span style={{ background: '#ede9fe', color: '#7c3aed', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 700 }}>+{extra} more</span>
+              <span style={{ background: `${accent}1c`, color: accent, borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 700 }}>+{extra} more</span>
             </div>
           )}
         </div>
@@ -511,7 +511,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
         {!writeMode ? (
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px 14px', borderTop: '2px solid #e9e0cc' }}>
             <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 12, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Close</button>
-            <button onClick={onAdd} style={{ padding: '9px 22px', borderRadius: 12, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 14px rgba(124,58,237,0.38)' }}>+ Scan</button>
+            <button onClick={onAdd} style={{ padding: '9px 22px', borderRadius: 12, background: '#1a1a2e', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: `3px 3px 0 ${accent}` }}>+ Scan</button>
           </div>
         ) : (
           <div style={{ flexShrink: 0, borderTop: '2px solid #e9e0cc', background: '#fff8e0', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -536,7 +536,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
             <button onClick={clearCanvas}
               style={{ padding: '3px 8px', borderRadius: 20, border: '1.5px solid #fca5a5', background: '#fff1f2', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#ef4444', flexShrink: 0 }}>Clear</button>
             <button onClick={exitWriteMode}
-              style={{ padding: '5px 16px', borderRadius: 20, background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Done</button>
+              style={{ padding: '5px 16px', borderRadius: 20, background: '#1a1a2e', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, flexShrink: 0, boxShadow: `2px 2px 0 ${accent}` }}>Done</button>
           </div>
         )}
 

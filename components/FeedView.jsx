@@ -118,8 +118,8 @@ function EventCard({ event, accent, onTap, onDelete, faded }) {
 export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark }) {
   const groups = getGroups(events)
 
-  const headingColor  = dark ? '#e2e8f0' : '#111'
-  const dividerColor  = dark ? 'rgba(255,255,255,0.18)' : '#111'
+  const headingColor  = dark ? '#e2e8f0' : '#1a1a2e'
+  const dividerColor  = dark ? 'rgba(255,255,255,0.18)' : '#1a1a2e'
   const dividerMuted  = dark ? 'rgba(255,255,255,0.08)' : '#e5e5e5'
 
   if (events.length === 0) {

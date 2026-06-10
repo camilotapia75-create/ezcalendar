@@ -41,15 +41,15 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
 
   const accent = theme?.accent || '#7c3aed'
   const dark = theme?.dark
-  const calBorder = dark ? '3px solid rgba(255,255,255,0.10)' : '3px solid #111'
-  const calBg     = dark ? '#0f0f1a' : '#faf7f2'
+  const calBorder = dark ? '3px solid rgba(255,255,255,0.10)' : '3px solid #1a1a2e'
+  const calBg     = dark ? '#0f0f1a' : '#fffdf8'
 
   return (
     <div style={{
       borderRadius: 6,
       overflow: 'hidden',
       border: calBorder,
-      boxShadow: dark ? '5px 5px 0 rgba(0,0,0,0.60)' : '5px 5px 0 rgba(0,0,0,0.30)',
+      boxShadow: dark ? '5px 5px 0 rgba(0,0,0,0.60)' : '5px 5px 0 rgba(140,100,60,0.22)',
     }}>
 
       {/* Big month header */}
@@ -104,7 +104,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
       </div>
 
       {/* Day headers */}
-      <div className="grid grid-cols-7" style={{ background: accent, borderBottom: '3px solid #111' }}>
+      <div className="grid grid-cols-7" style={{ background: accent, borderBottom: calBorder }}>
         {DAYS.map((d, i) => (
           <div
             key={d}
@@ -134,7 +134,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
           ].join(', ') : [
             'repeating-linear-gradient(0deg, rgba(0,0,0,0.045) 0px, rgba(0,0,0,0.045) 1px, transparent 1px, transparent 24px)',
             'repeating-linear-gradient(90deg, rgba(0,0,0,0.035) 0px, rgba(0,0,0,0.035) 1px, transparent 1px, transparent 24px)',
-            'linear-gradient(#faf7f2, #faf7f2)',
+            `linear-gradient(${calBg}, ${calBg})`,
           ].join(', '),
         }}
       >
