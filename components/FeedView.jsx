@@ -76,20 +76,22 @@ function DateBadge({ dateStr, endDateStr, accent, faded }) {
 
 function EventCard({ event, accent, onTap, onDelete, faded }) {
   return (
-    <div onClick={onTap} style={{ marginBottom: 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid rgba(0,0,0,0.10)', boxShadow: faded ? 'none' : '0 2px 12px rgba(0,0,0,0.10)', background: '#fff', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
-      {event.image_url && (
+    <div onClick={onTap} style={{ marginBottom: 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #e8ddd0', boxShadow: faded ? 'none' : '3px 3px 0 rgba(140,100,60,0.12)', background: '#fffdf8', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
+      {event.image_url ? (
         <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', maxHeight: 420, objectFit: 'cover', display: 'block' }} />
+      ) : (
+        <div style={{ width: '100%', height: 88, background: `linear-gradient(135deg, ${accent}14 0%, ${accent}28 100%)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, borderBottom: `1px solid ${accent}20` }}>
+          <span style={{ fontSize: 28, lineHeight: 1, filter: 'grayscale(0.2)' }}>📌</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>No flyer</span>
+        </div>
       )}
       <div style={{ padding: '12px 14px 14px', position: 'relative', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <DateBadge dateStr={event.date} endDateStr={event.end_date} accent={accent} faded={faded} />
         <div style={{ flex: 1, minWidth: 0 }}>
           {event.title && (
-            <p style={{ margin: '0 0 5px', fontSize: 17, fontWeight: 700, color: '#111', lineHeight: 1.25, paddingRight: 28, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ margin: '0 0 5px', fontSize: 17, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.25, paddingRight: 28, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {event.title}
             </p>
-          )}
-          {!event.image_url && (
-            <p style={{ margin: '0 0 5px', fontSize: 13, color: '#aaa', fontStyle: 'italic' }}>No flyer image</p>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
             {event.time_str && (
