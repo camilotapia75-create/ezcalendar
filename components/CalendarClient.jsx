@@ -230,6 +230,28 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     return () => document.removeEventListener('click', close)
   }, [showThemePicker])
 
+  // Auto-update: home-screen PWAs cache the old bundle aggressively. Compare
+  // the deployed commit SHA on focus and reload once when a new deploy ships.
+  useEffect(() => {
+    let baseline = null
+    let lastCheck = 0
+    const check = async () => {
+      if (Date.now() - lastCheck < 60000) return
+      lastCheck = Date.now()
+      try {
+        const res = await fetch('/api/version', { cache: 'no-store' })
+        const { v } = await res.json()
+        if (!v || v === 'dev') return
+        if (baseline === null) { baseline = v; return }
+        if (v !== baseline) window.location.reload()
+      } catch {}
+    }
+    check()
+    const onVisible = () => { if (document.visibilityState === 'visible') check() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
   const showToast = (msg) => { setNotifToast(msg); setTimeout(() => setNotifToast(null), 4000) }
   const applyTheme = (id) => { setThemeId(id); localStorage.setItem('calendarTheme', id); setShowThemePicker(false) }
 

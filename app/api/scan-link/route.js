@@ -11,7 +11,7 @@ function getScanPrompt() {
   "date": "YYYY-MM-DD start date — parse from ISO datetimes like '2026-06-13T20:00:00', startDate fields, or any date text",
   "end_date": "YYYY-MM-DD end date — ONLY if the event explicitly spans multiple days (e.g. 'Jun 14-15', 'July 4 to July 6', a multi-day festival). null for single-day events.",
   "time_str": "start time and end time if present — parse from ISO datetimes: T20:00:00=8:00 PM, T02:00:00=2:00 AM. Examples: '10:00 PM – 2:00 AM', '8:00 PM'",
-  "location": "full venue name AND city/state — e.g. 'Chase Center, San Francisco, CA'. Always include the venue name, not just the city."
+  "location": "wherever the event happens — venue name + city when both are known (e.g. 'Chase Center, San Francisco, CA'), but a city or neighborhood alone is fine too (e.g. 'Sacramento, CA'). Return ANY place mentioned; only null if no place at all."
 }`
 }
 
@@ -23,7 +23,7 @@ function getVisionPrompt() {
   "date": "YYYY-MM-DD — if partial date like 'Jul 24' with no year, use nearest future year",
   "end_date": "YYYY-MM-DD end date — ONLY if event explicitly spans multiple days (e.g. 'Jun 14-15', 'July 4-6'). null for single-day.",
   "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM', '10 PM - 2 AM', '4-8PM')",
-  "location": "venue name, street address, and/or city — exactly as printed on the flyer (e.g. 'Torch Oakland, 1822 Telegraph Ave, Oakland CA')"
+  "location": "wherever the event happens, exactly as printed — venue + address + city if shown (e.g. 'Torch Oakland, 1822 Telegraph Ave, Oakland CA'), or just a city/neighborhood if that's all the flyer shows. Return ANY place mentioned; only null if none."
 }`
 }
 
