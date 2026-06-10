@@ -73,7 +73,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
             fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif',
             lineHeight: 0.88,
           }}>
-            {String(month + 1).padStart(2, '0')}
+            {year}
           </div>
         </div>
 

@@ -78,7 +78,7 @@ function EventCard({ event, accent, onTap, onDelete, faded }) {
   return (
     <div onClick={onTap} style={{ marginBottom: 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #e8ddd0', boxShadow: faded ? 'none' : '3px 3px 0 rgba(140,100,60,0.12)', background: '#fffdf8', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
       {event.image_url ? (
-        <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', maxHeight: 420, objectFit: 'cover', display: 'block' }} />
+        <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
       ) : (
         <div style={{ width: '100%', height: 88, background: `linear-gradient(135deg, ${accent}14 0%, ${accent}28 100%)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, borderBottom: `1px solid ${accent}20` }}>
           <span style={{ fontSize: 28, lineHeight: 1, filter: 'grayscale(0.2)' }}>📌</span>
@@ -106,8 +106,8 @@ function EventCard({ event, accent, onTap, onDelete, faded }) {
             )}
           </div>
         </div>
-        <button onClick={e => { e.stopPropagation(); onDelete(event.id) }}
-          style={{ position: 'absolute', top: 12, right: 12, width: 22, height: 22, borderRadius: '50%', background: 'rgba(239,68,68,0.80)', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <button onClick={e => { e.stopPropagation(); onDelete(event.id) }} title="Remove event"
+          style={{ position: 'absolute', top: 12, right: 12, width: 22, height: 22, borderRadius: '50%', background: 'rgba(26,26,46,0.10)', border: 'none', cursor: 'pointer', color: '#7c6a56', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           ✕
         </button>
       </div>

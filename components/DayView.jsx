@@ -493,8 +493,8 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                     </div>
                   </div>
                   {!writeMode && (
-                    <button onClick={e => { e.stopPropagation(); onDelete(event.id) }}
-                      style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%', background: 'rgba(239,68,68,0.88)', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>✕</button>
+                    <button onClick={e => { e.stopPropagation(); onDelete(event.id) }} title="Remove event"
+                      style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%', background: 'rgba(26,26,46,0.55)', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>✕</button>
                   )}
                 </div>
               ))}
