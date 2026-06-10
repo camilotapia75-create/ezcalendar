@@ -83,7 +83,10 @@ async function tryInstagramEmbed(type, shortcode) {
         .replace(/[ \t]+/g, ' ').trim()
     }
 
-    if (!image && !caption) return { _err: 'IG_EMBED_EMPTY' }
+    if (!image && !caption) {
+      const wall = /login|consent|challenge/i.test(html.slice(0, 3000)) ? ',wall' : ''
+      return { _err: `IG_EMBED_EMPTY(${html.length}ch${wall})` }
+    }
     return { image, caption }
   } catch (e) {
     return { _err: `IG_EMBED_THROW: ${e.message}` }
@@ -148,15 +151,18 @@ async function tryFacebookGraphAPI(eventId) {
   }
 }
 
-async function fetchViaJina(url) {
+async function fetchViaJina(url, format = 'text') {
   try {
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)',
+      'Accept': 'text/plain',
+      // 'markdown' keeps ![image](...) links; 'text' strips them
+      'X-Return-Format': format,
+      'X-Timeout': '20',
+    }
+    if (process.env.JINA_API_KEY) headers['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`
     const res = await fetch(`https://r.jina.ai/${url}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)',
-        'Accept': 'text/plain',
-        'X-Return-Format': 'text',
-        'X-Timeout': '20',
-      },
+      headers,
       signal: AbortSignal.timeout(22000),
     })
     const status = res.status
@@ -168,11 +174,23 @@ async function fetchViaJina(url) {
   }
 }
 
+function extractJinaImage(text) {
+  const m =
+    text.match(/!\[.*?\]\((https?:\/\/[^)\s"']+)\)/) ||
+    text.match(/(https?:\/\/[^\s"'<>)]+(?:cdninstagram|fbcdn)[^\s"'<>)]+)/i) ||
+    text.match(/(https?:\/\/[^\s"'<>)]+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s"'<>)]*)?)/i)
+  return m?.[1] || null
+}
+
+// Returns { data, diag } — diag lists per-model failures (e.g. "flash:429") so
+// quota exhaustion is visible in error messages instead of silently returning null
 async function callGemini(text, apiKey) {
   const body = JSON.stringify({
     contents: [{ parts: [{ text: `${PROMPT}\n\nContent:\n${text.slice(0, 8000)}` }] }],
   })
+  const diags = []
   for (const modelUrl of MODELS) {
+    const name = modelUrl.split('/models/')[1].split(':')[0].replace('gemini-', '')
     try {
       const res = await fetch(`${modelUrl}?key=${apiKey}`, {
         method: 'POST',
@@ -180,15 +198,15 @@ async function callGemini(text, apiKey) {
         body,
         signal: AbortSignal.timeout(20000),
       })
-      if (!res.ok) continue
+      if (!res.ok) { diags.push(`${name}:${res.status}`); continue }
       const result = await res.json()
       const raw = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
-      if (!raw) continue
+      if (!raw) { diags.push(`${name}:empty`); continue }
       const match = raw.match(/\{[\s\S]*\}/)
-      return JSON.parse(match ? match[0] : raw)
-    } catch { continue }
+      return { data: JSON.parse(match ? match[0] : raw), diag: diags.join(',') }
+    } catch (e) { diags.push(`${name}:${(e.message || 'err').slice(0, 30)}`); continue }
   }
-  return null
+  return { data: null, diag: diags.join(',') }
 }
 
 // Read event details straight off the flyer image (data URL) when page text fails
@@ -269,7 +287,9 @@ export async function POST(request) {
     let igText = ''
     let igImage = null
 
-    // 1) Public embed page — works without login or Meta app review
+    const embedUrl = `https://www.instagram.com/${igMatch[1]}/${igMatch[2]}/embed/captioned/`
+
+    // 1) Public embed page, fetched directly — works without login or Meta app review
     const embed = await tryInstagramEmbed(igMatch[1], igMatch[2])
     if (!embed._err) {
       igImage = embed.image || null
@@ -278,7 +298,18 @@ export async function POST(request) {
       errors.push(embed._err)
     }
 
-    // 2) oEmbed API (only works if the Meta app has oEmbed Read approval)
+    // 2) Embed page rendered through Jina's browser (markdown keeps image links)
+    if (!igImage || igText.length < 80) {
+      const jinaEmbed = await fetchViaJina(embedUrl, 'markdown')
+      if (!jinaEmbed._err && jinaEmbed.text && jinaEmbed.chars > 100) {
+        if (!igImage) igImage = extractJinaImage(jinaEmbed.text)
+        if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaEmbed.text}` : jinaEmbed.text
+      } else {
+        errors.push(jinaEmbed._err ? `JINA_EMBED_${jinaEmbed._err}` : `JINA_EMBED_SHORT(${jinaEmbed.chars ?? 0}ch)`)
+      }
+    }
+
+    // 3) oEmbed API (only works if the Meta app has oEmbed Read approval)
     if (!igImage || !igText) {
       const oembed = await tryInstagramOembed(url)
       if (!oembed._err) {
@@ -289,27 +320,24 @@ export async function POST(request) {
       }
     }
 
-    // 3) Jina fallback for richer text
-    if (igText.length < 80) {
-      const jina = await fetchViaJina(url)
+    // 4) Jina on the post URL itself, as last text source
+    if (!igImage || igText.length < 80) {
+      const jina = await fetchViaJina(url, 'markdown')
       if (!jina._err && jina.text && jina.chars > 100) {
-        igText = igText ? `${igText}\n\n${jina.text}` : jina.text
-        if (!igImage) {
-          const imgMatch = jina.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
-          if (imgMatch) igImage = imgMatch[1]
-        }
+        if (igText.length < 80) igText = igText ? `${igText}\n\n${jina.text}` : jina.text
+        if (!igImage) igImage = extractJinaImage(jina.text)
       } else {
-        errors.push(jina._err || `JINA_SHORT(${jina.chars ?? 0}chars)`)
+        errors.push(jina._err || `JINA_SHORT(${jina.chars ?? 0}ch)`)
       }
     }
 
     if (igText.length > 50) {
-      const data = await callGemini(igText, apiKey)
+      const { data, diag } = await callGemini(igText, apiKey)
       if (data?.title || data?.date) {
         const imageData = await proxyImage(igImage, url)
         return NextResponse.json({ ...data, og_image: imageData || igImage })
       }
-      errors.push('GEMINI_NO_TITLE')
+      errors.push(`GEMINI_NO_TITLE${diag ? `(${diag})` : ''}`)
     }
 
     if (igImage) {
@@ -349,24 +377,25 @@ export async function POST(request) {
     }
     errors.push(fbResult._err)
 
-    // 2) Try Jina on desktop Facebook URL
-    const jina1 = await fetchViaJina(`https://www.facebook.com/events/${eventId}/`)
+    // 2) Try Jina on the exact URL pasted (keeps occurrence ID for recurring events)
+    const cleanFbUrl = url.split('?')[0]
+    const jina1 = await fetchViaJina(cleanFbUrl, 'markdown')
     if (!jina1._err && jina1.text && jina1.chars > 100) {
-      const imgMatch = jina1.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
-      const data = await callGemini(jina1.text, apiKey)
-      if (data?.title) return NextResponse.json({ ...data, og_image: imgMatch?.[1] || null })
-      errors.push(`JINA1_NO_TITLE(${jina1.chars}chars)`)
+      const img = extractJinaImage(jina1.text)
+      const { data, diag } = await callGemini(jina1.text, apiKey)
+      if (data?.title) return NextResponse.json({ ...data, og_image: await proxyImage(img, url) })
+      errors.push(`JINA1_NO_TITLE(${jina1.chars}ch${diag ? `;${diag}` : ''})`)
     } else {
       errors.push(jina1._err || `JINA1_SHORT(${jina1.chars ?? 0}chars)`)
     }
 
     // 3) Try Jina on mobile Facebook URL
-    const jina2 = await fetchViaJina(`https://m.facebook.com/events/${eventId}/`)
+    const jina2 = await fetchViaJina(`https://m.facebook.com/events/${eventId}/`, 'markdown')
     if (!jina2._err && jina2.text && jina2.chars > 100) {
-      const imgMatch = jina2.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
-      const data = await callGemini(jina2.text, apiKey)
-      if (data?.title) return NextResponse.json({ ...data, og_image: imgMatch?.[1] || null })
-      errors.push(`JINA2_NO_TITLE(${jina2.chars}chars)`)
+      const img = extractJinaImage(jina2.text)
+      const { data, diag } = await callGemini(jina2.text, apiKey)
+      if (data?.title) return NextResponse.json({ ...data, og_image: await proxyImage(img, url) })
+      errors.push(`JINA2_NO_TITLE(${jina2.chars}ch${diag ? `;${diag}` : ''})`)
     } else {
       errors.push(jina2._err || `JINA2_SHORT(${jina2.chars ?? 0}chars)`)
     }
@@ -469,8 +498,8 @@ export async function POST(request) {
   }
 
   const ogImageData = await proxyImage(ogImageUrl, url)
-  const data = await callGemini(textForGemini, apiKey)
+  const { data, diag } = await callGemini(textForGemini, apiKey)
   if (data) return NextResponse.json({ ...data, og_image: ogImageData || ogImageUrl })
 
-  return NextResponse.json({ error: 'Could not extract event details from that URL.' }, { status: 500 })
+  return NextResponse.json({ error: `Could not extract event details from that URL.${diag ? ` [GEMINI: ${diag}]` : ''}` }, { status: 500 })
 }
