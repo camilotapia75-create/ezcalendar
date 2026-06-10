@@ -5,5 +5,8 @@
       "path": "/api/cron/push-notify",
       "schedule": "0 13 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "app/api/scan-link/route.js": { "maxDuration": 60 }
+  }
 }

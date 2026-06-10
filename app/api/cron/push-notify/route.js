@@ -4,8 +4,23 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
+// Max concurrent push deliveries — prevents OOM with thousands of subscribers
+const CONCURRENCY = 50
+
+async function runBatch(tasks, concurrency) {
+  const results = []
+  let i = 0
+  async function worker() {
+    while (i < tasks.length) {
+      const idx = i++
+      results[idx] = await tasks[idx]()
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker))
+  return results
+}
+
 export async function GET(request) {
-  // Protect: Vercel Cron sends this header, or allow a manual secret
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -19,7 +34,6 @@ export async function GET(request) {
 
   const supabase = createAdminClient()
 
-  // Get all push subscriptions with their user's upcoming events
   const { data: subs } = await supabase.from('push_subscriptions').select('user_id, subscription')
   if (!subs?.length) return NextResponse.json({ sent: 0 })
 
@@ -29,18 +43,31 @@ export async function GET(request) {
   const tom = new Date(today); tom.setDate(today.getDate() + 1)
   const tomorrowKey = `${tom.getFullYear()}-${pad(tom.getMonth()+1)}-${pad(tom.getDate())}`
 
-  let sent = 0
-  for (const sub of subs) {
-    const { data: events } = await supabase
-      .from('events')
-      .select('title, date, end_date')
-      .or(`user_id.eq.${sub.user_id}`)
-      .gte('date', todayKey)
-      .lte('date', tomorrowKey)
+  // Single query for ALL subscribed users' events — avoids N+1 at scale
+  const userIds = subs.map(s => s.user_id)
+  const { data: allEvents } = await supabase
+    .from('events')
+    .select('user_id, title, date, end_date')
+    .in('user_id', userIds)
+    .gte('date', todayKey)
+    .lte('date', tomorrowKey)
 
-    const inRange = (e, key) => e.end_date ? e.date <= key && e.end_date >= key : e.date === key
-    const todayEvts    = (events || []).filter(e => inRange(e, todayKey))
-    const tomorrowEvts = (events || []).filter(e => inRange(e, tomorrowKey))
+  // Group events by user_id for O(1) lookup per subscriber
+  const eventsByUser = {}
+  for (const e of (allEvents || [])) {
+    if (!eventsByUser[e.user_id]) eventsByUser[e.user_id] = []
+    eventsByUser[e.user_id].push(e)
+  }
+
+  const inRange = (e, key) => e.end_date ? e.date <= key && e.end_date >= key : e.date === key
+
+  const expiredUserIds = []
+  let sent = 0
+
+  const tasks = subs.map(sub => async () => {
+    const events = eventsByUser[sub.user_id] || []
+    const todayEvts    = events.filter(e => inRange(e, todayKey))
+    const tomorrowEvts = events.filter(e => inRange(e, tomorrowKey))
 
     let title = null, body = null
     if (todayEvts.length > 0) {
@@ -51,17 +78,22 @@ export async function GET(request) {
       body  = tomorrowEvts.map(e => e.title || 'Event').join(' • ')
     }
 
-    if (!title) continue
+    if (!title) return
+
     try {
       await webpush.sendNotification(sub.subscription, JSON.stringify({ title, body }))
       sent++
     } catch (err) {
-      if (err.statusCode === 410) {
-        // Subscription expired — remove it
-        await supabase.from('push_subscriptions').delete().eq('user_id', sub.user_id)
-      }
+      if (err.statusCode === 410) expiredUserIds.push(sub.user_id)
     }
+  })
+
+  await runBatch(tasks, CONCURRENCY)
+
+  // Bulk-delete expired subscriptions in one query
+  if (expiredUserIds.length) {
+    await supabase.from('push_subscriptions').delete().in('user_id', expiredUserIds)
   }
 
-  return NextResponse.json({ sent })
+  return NextResponse.json({ sent, expired: expiredUserIds.length })
 }

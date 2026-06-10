@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
-export const runtime = 'edge'
+// Node.js runtime — fallback chains can take 30-60s; edge would hard-timeout
+export const maxDuration = 60
 
 const PROMPT = `Extract event details from this webpage content. Return ONLY valid JSON with these exact keys (null for anything not found):
 {
@@ -23,12 +24,7 @@ const BROWSER_HEADERS = {
 }
 
 function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer)
-  let binary = ''
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i])
-  }
-  return btoa(binary)
+  return Buffer.from(buffer).toString('base64')
 }
 
 async function tryInstagramOembed(url) {
