@@ -5,12 +5,25 @@ export const maxDuration = 60
 
 function getScanPrompt() {
   const today = new Date().toISOString().split('T')[0]
-  return `Today is ${today}. Extract event details from this webpage content. Return ONLY valid JSON with these exact keys (null for anything not found):
+  return `Today is ${today}. Extract event details from this content. Return ONLY valid JSON (null for anything not found):
 {
-  "title": "event name or title",
+  "title": "event name",
   "date": "YYYY-MM-DD start date — parse from ISO datetimes like '2026-06-13T20:00:00', startDate fields, or any date text",
-  "time_str": "start time, and end time if present — parse from ISO datetimes (T20:00:00 = 8:00 PM). Examples: '8:00 PM', '7:30 PM – 10:00 PM'",
-  "location": "full venue name AND city — e.g. 'Chase Center, San Francisco, CA'. Always include venue name, not just the city."
+  "end_date": "YYYY-MM-DD end date — ONLY if the event explicitly spans multiple days (e.g. 'Jun 14-15', 'July 4 to July 6', a multi-day festival). null for single-day events.",
+  "time_str": "start time and end time if present — parse from ISO datetimes: T20:00:00=8:00 PM, T02:00:00=2:00 AM. Examples: '10:00 PM – 2:00 AM', '8:00 PM'",
+  "location": "full venue name AND city/state — e.g. 'Chase Center, San Francisco, CA'. Always include the venue name, not just the city."
+}`
+}
+
+function getVisionPrompt() {
+  const today = new Date().toISOString().split('T')[0]
+  return `Today is ${today}. Extract event details from this flyer image. Return ONLY valid JSON (null for anything not found):
+{
+  "title": "event name",
+  "date": "YYYY-MM-DD — if partial date like 'Jul 24' with no year, use nearest future year",
+  "end_date": "YYYY-MM-DD end date — ONLY if event explicitly spans multiple days (e.g. 'Jun 14-15', 'July 4-6'). null for single-day.",
+  "time_str": "time range exactly as shown on the flyer",
+  "location": "venue name and/or city"
 }`
 }
 
@@ -25,6 +38,11 @@ const BROWSER_HEADERS = {
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.5',
 }
+
+// HTML entity decode — og:image URLs in raw HTML often have &amp; instead of &
+const decodeHtml = s => s
+  ?.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+  .replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&#x27;/g, "'") || null
 
 function arrayBufferToBase64(buffer) {
   return Buffer.from(buffer).toString('base64')
@@ -52,7 +70,7 @@ async function tryInstagramEmbed(type, shortcode) {
   try {
     const res = await fetch(`https://www.instagram.com/${type}/${shortcode}/embed/captioned/`, {
       headers: BROWSER_HEADERS,
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(10000),
     })
     if (!res.ok) return { _err: `IG_EMBED_HTTP_${res.status}` }
     const html = await res.text()
@@ -66,20 +84,16 @@ async function tryInstagramEmbed(type, shortcode) {
       if (duMatch) image = duMatch[1]
     }
     if (image) {
-      image = image
-        .replace(/\\u0026/gi, '&')
-        .replace(/\\\//g, '/')
-        .replace(/&amp;/g, '&')
+      image = image.replace(/\\u0026/gi, '&').replace(/\\\//g, '/').replace(/&amp;/g, '&')
     }
 
     let caption = ''
     const capMatch = html.match(/<div[^>]*class=["'][^"']*Caption[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)
     if (capMatch) {
       caption = capMatch[1]
-        .replace(/<br[^>]*>/gi, '\n')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/&amp;/g, '&').replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-        .replace(/[ \t]+/g, ' ').trim()
+        .replace(/<br[^>]*>/gi, '\n').replace(/<[^>]+>/g, ' ')
+        .replace(/&amp;/g, '&').replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/[ \t]+/g, ' ').trim()
     }
 
     if (!image && !caption) {
@@ -96,7 +110,6 @@ async function tryFacebookGraphAPI(eventId) {
   const appId = process.env.FACEBOOK_APP_ID
   const appSecret = process.env.FACEBOOK_APP_SECRET
   if (!appId || !appSecret) return { _err: 'NO_CREDS' }
-
   try {
     const res = await fetch(
       `https://graph.facebook.com/v21.0/${eventId}?fields=name,description,start_time,end_time,place,cover&access_token=${appId}|${appSecret}`,
@@ -106,22 +119,16 @@ async function tryFacebookGraphAPI(eventId) {
     if (data.error) return { _err: `FB_API_${data.error.code}: ${data.error.message}` }
     if (!data.name) return { _err: `FB_API_NO_NAME status=${res.status}` }
 
-    let dateStr = null, timeStr = null
-    const parseTime = (iso) => {
+    const parseIso = (iso) => {
       const m = iso?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/)
       if (!m) return null
-      const h = parseInt(m[2]), min = m[3]
-      const period = h >= 12 ? 'PM' : 'AM'
-      const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h
-      return { date: m[1], time: `${h12}:${min} ${period}` }
+      const h = parseInt(m[2])
+      return { date: m[1], time: `${h % 12 === 0 ? 12 : h % 12}:${m[3]} ${h >= 12 ? 'PM' : 'AM'}` }
     }
-    const start = parseTime(data.start_time)
-    if (start) {
-      dateStr = start.date
-      timeStr = start.time
-      const end = parseTime(data.end_time)
-      if (end) timeStr += ` – ${end.time}`
-    }
+    const start = parseIso(data.start_time)
+    const end   = parseIso(data.end_time)
+    let time_str = start?.time || null
+    if (time_str && end?.time) time_str += ` – ${end.time}`
 
     const location = data.place
       ? [data.place.name, data.place.location?.city].filter(Boolean).join(', ')
@@ -131,26 +138,26 @@ async function tryFacebookGraphAPI(eventId) {
     if (ogImage) {
       try {
         const imgRes = await fetch(ogImage, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)' },
-          signal: AbortSignal.timeout(6000),
+          headers: { 'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)' },
+          signal: AbortSignal.timeout(8000),
         })
         if (imgRes.ok) {
           const ct = imgRes.headers.get('content-type') || 'image/jpeg'
           if (ct.startsWith('image/')) {
             const buf = await imgRes.arrayBuffer()
-            if (buf.byteLength < 800000) ogImage = `data:${ct};base64,${arrayBufferToBase64(buf)}`
+            if (buf.byteLength < 2000000) ogImage = `data:${ct};base64,${arrayBufferToBase64(buf)}`
           }
         }
       } catch {}
     }
 
-    return { title: data.name, date: dateStr, time_str: timeStr, location, og_image: ogImage }
+    return { title: data.name, date: start?.date || null, time_str, location, og_image: ogImage }
   } catch (e) {
     return { _err: `FB_API_THROW: ${e.message}` }
   }
 }
 
-// Facebook iCal export — public events expose structured data without login
+// Facebook iCal export — structured date/title/end_date without login
 async function tryFacebookICal(eventId) {
   try {
     const res = await fetch(`https://www.facebook.com/events/ical/export/?eid=${eventId}`, {
@@ -167,14 +174,12 @@ async function tryFacebookICal(eventId) {
       const v = m[2].trim()
       const d = v.match(/(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2}))?/)
       if (!d) return null
-      // Only trust clock time when it's local (TZID) — UTC would be hours off
       const isUtc = /Z\s*$/.test(v)
       const hasTz = /TZID=/i.test(m[1])
       let time = null
       if (d[4] && (hasTz || !isUtc)) {
         const h = parseInt(d[4])
-        const h12 = h % 12 === 0 ? 12 : h % 12
-        time = `${h12}:${d[5]} ${h >= 12 ? 'PM' : 'AM'}`
+        time = `${h % 12 === 0 ? 12 : h % 12}:${d[5]} ${h >= 12 ? 'PM' : 'AM'}`
       }
       return { date: `${d[1]}-${d[2]}-${d[3]}`, time }
     }
@@ -195,7 +200,7 @@ async function tryFacebookICal(eventId) {
   }
 }
 
-// Facebook serves og:image/og:title/og:description to link-preview crawlers
+// Facebook serves og:image/og:title to link-preview crawlers
 async function tryFacebookOg(pageUrl) {
   try {
     const res = await fetch(pageUrl, {
@@ -210,23 +215,20 @@ async function tryFacebookOg(pageUrl) {
     const meta = (prop) =>
       html.match(new RegExp(`property=["']og:${prop}["'][^>]+content=["']([^"']+)["']`, 'i'))?.[1] ||
       html.match(new RegExp(`content=["']([^"']+)["'][^>]+property=["']og:${prop}["']`, 'i'))?.[1] || null
-    const decode = s => s?.replace(/&amp;/g, '&').replace(/&#x27;|&#039;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>') || null
-    const image = decode(meta('image'))
-    const title = decode(meta('title'))
-    const description = decode(meta('description'))
+    const image = decodeHtml(meta('image'))
+    const title = decodeHtml(meta('title'))
     if (!image && !title) return { _err: `FB_OG_EMPTY(${html.length}ch)` }
-    return { image, title, description }
+    return { image, title }
   } catch (e) {
     return { _err: `FB_OG_THROW: ${e.message}` }
   }
 }
 
-async function fetchViaJina(url, format = 'text') {
+async function fetchViaJina(url, format = 'markdown') {
   try {
     const headers = {
       'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)',
       'Accept': 'text/plain',
-      // 'markdown' keeps ![image](...) links; 'text' strips them
       'X-Return-Format': format,
       'X-Timeout': '20',
     }
@@ -235,8 +237,7 @@ async function fetchViaJina(url, format = 'text') {
       headers,
       signal: AbortSignal.timeout(22000),
     })
-    const status = res.status
-    if (!res.ok) return { _err: `JINA_HTTP_${status}` }
+    if (!res.ok) return { _err: `JINA_HTTP_${res.status}` }
     const text = await res.text()
     return { text, chars: text.length }
   } catch (e) {
@@ -252,8 +253,7 @@ function extractJinaImage(text) {
   return m?.[1] || null
 }
 
-// Returns { data, diag } — diag lists per-model failures (e.g. "flash:429") so
-// quota exhaustion is visible in error messages instead of silently returning null
+// Returns { data, diag } — diag surfaces per-model quota/error info
 async function callGemini(text, apiKey) {
   const body = JSON.stringify({
     contents: [{ parts: [{ text: `${getScanPrompt()}\n\nContent:\n${text.slice(0, 8000)}` }] }],
@@ -279,22 +279,14 @@ async function callGemini(text, apiKey) {
   return { data: null, diag: diags.join(',') }
 }
 
-// Read event details straight off the flyer image (data URL) when page text fails
+// Reads event details off a flyer image (data URL)
 async function callGeminiVision(dataUrl, apiKey) {
   const m = dataUrl?.match(/^data:(image\/[^;]+);base64,(.+)$/)
   if (!m) return null
-  const today = new Date().toISOString().split('T')[0]
-  const prompt = `Today is ${today}. Extract event details from this flyer image. Return ONLY valid JSON with these exact keys (null for anything not found):
-{
-  "title": "event name or title",
-  "date": "YYYY-MM-DD — if the flyer shows a partial date like 'Jul 24' with no year, infer the nearest future year",
-  "time_str": "time range exactly as shown (e.g. '7:30 PM' or '4-8PM')",
-  "location": "venue name and/or city"
-}`
   const body = JSON.stringify({
     contents: [{ parts: [
       { inlineData: { mimeType: m[1], data: m[2] } },
-      { text: prompt },
+      { text: getVisionPrompt() },
     ]}],
   })
   for (const modelUrl of MODELS) {
@@ -318,21 +310,21 @@ async function callGeminiVision(dataUrl, apiKey) {
 
 async function proxyImage(imageUrl, referer) {
   if (!imageUrl) return null
-  // Facebook CDN serves images to their own crawler UA more reliably
+  // Facebook CDN serves images more reliably to their own crawler UA
   const isFbCdn = /fbcdn\.net|scontent\./i.test(imageUrl)
   const ua = isFbCdn
     ? 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
     : 'Mozilla/5.0 (compatible; EZCalendar/1.0)'
   try {
     const res = await fetch(imageUrl, {
-      headers: { 'User-Agent': ua, 'Referer': referer },
+      headers: { 'User-Agent': ua, 'Referer': referer || imageUrl },
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return imageUrl
     const ct = res.headers.get('content-type') || 'image/jpeg'
     if (!ct.startsWith('image/')) return imageUrl
     const buf = await res.arrayBuffer()
-    if (buf.byteLength >= 2000000) return imageUrl  // 2 MB cap
+    if (buf.byteLength >= 2000000) return imageUrl
     return `data:${ct};base64,${arrayBufferToBase64(buf)}`
   } catch {
     return imageUrl
@@ -364,7 +356,7 @@ export async function POST(request) {
 
     const embedUrl = `https://www.instagram.com/${igMatch[1]}/${igMatch[2]}/embed/captioned/`
 
-    // 1) Public embed page, fetched directly — works without login or Meta app review
+    // 1) Direct embed page fetch
     const embed = await tryInstagramEmbed(igMatch[1], igMatch[2])
     if (!embed._err) {
       igImage = embed.image || null
@@ -373,18 +365,18 @@ export async function POST(request) {
       errors.push(embed._err)
     }
 
-    // 2) Embed page rendered through Jina's browser (markdown keeps image links)
+    // 2) Jina on embed URL (renders the embed in a real browser)
     if (!igImage || igText.length < 80) {
-      const jinaEmbed = await fetchViaJina(embedUrl, 'markdown')
-      if (!jinaEmbed._err && jinaEmbed.text && jinaEmbed.chars > 100) {
+      const jinaEmbed = await fetchViaJina(embedUrl)
+      if (!jinaEmbed._err && jinaEmbed.chars > 100) {
         if (!igImage) igImage = extractJinaImage(jinaEmbed.text)
         if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaEmbed.text}` : jinaEmbed.text
       } else {
-        errors.push(jinaEmbed._err ? `JINA_EMBED_${jinaEmbed._err}` : `JINA_EMBED_SHORT(${jinaEmbed.chars ?? 0}ch)`)
+        errors.push(jinaEmbed._err || `JINA_EMBED_SHORT(${jinaEmbed.chars ?? 0}ch)`)
       }
     }
 
-    // 3) oEmbed API (only works if the Meta app has oEmbed Read approval)
+    // 3) oEmbed API (requires Meta app review — often fails)
     if (!igImage || !igText) {
       const oembed = await tryInstagramOembed(url)
       if (!oembed._err) {
@@ -395,10 +387,10 @@ export async function POST(request) {
       }
     }
 
-    // 4) Jina on the post URL itself, as last text source
+    // 4) Jina on the post URL itself
     if (!igImage || igText.length < 80) {
-      const jina = await fetchViaJina(url, 'markdown')
-      if (!jina._err && jina.text && jina.chars > 100) {
+      const jina = await fetchViaJina(url)
+      if (!jina._err && jina.chars > 100) {
         if (igText.length < 80) igText = igText ? `${igText}\n\n${jina.text}` : jina.text
         if (!igImage) igImage = extractJinaImage(jina.text)
       } else {
@@ -406,7 +398,7 @@ export async function POST(request) {
       }
     }
 
-    // — Extract what we can from caption text
+    // — Extract from caption text
     let textData = null
     if (igText.length > 50) {
       const { data, diag } = await callGemini(igText, apiKey)
@@ -414,20 +406,20 @@ export async function POST(request) {
       if (!data && diag) errors.push(`GEMINI_TEXT(${diag})`)
     }
 
-    // — Proxy the flyer image (needed for vision and for storing a stable URL)
+    // — Proxy the flyer image (needed for vision + stable storage)
     const imageData = igImage ? await proxyImage(igImage, url) : null
 
-    // — Vision on the flyer image when caption text didn't give date/location.
-    //   Instagram captions almost never contain these — they're printed on the flyer.
+    // — Vision on the flyer: Instagram captions rarely have date/location — the flyer image does
     let visionData = null
     if (imageData?.startsWith('data:') && (!textData?.date || !textData?.location)) {
       visionData = await callGeminiVision(imageData, apiKey)
     }
 
-    // — Merge: text wins for title (brand voice), vision wins for date/time/location
+    // — Merge: text for title, vision for date/time/location/end_date
     const merged = {
       title:    textData?.title    || visionData?.title    || null,
       date:     textData?.date     || visionData?.date     || null,
+      end_date: textData?.end_date || visionData?.end_date || null,
       time_str: textData?.time_str || visionData?.time_str || null,
       location: textData?.location || visionData?.location || null,
     }
@@ -435,17 +427,15 @@ export async function POST(request) {
     if (merged.title || merged.date) {
       return NextResponse.json({ ...merged, og_image: imageData || igImage })
     }
-
     if (imageData) {
       return NextResponse.json({
-        ...merged,
-        og_image: imageData,
+        ...merged, og_image: imageData,
         warning: "Got the flyer image, but couldn't read the event details — fill them in below.",
       })
     }
 
     return NextResponse.json({
-      error: `Could not read Instagram post. Instagram often requires login — try saving the flyer image and uploading it instead. [${errors.join(' | ')}]`,
+      error: `Could not read Instagram post. Try saving the flyer image and uploading it instead. [${errors.join(' | ')}]`,
     }, { status: 400 })
   }
 
@@ -457,73 +447,75 @@ export async function POST(request) {
     const cleanFbUrl = url.split('?')[0]
     const errors = []
 
+    // Fetch all three sources IN PARALLEL — iCal for structure, Jina for rich
+    // rendered text (Facebook shows "Sat Jun 20 at 10 PM – 2 AM" in page body),
+    // OG for the cover image
+    const [icalResult, jinaResult, ogResult] = await Promise.all([
+      (async () => {
+        for (const id of [occurrenceId, seriesId].filter(Boolean)) {
+          const r = await tryFacebookICal(id)
+          if (!r._err) return r
+          errors.push(`${r._err}@${id}`)
+        }
+        return { _err: 'ICAL_ALL_FAILED' }
+      })(),
+      fetchViaJina(cleanFbUrl),
+      tryFacebookOg(cleanFbUrl),
+    ])
+
     const merged = { title: null, date: null, end_date: null, time_str: null, location: null, og_image: null }
-    const fill = (src) => {
-      if (!src) return
-      for (const k of Object.keys(merged)) if (!merged[k] && src[k]) merged[k] = src[k]
-    }
-    let fbDescription = ''
 
-    // 1) iCal export — structured date/title/location, public events need no login
-    for (const id of [occurrenceId, seriesId].filter(Boolean)) {
-      const ical = await tryFacebookICal(id)
-      if (!ical._err) {
-        fill(ical)
-        if (ical.description) fbDescription = ical.description
-        break
-      }
-      errors.push(`${ical._err}@${id}`)
+    // iCal: reliable date, end_date, sometimes time (when TZID format)
+    // Skip iCal location — usually just a city; Jina+Gemini gives full venue
+    if (!icalResult._err) {
+      if (icalResult.title)    merged.title    = icalResult.title
+      if (icalResult.date)     merged.date     = icalResult.date
+      if (icalResult.end_date) merged.end_date = icalResult.end_date
+      if (icalResult.time_str) merged.time_str = icalResult.time_str
     }
 
-    // 2) Crawler-UA fetch — gets og:image (the event cover) + og:title/description
-    const og = await tryFacebookOg(cleanFbUrl)
-    if (!og._err) {
-      fill({ title: og.title, og_image: og.image })
-      if (og.description) fbDescription = `${fbDescription}\n${og.description}`.trim()
+    // OG: event cover image (decode HTML entities — Facebook HTML has &amp; in URLs)
+    if (!ogResult._err) {
+      if (ogResult.image) merged.og_image = decodeHtml(ogResult.image)
+      if (ogResult.title && !merged.title) merged.title = ogResult.title
     } else {
-      errors.push(og._err)
+      errors.push(ogResult._err)
     }
 
-    // 3) Gemini on description text — always run when we have it.
-    //    iCal location is often just a city name; Gemini reads the full description
-    //    and extracts the actual venue. Only date/time stay locked to iCal values.
-    if (fbDescription.length > 30) {
-      const { data, diag } = await callGemini(`${merged.title || ''}\n${fbDescription}`, apiKey)
+    // Jina: full rendered page text → Gemini extracts venue name + time
+    // Facebook's rendered page explicitly states "Saturday, June 20 at 10 PM – 2 AM CDT"
+    let jinaText = (!jinaResult._err && jinaResult.chars > 100) ? jinaResult.text : ''
+    if (!jinaText) errors.push(jinaResult._err || `JINA_SHORT(${jinaResult.chars ?? 0}ch)`)
+    if (!merged.og_image && jinaText) merged.og_image = extractJinaImage(jinaText)
+
+    // Gemini on Jina text (preferred) or iCal description (fallback)
+    const geminiInput = jinaText || (icalResult.description ? `${merged.title || ''}\n${icalResult.description}` : '')
+    if (geminiInput.length > 30) {
+      const { data, diag } = await callGemini(geminiInput, apiKey)
       if (data) {
-        if (data.location) merged.location = data.location  // always prefer Gemini's venue
+        // Gemini from rendered page is best for venue name and time
+        if (data.location) merged.location = data.location
         if (data.time_str && !merged.time_str) merged.time_str = data.time_str
         if (data.title && !merged.title) merged.title = data.title
         if (data.date && !merged.date) merged.date = data.date
+        if (data.end_date && !merged.end_date) merged.end_date = data.end_date
       } else if (diag) errors.push(`GEMINI(${diag})`)
     }
 
-    // 4) Graph API (works only with special app permissions)
+    // Last resort: Graph API (requires special app permissions, usually fails)
     if (!merged.title || !merged.date) {
-      const fbResult = await tryFacebookGraphAPI(occurrenceId || seriesId)
-      if (!fbResult?._err) fill(fbResult)
-      else if (fbResult._err !== 'NO_CREDS') errors.push(fbResult._err)
-    }
-
-    // 5) Jina fallback only if still nothing usable
-    if (!merged.title && !merged.date) {
-      for (const fbUrl of [cleanFbUrl, `https://m.facebook.com/events/${occurrenceId || seriesId}/`]) {
-        const jina = await fetchViaJina(fbUrl, 'markdown')
-        if (!jina._err && jina.text && jina.chars > 100) {
-          if (!merged.og_image) merged.og_image = extractJinaImage(jina.text)
-          const { data, diag } = await callGemini(jina.text, apiKey)
-          if (data?.title) { fill(data); break }
-          errors.push(`JINA_NO_TITLE(${jina.chars}ch${diag ? `;${diag}` : ''})`)
-        } else {
-          errors.push(jina._err || `JINA_SHORT(${jina.chars ?? 0}chars)`)
-        }
-      }
+      const fb = await tryFacebookGraphAPI(occurrenceId || seriesId)
+      if (!fb._err) {
+        for (const k of Object.keys(merged)) if (!merged[k] && fb[k]) merged[k] = fb[k]
+      } else if (fb._err !== 'NO_CREDS') errors.push(fb._err)
     }
 
     if (merged.title || merged.date) {
       merged.og_image = await proxyImage(merged.og_image, url)
-      // Cover image often holds details the page text doesn't — fill gaps with vision
-      if (!merged.date || !merged.time_str || !merged.location) {
-        fill(await callGeminiVision(merged.og_image, apiKey))
+      // Vision on cover image for any still-missing fields
+      if (merged.og_image?.startsWith('data:') && (!merged.date || !merged.time_str || !merged.location)) {
+        const vd = await callGeminiVision(merged.og_image, apiKey)
+        if (vd) for (const k of Object.keys(merged)) if (!merged[k] && vd[k]) merged[k] = vd[k]
       }
       return NextResponse.json({
         ...merged,
@@ -534,16 +526,15 @@ export async function POST(request) {
     return NextResponse.json({ error: `Could not access Facebook event. [${errors.join(' | ')}]` }, { status: 400 })
   }
 
-  // —— Step 1: Direct HTML fetch ——
+  // —— General path (Ticketmaster, event sites, etc.) ——
+
+  // Step 1: Direct HTML fetch + JSON-LD / og:image extraction
   let html = ''
   let blocked = false
   try {
     const res = await fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(12000) })
-    if (res.ok) {
-      html = await res.text()
-    } else {
-      blocked = true
-    }
+    if (res.ok) html = await res.text()
+    else blocked = true
   } catch (err) {
     return NextResponse.json({ error: `Could not reach URL: ${err.message}` }, { status: 400 })
   }
@@ -552,18 +543,20 @@ export async function POST(request) {
   let textForGemini = ''
 
   if (html) {
+    // Extract og:image — decode HTML entities (&amp; is common in CDN URLs)
     const ogMatch =
       html.match(/property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
       html.match(/name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i)
-    ogImageUrl = ogMatch?.[1] || null
+    ogImageUrl = decodeHtml(ogMatch?.[1]) || null
     if (ogImageUrl) {
       if (ogImageUrl.startsWith('//')) ogImageUrl = 'https:' + ogImageUrl
       else if (ogImageUrl.startsWith('/')) ogImageUrl = baseUrl + ogImageUrl
       else if (!ogImageUrl.startsWith('http')) ogImageUrl = baseUrl + '/' + ogImageUrl
     }
 
+    // Extract JSON-LD Event schema (Ticketmaster, Eventbrite etc. all include this)
     let structuredInfo = ''
     const jsonLdRegex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
     let ldMatch
@@ -574,7 +567,6 @@ export async function POST(request) {
           const types = [item['@type']].flat()
           if (types.some(t => typeof t === 'string' && t.toLowerCase().includes('event'))) {
             structuredInfo += '\nEvent JSON-LD: ' + JSON.stringify(item).slice(0, 3000)
-            // Extract image from JSON-LD event schema
             if (!ogImageUrl) {
               const img = item.image
               const imgUrl = Array.isArray(img) ? img[0] : (typeof img === 'object' ? img?.url : img)
@@ -585,39 +577,36 @@ export async function POST(request) {
       } catch {}
     }
 
-    const metaMatch =
-      html.match(/name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
-      html.match(/property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
-    const metaDesc = metaMatch?.[1] || ''
+    const metaDesc =
+      html.match(/name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
+      html.match(/property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] || ''
 
     const pageText = html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
       .replace(/<[^>]+>/g, ' ')
       .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
-      .replace(/\s+/g, ' ').trim().slice(0, 5000)
+      .replace(/\s+/g, ' ').trim().slice(0, 4000)
 
-    textForGemini = [structuredInfo, metaDesc && `Meta: ${metaDesc}`, `Page text:\n${pageText}`].filter(Boolean).join('\n\n')
+    textForGemini = [structuredInfo, metaDesc && `Meta: ${metaDesc}`, pageText].filter(Boolean).join('\n\n')
   }
 
-  // —— Step 2: Jina AI Reader fallback ——
-  if (blocked || !html) {
-    // markdown format preserves image links that 'text' strips
-    const jinaResult = await fetchViaJina(url, 'markdown')
-    if (!jinaResult._err && jinaResult.text && jinaResult.chars > 100) {
-      textForGemini = jinaResult.text
+  // Step 2: Jina fallback if blocked, OR supplement if structured data is thin
+  // (Some sites like Ticketmaster load event details via JS — Jina renders that)
+  if (blocked || !html || textForGemini.length < 300) {
+    const jinaResult = await fetchViaJina(url)
+    if (!jinaResult._err && jinaResult.chars > 100) {
       if (!ogImageUrl) ogImageUrl = extractJinaImage(jinaResult.text)
-    } else {
+      // Use Jina text if it's more substantial than what we got from direct fetch
+      if (jinaResult.text.length > textForGemini.length) textForGemini = jinaResult.text
+    } else if (blocked || !html) {
       return NextResponse.json({ error: 'Could not access that page. Try a different URL or paste an image of the event instead.' }, { status: 400 })
     }
   }
 
-  // —— Step 2b: Also try Jina if we got HTML but have no image yet ——
-  if (html && !ogImageUrl) {
-    const jinaResult = await fetchViaJina(url, 'markdown')
-    if (!jinaResult._err && jinaResult.text) {
-      ogImageUrl = extractJinaImage(jinaResult.text)
-    }
+  // Step 2b: Jina specifically for image if still missing
+  if (html && !ogImageUrl && textForGemini.length >= 300) {
+    const jinaResult = await fetchViaJina(url)
+    if (!jinaResult._err && jinaResult.text) ogImageUrl = extractJinaImage(jinaResult.text)
   }
 
   const ogImageData = await proxyImage(ogImageUrl, url)

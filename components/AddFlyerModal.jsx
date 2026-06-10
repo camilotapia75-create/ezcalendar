@@ -190,6 +190,10 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
         setEventDate(data.date)
         setAiDetectedDate(true)
       }
+      if (data.end_date && /^\d{4}-\d{2}-\d{2}$/.test(data.end_date)) {
+        setEndDate(data.end_date)
+        setShowEndDate(true)
+      }
       setOgImageUrl(data.og_image || null)
       if (data.warning) setLinkWarning(data.warning)
       setLinkScanned(true)
