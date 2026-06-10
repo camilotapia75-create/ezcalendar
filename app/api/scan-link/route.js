@@ -356,8 +356,14 @@ export async function POST(request) {
 
     const embedUrl = `https://www.instagram.com/${igMatch[1]}/${igMatch[2]}/embed/captioned/`
 
-    // 1) Direct embed page fetch
-    const embed = await tryInstagramEmbed(igMatch[1], igMatch[2])
+    // Fetch all three text/image sources IN PARALLEL — direct embed usually
+    // 403s from cloud IPs, so don't make Jina wait behind it
+    const [embed, jinaEmbed, jinaPost] = await Promise.all([
+      tryInstagramEmbed(igMatch[1], igMatch[2]),
+      fetchViaJina(embedUrl),
+      fetchViaJina(url),
+    ])
+
     if (!embed._err) {
       igImage = embed.image || null
       igText = embed.caption || ''
@@ -365,18 +371,21 @@ export async function POST(request) {
       errors.push(embed._err)
     }
 
-    // 2) Jina on embed URL (renders the embed in a real browser)
-    if (!igImage || igText.length < 80) {
-      const jinaEmbed = await fetchViaJina(embedUrl)
-      if (!jinaEmbed._err && jinaEmbed.chars > 100) {
-        if (!igImage) igImage = extractJinaImage(jinaEmbed.text)
-        if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaEmbed.text}` : jinaEmbed.text
-      } else {
-        errors.push(jinaEmbed._err || `JINA_EMBED_SHORT(${jinaEmbed.chars ?? 0}ch)`)
-      }
+    if (!jinaEmbed._err && jinaEmbed.chars > 100) {
+      if (!igImage) igImage = extractJinaImage(jinaEmbed.text)
+      if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaEmbed.text}` : jinaEmbed.text
+    } else {
+      errors.push(`EMBED:${jinaEmbed._err || `SHORT(${jinaEmbed.chars ?? 0}ch)`}`)
     }
 
-    // 3) oEmbed API (requires Meta app review — often fails)
+    if (!jinaPost._err && jinaPost.chars > 100) {
+      if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaPost.text}` : jinaPost.text
+      if (!igImage) igImage = extractJinaImage(jinaPost.text)
+    } else {
+      errors.push(`POST:${jinaPost._err || `SHORT(${jinaPost.chars ?? 0}ch)`}`)
+    }
+
+    // oEmbed API as last text source (requires Meta app review — often fails)
     if (!igImage || !igText) {
       const oembed = await tryInstagramOembed(url)
       if (!oembed._err) {
@@ -387,38 +396,19 @@ export async function POST(request) {
       }
     }
 
-    // 4) Jina on the post URL itself
-    if (!igImage || igText.length < 80) {
-      const jina = await fetchViaJina(url)
-      if (!jina._err && jina.chars > 100) {
-        if (igText.length < 80) igText = igText ? `${igText}\n\n${jina.text}` : jina.text
-        if (!igImage) igImage = extractJinaImage(jina.text)
-      } else {
-        errors.push(jina._err || `JINA_SHORT(${jina.chars ?? 0}ch)`)
-      }
-    }
-
-    // — Extract from caption text
-    let textData = null
-    if (igText.length > 50) {
-      const { data, diag } = await callGemini(igText, apiKey)
-      textData = data
-      if (!data && diag) errors.push(`GEMINI_TEXT(${diag})`)
-    }
-
-    // — Proxy the flyer image (needed for vision + stable storage)
+    // Proxy the image first (vision needs a data URL), then run caption-Gemini
+    // and flyer-vision IN PARALLEL — halves latency and avoids timeouts
     const imageData = igImage ? await proxyImage(igImage, url) : null
+    const [textResult, visionData] = await Promise.all([
+      igText.length > 50 ? callGemini(igText, apiKey) : Promise.resolve({ data: null, diag: 'no-text' }),
+      imageData?.startsWith('data:') ? callGeminiVision(imageData, apiKey) : Promise.resolve(null),
+    ])
+    const textData = textResult.data
+    if (!textData && textResult.diag) errors.push(`GEMINI_TEXT(${textResult.diag})`)
+    if (imageData?.startsWith('data:') && !visionData) errors.push('VISION_FAILED')
 
-    // — Vision on the flyer: captions rarely have full details — the flyer image does.
-    //   Run whenever ANY field is missing (time alone missing must trigger it too).
-    let visionData = null
-    const textMissing = !textData?.date || !textData?.location || !textData?.time_str || !textData?.title
-    if (imageData?.startsWith('data:') && textMissing) {
-      visionData = await callGeminiVision(imageData, apiKey)
-    }
-
-    // — Merge: text for title, vision preferred for location (flyer shows the
-    //   actual venue/address; captions often just name a city)
+    // Merge: text for title, vision preferred for location (flyer shows the
+    // actual venue/address; captions often just name a city)
     const merged = {
       title:    textData?.title    || visionData?.title    || null,
       date:     textData?.date     || visionData?.date     || null,
@@ -433,7 +423,7 @@ export async function POST(request) {
     if (imageData) {
       return NextResponse.json({
         ...merged, og_image: imageData,
-        warning: "Got the flyer image, but couldn't read the event details — fill them in below.",
+        warning: `Got the flyer image, but couldn't read the event details — fill them in below. [${errors.join(' | ')}]`,
       })
     }
 
