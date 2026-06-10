@@ -286,9 +286,9 @@ export async function POST(request) {
 
   if (html) {
     const ogMatch =
-      html.match(/property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+      html.match(/property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
-      html.match(/name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
+      html.match(/name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i)
     ogImageUrl = ogMatch?.[1] || null
     if (ogImageUrl) {
@@ -307,6 +307,12 @@ export async function POST(request) {
           const types = [item['@type']].flat()
           if (types.some(t => typeof t === 'string' && t.toLowerCase().includes('event'))) {
             structuredInfo += '\nEvent JSON-LD: ' + JSON.stringify(item).slice(0, 3000)
+            // Extract image from JSON-LD event schema
+            if (!ogImageUrl) {
+              const img = item.image
+              const imgUrl = Array.isArray(img) ? img[0] : (typeof img === 'object' ? img?.url : img)
+              if (typeof imgUrl === 'string' && imgUrl.startsWith('http')) ogImageUrl = imgUrl
+            }
           }
         }
       } catch {}
@@ -332,10 +338,26 @@ export async function POST(request) {
     const jinaResult = await fetchViaJina(url)
     if (!jinaResult._err && jinaResult.text && jinaResult.chars > 100) {
       textForGemini = jinaResult.text
-      const imgMatch = jinaResult.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
-      if (imgMatch) ogImageUrl = imgMatch[1]
+      if (!ogImageUrl) {
+        // Try markdown image, then bare URL ending in image ext
+        const imgMatch =
+          jinaResult.text.match(/!\[.*?\]\((https?:\/\/[^)\s"']+)\)/) ||
+          jinaResult.text.match(/(https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s"'<>]*)?)/i)
+        if (imgMatch) ogImageUrl = imgMatch[1]
+      }
     } else {
       return NextResponse.json({ error: 'Could not access that page. Try a different URL or paste an image of the event instead.' }, { status: 400 })
+    }
+  }
+
+  // —— Step 2b: Also try Jina if we got HTML but have no image yet ——
+  if (html && !ogImageUrl) {
+    const jinaResult = await fetchViaJina(url)
+    if (!jinaResult._err && jinaResult.text) {
+      const imgMatch =
+        jinaResult.text.match(/!\[.*?\]\((https?:\/\/[^)\s"']+)\)/) ||
+        jinaResult.text.match(/(https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s"'<>]*)?)/i)
+      if (imgMatch) ogImageUrl = imgMatch[1]
     }
   }
 

@@ -112,7 +112,7 @@ const CamIcon = () => (
 )
 
 // ── Friends tab ────────────────────────────────────────────────────────────
-function FriendsTab({ inviteCode, connectedCount, accent, dark }) {
+function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent, dark }) {
   const [inviteUrl, setInviteUrl] = useState('')
   const [copied, setCopied]     = useState(false)
 
@@ -128,15 +128,37 @@ function FriendsTab({ inviteCode, connectedCount, accent, dark }) {
     setCopied(true); setTimeout(() => setCopied(false), 2500)
   }
 
+  const displayName = (f) => f.name || f.email || 'Friend'
+  const initials    = (f) => {
+    const n = f.name || f.email || ''
+    return n.split(/[\s@.]+/).filter(Boolean).slice(0,2).map(p => p[0].toUpperCase()).join('') || '?'
+  }
+
   return (
     <div style={{ padding: '28px 20px 20px', maxWidth: 440, margin: '0 auto' }}>
       <h1 style={{ fontSize: 38, fontWeight: 700, color: dark ? '#e2e8f0' : '#1a1a2e', margin: '0 0 6px' }}>Friends</h1>
       <p style={{ fontSize: 16, color: dark ? '#9ca3af' : '#7c6a56', margin: '0 0 28px', lineHeight: 1.5 }}>
         {connectedCount === 0
           ? "Invite a friend — you'll both see each other's pinned events."
-          : `${connectedCount} friend${connectedCount > 1 ? 's' : ''} connected. You see each other's events!`}
+          : `Sharing events with ${connectedCount} friend${connectedCount > 1 ? 's' : ''}.`}
       </p>
-      {connectedCount > 0 && (
+      {connectedFriends.length > 0 && (
+        <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {connectedFriends.map(f => (
+            <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: dark ? 'rgba(255,255,255,0.05)' : '#fffdf8', border: dark ? '1.5px solid rgba(255,255,255,0.08)' : '1.5px solid #e8ddd0', borderRadius: 12, padding: '10px 14px' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                {initials(f)}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {f.name && <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: dark ? '#e2e8f0' : '#1a1a2e', lineHeight: 1.2 }}>{f.name}</p>}
+                <p style={{ margin: 0, fontSize: 13, color: dark ? '#9ca3af' : '#7c6a56', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.email}</p>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', background: 'rgba(34,197,94,0.10)', borderRadius: 999, padding: '2px 8px' }}>Sharing</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {connectedCount > 0 && connectedFriends.length === 0 && (
         <div style={{ background: 'rgba(34,197,94,0.08)', border: '1.5px solid rgba(34,197,94,0.28)', borderRadius: 4, padding: '11px 16px', marginBottom: 20, fontSize: 15, color: '#166534' }}>
           🎉 {connectedCount} friend{connectedCount > 1 ? 's' : ''} connected!
         </div>
@@ -157,7 +179,7 @@ function FriendsTab({ inviteCode, connectedCount, accent, dark }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function CalendarClient({ initialEvents, user, inviteCode, connectedCount = 0, joined = false, joinErr }) {
+export default function CalendarClient({ initialEvents, user, inviteCode, connectedCount = 0, connectedFriends = [], joined = false, joinErr }) {
   const [events, setEvents]         = useState(initialEvents)
   const [currentDate, setCurrentDate] = useState(new Date())
   // Single modal state — only one overlay can ever show at a time
@@ -257,7 +279,17 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   useEffect(() => { if (notifEnabled) checkAndNotify(events) }, [notifEnabled, events, checkAndNotify])
 
   const toggleNotifications = async () => {
-    if (notifEnabled) { setNotifEnabled(false); localStorage.setItem('notificationsEnabled', 'false'); return }
+    if (notifEnabled) {
+      setNotifEnabled(false)
+      localStorage.setItem('notificationsEnabled', 'false')
+      // Unsubscribe from push
+      try {
+        const reg = swRegRef.current || await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        if (sub) { await sub.unsubscribe(); await fetch('/api/push-subscribe', { method: 'DELETE' }) }
+      } catch {}
+      return
+    }
     if (!('Notification' in window)) {
       showToast(/iPad|iPhone|iPod/.test(navigator.userAgent)
         ? 'On iPhone, add to Home Screen first, then enable notifications.'
@@ -266,8 +298,29 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     }
     let perm = Notification.permission
     if (perm === 'default') perm = await Notification.requestPermission()
-    if (perm === 'granted') { setNotifEnabled(true); localStorage.setItem('notificationsEnabled', 'true'); checkAndNotify(events) }
-    else showToast('Notifications blocked — enable them in your phone settings for this site.')
+    if (perm !== 'granted') {
+      showToast('Notifications blocked — enable them in your phone settings for this site.')
+      return
+    }
+    setNotifEnabled(true)
+    localStorage.setItem('notificationsEnabled', 'true')
+    checkAndNotify(events)
+    // Subscribe to Web Push for background notifications
+    try {
+      const reg = swRegRef.current || await navigator.serviceWorker.ready
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      if (vapidKey) {
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidKey,
+        })
+        await fetch('/api/push-subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sub),
+        })
+      }
+    } catch {}
   }
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/') }
@@ -399,7 +452,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           </div>
         )}
         {activeTab === 'friends' && (
-          <FriendsTab inviteCode={inviteCode} connectedCount={connectedCount} accent={theme.accent} dark={theme.dark} />
+          <FriendsTab inviteCode={inviteCode} connectedCount={connectedCount} connectedFriends={connectedFriends} accent={theme.accent} dark={theme.dark} />
         )}
       </main>
 
