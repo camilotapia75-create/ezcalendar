@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -74,16 +76,23 @@ function DateBadge({ dateStr, endDateStr, accent, faded }) {
   )
 }
 
+function NoFlyer({ accent }) {
+  return (
+    <div style={{ width: '100%', height: 88, background: `linear-gradient(135deg, ${accent}14 0%, ${accent}28 100%)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, borderBottom: `1px solid ${accent}20` }}>
+      <span style={{ fontSize: 28, lineHeight: 1, filter: 'grayscale(0.2)' }}>📌</span>
+      <span style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>No flyer</span>
+    </div>
+  )
+}
+
 function EventCard({ event, accent, onTap, onDelete, faded }) {
+  const [imgFailed, setImgFailed] = React.useState(false)
   return (
     <div onClick={onTap} style={{ marginBottom: 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #e8ddd0', boxShadow: faded ? 'none' : '3px 3px 0 rgba(140,100,60,0.12)', background: '#fffdf8', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
-      {event.image_url ? (
-        <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+      {event.image_url && !imgFailed ? (
+        <img src={event.image_url} alt={event.title || ''} onError={() => setImgFailed(true)} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
       ) : (
-        <div style={{ width: '100%', height: 88, background: `linear-gradient(135deg, ${accent}14 0%, ${accent}28 100%)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, borderBottom: `1px solid ${accent}20` }}>
-          <span style={{ fontSize: 28, lineHeight: 1, filter: 'grayscale(0.2)' }}>📌</span>
-          <span style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>No flyer</span>
-        </div>
+        <NoFlyer accent={accent} />
       )}
       <div style={{ padding: '12px 14px 14px', position: 'relative', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <DateBadge dateStr={event.date} endDateStr={event.end_date} accent={accent} faded={faded} />

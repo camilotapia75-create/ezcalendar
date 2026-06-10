@@ -3,13 +3,16 @@ import { NextResponse } from 'next/server'
 // Node.js runtime — fallback chains can take 30-60s; edge would hard-timeout
 export const maxDuration = 60
 
-const PROMPT = `Extract event details from this webpage content. Return ONLY valid JSON with these exact keys (null for anything not found):
+function getScanPrompt() {
+  const today = new Date().toISOString().split('T')[0]
+  return `Today is ${today}. Extract event details from this webpage content. Return ONLY valid JSON with these exact keys (null for anything not found):
 {
   "title": "event name or title",
-  "date": "YYYY-MM-DD",
-  "time_str": "time range e.g. 7:00 PM – 10:00 PM",
-  "location": "venue name and/or city"
+  "date": "YYYY-MM-DD start date — parse from ISO datetimes like '2026-06-13T20:00:00', startDate fields, or any date text",
+  "time_str": "start time, and end time if present — parse from ISO datetimes (T20:00:00 = 8:00 PM). Examples: '8:00 PM', '7:30 PM – 10:00 PM'",
+  "location": "full venue name AND city — e.g. 'Chase Center, San Francisco, CA'. Always include venue name, not just the city."
 }`
+}
 
 const MODELS = [
   'gemini-2.5-flash',
@@ -253,7 +256,7 @@ function extractJinaImage(text) {
 // quota exhaustion is visible in error messages instead of silently returning null
 async function callGemini(text, apiKey) {
   const body = JSON.stringify({
-    contents: [{ parts: [{ text: `${PROMPT}\n\nContent:\n${text.slice(0, 8000)}` }] }],
+    contents: [{ parts: [{ text: `${getScanPrompt()}\n\nContent:\n${text.slice(0, 8000)}` }] }],
   })
   const diags = []
   for (const modelUrl of MODELS) {
@@ -315,16 +318,21 @@ async function callGeminiVision(dataUrl, apiKey) {
 
 async function proxyImage(imageUrl, referer) {
   if (!imageUrl) return null
+  // Facebook CDN serves images to their own crawler UA more reliably
+  const isFbCdn = /fbcdn\.net|scontent\./i.test(imageUrl)
+  const ua = isFbCdn
+    ? 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+    : 'Mozilla/5.0 (compatible; EZCalendar/1.0)'
   try {
     const res = await fetch(imageUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EZCalendar/1.0)', 'Referer': referer },
-      signal: AbortSignal.timeout(6000),
+      headers: { 'User-Agent': ua, 'Referer': referer },
+      signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return imageUrl
     const ct = res.headers.get('content-type') || 'image/jpeg'
     if (!ct.startsWith('image/')) return imageUrl
     const buf = await res.arrayBuffer()
-    if (buf.byteLength >= 800000) return imageUrl
+    if (buf.byteLength >= 2000000) return imageUrl  // 2 MB cap
     return `data:${ct};base64,${arrayBufferToBase64(buf)}`
   } catch {
     return imageUrl
@@ -398,26 +406,40 @@ export async function POST(request) {
       }
     }
 
+    // — Extract what we can from caption text
+    let textData = null
     if (igText.length > 50) {
       const { data, diag } = await callGemini(igText, apiKey)
-      if (data?.title || data?.date) {
-        const imageData = await proxyImage(igImage, url)
-        return NextResponse.json({ ...data, og_image: imageData || igImage })
-      }
-      errors.push(`GEMINI_NO_TITLE${diag ? `(${diag})` : ''}`)
+      textData = data
+      if (!data && diag) errors.push(`GEMINI_TEXT(${diag})`)
     }
 
-    if (igImage) {
-      const imageData = await proxyImage(igImage, url)
-      // Caption was useless — read the flyer image itself with Gemini vision
-      const visionData = await callGeminiVision(imageData, apiKey)
-      if (visionData?.title || visionData?.date) {
-        return NextResponse.json({ ...visionData, og_image: imageData || igImage })
-      }
-      // Still got the flyer image — return it so the user can fill in details
+    // — Proxy the flyer image (needed for vision and for storing a stable URL)
+    const imageData = igImage ? await proxyImage(igImage, url) : null
+
+    // — Vision on the flyer image when caption text didn't give date/location.
+    //   Instagram captions almost never contain these — they're printed on the flyer.
+    let visionData = null
+    if (imageData?.startsWith('data:') && (!textData?.date || !textData?.location)) {
+      visionData = await callGeminiVision(imageData, apiKey)
+    }
+
+    // — Merge: text wins for title (brand voice), vision wins for date/time/location
+    const merged = {
+      title:    textData?.title    || visionData?.title    || null,
+      date:     textData?.date     || visionData?.date     || null,
+      time_str: textData?.time_str || visionData?.time_str || null,
+      location: textData?.location || visionData?.location || null,
+    }
+
+    if (merged.title || merged.date) {
+      return NextResponse.json({ ...merged, og_image: imageData || igImage })
+    }
+
+    if (imageData) {
       return NextResponse.json({
-        title: null, date: null, time_str: null, location: null,
-        og_image: imageData || igImage,
+        ...merged,
+        og_image: imageData,
         warning: "Got the flyer image, but couldn't read the event details — fill them in below.",
       })
     }
@@ -462,11 +484,17 @@ export async function POST(request) {
       errors.push(og._err)
     }
 
-    // 3) Gemini on description text for any still-missing fields
-    if ((!merged.date || !merged.time_str || !merged.location) && fbDescription.length > 30) {
+    // 3) Gemini on description text — always run when we have it.
+    //    iCal location is often just a city name; Gemini reads the full description
+    //    and extracts the actual venue. Only date/time stay locked to iCal values.
+    if (fbDescription.length > 30) {
       const { data, diag } = await callGemini(`${merged.title || ''}\n${fbDescription}`, apiKey)
-      if (data) fill(data)
-      else if (diag) errors.push(`GEMINI(${diag})`)
+      if (data) {
+        if (data.location) merged.location = data.location  // always prefer Gemini's venue
+        if (data.time_str && !merged.time_str) merged.time_str = data.time_str
+        if (data.title && !merged.title) merged.title = data.title
+        if (data.date && !merged.date) merged.date = data.date
+      } else if (diag) errors.push(`GEMINI(${diag})`)
     }
 
     // 4) Graph API (works only with special app permissions)
@@ -574,16 +602,11 @@ export async function POST(request) {
 
   // —— Step 2: Jina AI Reader fallback ——
   if (blocked || !html) {
-    const jinaResult = await fetchViaJina(url)
+    // markdown format preserves image links that 'text' strips
+    const jinaResult = await fetchViaJina(url, 'markdown')
     if (!jinaResult._err && jinaResult.text && jinaResult.chars > 100) {
       textForGemini = jinaResult.text
-      if (!ogImageUrl) {
-        // Try markdown image, then bare URL ending in image ext
-        const imgMatch =
-          jinaResult.text.match(/!\[.*?\]\((https?:\/\/[^)\s"']+)\)/) ||
-          jinaResult.text.match(/(https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s"'<>]*)?)/i)
-        if (imgMatch) ogImageUrl = imgMatch[1]
-      }
+      if (!ogImageUrl) ogImageUrl = extractJinaImage(jinaResult.text)
     } else {
       return NextResponse.json({ error: 'Could not access that page. Try a different URL or paste an image of the event instead.' }, { status: 400 })
     }
@@ -591,12 +614,9 @@ export async function POST(request) {
 
   // —— Step 2b: Also try Jina if we got HTML but have no image yet ——
   if (html && !ogImageUrl) {
-    const jinaResult = await fetchViaJina(url)
+    const jinaResult = await fetchViaJina(url, 'markdown')
     if (!jinaResult._err && jinaResult.text) {
-      const imgMatch =
-        jinaResult.text.match(/!\[.*?\]\((https?:\/\/[^)\s"']+)\)/) ||
-        jinaResult.text.match(/(https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s"'<>]*)?)/i)
-      if (imgMatch) ogImageUrl = imgMatch[1]
+      ogImageUrl = extractJinaImage(jinaResult.text)
     }
   }
 

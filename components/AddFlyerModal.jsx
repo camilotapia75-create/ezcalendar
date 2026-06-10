@@ -66,6 +66,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
   const [timeStr, setTimeStr] = useState('')
   const [eventDate, setEventDate] = useState(date ? toDateKey(date) : '')
   const [endDate, setEndDate] = useState('')
+  const [showEndDate, setShowEndDate] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [saveError, setSaveError] = useState(null)
@@ -152,6 +153,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
       }
       if (data.end_date && /^\d{4}-\d{2}-\d{2}$/.test(data.end_date)) {
         setEndDate(data.end_date)
+        setShowEndDate(true)
       }
       if (!data.title && !data.date && !data.time_str && !data.location) setAiError('failed')
     } catch (err) {
@@ -202,7 +204,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
     stopCamera()
     setImagePreview(null); setImageForStorage(null)
     setAiDetectedDate(false); setAiError(null); setAiDetail(null); setSaveError(null)
-    setTitle(''); setLocation(''); setTimeStr(''); setEndDate('')
+    setTitle(''); setLocation(''); setTimeStr(''); setEndDate(''); setShowEndDate(false)
     setLinkMode(false); setLinkUrl(''); setLinkScanning(false)
     setLinkError(null); setLinkWarning(null); setOgImageUrl(null); setLinkScanned(false)
     setManualMode(false)
@@ -464,16 +466,27 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                       />
                       {aiDetectedDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 font-semibold tracking-widest">AI</span>}
                     </div>
-                    <div>
-                      <p className="text-[10px] text-white/25 px-1 mb-1">End date — optional, for multi-day events</p>
-                      <div className="relative">
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={eventDate || undefined}
-                          className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80"
-                          style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${endDate ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.08)'}` }}
-                        />
-                        {endDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 font-semibold tracking-widest">{endDate === eventDate ? 'SAME' : 'END'}</span>}
+                    {showEndDate ? (
+                      <div>
+                        <div className="flex items-center justify-between px-1 mb-1">
+                          <p className="text-[10px] text-white/25">End date</p>
+                          <button type="button" onClick={() => { setShowEndDate(false); setEndDate('') }}
+                            className="text-[10px] text-white/25 hover:text-white/50 transition-colors">remove</button>
+                        </div>
+                        <div className="relative">
+                          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={eventDate || undefined}
+                            className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80"
+                            style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${endDate ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.08)'}` }}
+                          />
+                          {endDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 font-semibold tracking-widest">{endDate === eventDate ? 'SAME' : 'END'}</span>}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <button type="button" onClick={() => setShowEndDate(true)}
+                        className="text-[10px] text-white/25 hover:text-white/40 transition-colors px-1 text-left">
+                        + multi-day event?
+                      </button>
+                    )}
                     <input type="text" placeholder="Event title" value={title} onChange={e => setTitle(e.target.value)}
                       className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white"
                       style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${title ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
