@@ -22,8 +22,8 @@ function getVisionPrompt() {
   "title": "event name",
   "date": "YYYY-MM-DD — if partial date like 'Jul 24' with no year, use nearest future year",
   "end_date": "YYYY-MM-DD end date — ONLY if event explicitly spans multiple days (e.g. 'Jun 14-15', 'July 4-6'). null for single-day.",
-  "time_str": "time range exactly as shown on the flyer",
-  "location": "venue name and/or city"
+  "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM', '10 PM - 2 AM', '4-8PM')",
+  "location": "venue name, street address, and/or city — exactly as printed on the flyer (e.g. 'Torch Oakland, 1822 Telegraph Ave, Oakland CA')"
 }`
 }
 
@@ -409,19 +409,22 @@ export async function POST(request) {
     // — Proxy the flyer image (needed for vision + stable storage)
     const imageData = igImage ? await proxyImage(igImage, url) : null
 
-    // — Vision on the flyer: Instagram captions rarely have date/location — the flyer image does
+    // — Vision on the flyer: captions rarely have full details — the flyer image does.
+    //   Run whenever ANY field is missing (time alone missing must trigger it too).
     let visionData = null
-    if (imageData?.startsWith('data:') && (!textData?.date || !textData?.location)) {
+    const textMissing = !textData?.date || !textData?.location || !textData?.time_str || !textData?.title
+    if (imageData?.startsWith('data:') && textMissing) {
       visionData = await callGeminiVision(imageData, apiKey)
     }
 
-    // — Merge: text for title, vision for date/time/location/end_date
+    // — Merge: text for title, vision preferred for location (flyer shows the
+    //   actual venue/address; captions often just name a city)
     const merged = {
       title:    textData?.title    || visionData?.title    || null,
       date:     textData?.date     || visionData?.date     || null,
       end_date: textData?.end_date || visionData?.end_date || null,
       time_str: textData?.time_str || visionData?.time_str || null,
-      location: textData?.location || visionData?.location || null,
+      location: visionData?.location || textData?.location || null,
     }
 
     if (merged.title || merged.date) {
