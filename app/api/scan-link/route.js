@@ -48,6 +48,48 @@ async function tryInstagramOembed(url) {
   }
 }
 
+// Instagram's public embed page — serves image + caption without login or API approval
+async function tryInstagramEmbed(type, shortcode) {
+  try {
+    const res = await fetch(`https://www.instagram.com/${type}/${shortcode}/embed/captioned/`, {
+      headers: BROWSER_HEADERS,
+      signal: AbortSignal.timeout(12000),
+    })
+    if (!res.ok) return { _err: `IG_EMBED_HTTP_${res.status}` }
+    const html = await res.text()
+
+    let image =
+      html.match(/class=["']EmbeddedMediaImage["'][^>]*src=["']([^"']+)["']/i)?.[1] ||
+      html.match(/src=["']([^"']+)["'][^>]*class=["']EmbeddedMediaImage["']/i)?.[1] ||
+      null
+    if (!image) {
+      const duMatch = html.match(/"display_url"\s*\\?:\s*\\?"((?:https?|\\\/\\\/)[^"]+?)\\?"/)
+      if (duMatch) image = duMatch[1]
+    }
+    if (image) {
+      image = image
+        .replace(/\\u0026/gi, '&')
+        .replace(/\\\//g, '/')
+        .replace(/&amp;/g, '&')
+    }
+
+    let caption = ''
+    const capMatch = html.match(/<div[^>]*class=["'][^"']*Caption[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)
+    if (capMatch) {
+      caption = capMatch[1]
+        .replace(/<br[^>]*>/gi, '\n')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&amp;/g, '&').replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/[ \t]+/g, ' ').trim()
+    }
+
+    if (!image && !caption) return { _err: 'IG_EMBED_EMPTY' }
+    return { image, caption }
+  } catch (e) {
+    return { _err: `IG_EMBED_THROW: ${e.message}` }
+  }
+}
+
 async function tryFacebookGraphAPI(eventId) {
   const appId = process.env.FACEBOOK_APP_ID
   const appSecret = process.env.FACEBOOK_APP_SECRET
@@ -149,6 +191,43 @@ async function callGemini(text, apiKey) {
   return null
 }
 
+// Read event details straight off the flyer image (data URL) when page text fails
+async function callGeminiVision(dataUrl, apiKey) {
+  const m = dataUrl?.match(/^data:(image\/[^;]+);base64,(.+)$/)
+  if (!m) return null
+  const today = new Date().toISOString().split('T')[0]
+  const prompt = `Today is ${today}. Extract event details from this flyer image. Return ONLY valid JSON with these exact keys (null for anything not found):
+{
+  "title": "event name or title",
+  "date": "YYYY-MM-DD — if the flyer shows a partial date like 'Jul 24' with no year, infer the nearest future year",
+  "time_str": "time range exactly as shown (e.g. '7:30 PM' or '4-8PM')",
+  "location": "venue name and/or city"
+}`
+  const body = JSON.stringify({
+    contents: [{ parts: [
+      { inlineData: { mimeType: m[1], data: m[2] } },
+      { text: prompt },
+    ]}],
+  })
+  for (const modelUrl of MODELS) {
+    try {
+      const res = await fetch(`${modelUrl}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        signal: AbortSignal.timeout(20000),
+      })
+      if (!res.ok) continue
+      const result = await res.json()
+      const raw = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
+      if (!raw) continue
+      const match = raw.match(/\{[\s\S]*\}/)
+      return JSON.parse(match ? match[0] : raw)
+    } catch { continue }
+  }
+  return null
+}
+
 async function proxyImage(imageUrl, referer) {
   if (!imageUrl) return null
   try {
@@ -190,25 +269,38 @@ export async function POST(request) {
     let igText = ''
     let igImage = null
 
-    // 1) oEmbed API gives thumbnail + caption without requiring user login
-    const oembed = await tryInstagramOembed(url)
-    if (!oembed._err) {
-      igImage = oembed.thumbnail_url || null
-      igText = oembed.caption || ''
+    // 1) Public embed page — works without login or Meta app review
+    const embed = await tryInstagramEmbed(igMatch[1], igMatch[2])
+    if (!embed._err) {
+      igImage = embed.image || null
+      igText = embed.caption || ''
     } else {
-      errors.push(oembed._err)
+      errors.push(embed._err)
     }
 
-    // 2) Jina fallback for richer text
-    const jina = await fetchViaJina(url)
-    if (!jina._err && jina.text && jina.chars > 100) {
-      igText = igText ? `${igText}\n\n${jina.text}` : jina.text
-      if (!igImage) {
-        const imgMatch = jina.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
-        if (imgMatch) igImage = imgMatch[1]
+    // 2) oEmbed API (only works if the Meta app has oEmbed Read approval)
+    if (!igImage || !igText) {
+      const oembed = await tryInstagramOembed(url)
+      if (!oembed._err) {
+        if (!igImage) igImage = oembed.thumbnail_url || null
+        if (!igText)  igText  = oembed.caption || ''
+      } else {
+        errors.push(oembed._err)
       }
-    } else {
-      errors.push(jina._err || `JINA_SHORT(${jina.chars ?? 0}chars)`)
+    }
+
+    // 3) Jina fallback for richer text
+    if (igText.length < 80) {
+      const jina = await fetchViaJina(url)
+      if (!jina._err && jina.text && jina.chars > 100) {
+        igText = igText ? `${igText}\n\n${jina.text}` : jina.text
+        if (!igImage) {
+          const imgMatch = jina.text.match(/!\[.*?\]\((https?:\/\/[^)\s]+)\)/)
+          if (imgMatch) igImage = imgMatch[1]
+        }
+      } else {
+        errors.push(jina._err || `JINA_SHORT(${jina.chars ?? 0}chars)`)
+      }
     }
 
     if (igText.length > 50) {
@@ -218,6 +310,21 @@ export async function POST(request) {
         return NextResponse.json({ ...data, og_image: imageData || igImage })
       }
       errors.push('GEMINI_NO_TITLE')
+    }
+
+    if (igImage) {
+      const imageData = await proxyImage(igImage, url)
+      // Caption was useless — read the flyer image itself with Gemini vision
+      const visionData = await callGeminiVision(imageData, apiKey)
+      if (visionData?.title || visionData?.date) {
+        return NextResponse.json({ ...visionData, og_image: imageData || igImage })
+      }
+      // Still got the flyer image — return it so the user can fill in details
+      return NextResponse.json({
+        title: null, date: null, time_str: null, location: null,
+        og_image: imageData || igImage,
+        warning: "Got the flyer image, but couldn't read the event details — fill them in below.",
+      })
     }
 
     return NextResponse.json({
