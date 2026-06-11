@@ -179,7 +179,7 @@ function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent,
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function CalendarClient({ initialEvents, user, inviteCode, connectedCount = 0, connectedFriends = [], joined = false, joinErr }) {
+export default function CalendarClient({ initialEvents, user, inviteCode, connectedCount = 0, connectedFriends = [], joined = false, joinErr, scanUrl = null }) {
   const [events, setEvents]         = useState(initialEvents)
   const [currentDate, setCurrentDate] = useState(new Date())
   // Single modal state — only one overlay can ever show at a time
@@ -212,6 +212,12 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     if (joined)                showToast('🎉 Connected! You now see your friend\'s events too.')
     else if (joinErr === 'self')     showToast("That's your own invite link!")
     else if (joinErr === 'notfound') showToast('Invite link not found — ask your friend for a new one.')
+    // Shared link from the system share sheet — open the Add modal scanning it,
+    // and scrub the query param so a refresh doesn't re-trigger the scan
+    if (scanUrl) {
+      setModal({ type: 'add', date: null, scanUrl })
+      window.history.replaceState(null, '', '/calendar')
+    }
     supabase.from('day_notes').select('id, date, text_note, drawing_data').then(({ data }) => {
       if (!data) return
       const map = {}
@@ -517,6 +523,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           onAdd={addEvent}
           onClose={() => setModal(null)}
           userId={user.id}
+          initialUrl={modal.scanUrl || null}
         />
       )}
       {modal?.type === 'dayview' && (

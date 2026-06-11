@@ -58,7 +58,7 @@ const IconLink = () => (
   </svg>
 )
 
-export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
+export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl = null }) {
   const [imagePreview, setImagePreview] = useState(null)
   const [imageForStorage, setImageForStorage] = useState(null)
   const [title, setTitle] = useState('')
@@ -97,6 +97,16 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
       videoRef.current.srcObject = cameraStream
     }
   }, [cameraActive, cameraStream])
+
+  // Opened via the system share sheet — start scanning the shared link immediately
+  useEffect(() => {
+    if (initialUrl) {
+      setLinkMode(true)
+      setLinkUrl(initialUrl)
+      scanLink(initialUrl)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const stopCamera = () => {
     cameraStream?.getTracks().forEach(t => t.stop())
@@ -171,8 +181,11 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
     reader.readAsDataURL(file)
   }
 
-  const scanLink = async () => {
-    if (!linkUrl.trim()) return
+  const scanLink = async (urlArg) => {
+    // urlArg is a string when called programmatically (share sheet), or a
+    // click event when used as an onClick handler — only trust strings
+    const target = (typeof urlArg === 'string' ? urlArg : linkUrl).trim()
+    if (!target) return
     setLinkScanning(true)
     setLinkError(null)
     setLinkWarning(null)
@@ -180,7 +193,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
       const res = await fetch('/api/scan-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: linkUrl.trim() }),
+        body: JSON.stringify({ url: target }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to read link')

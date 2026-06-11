@@ -67,6 +67,7 @@ export default async function CalendarPage({ searchParams }) {
       connectedFriends={connectedFriends}
       joined={searchParams?.joined === '1'}
       joinErr={searchParams?.join_err}
+      scanUrl={typeof searchParams?.scan === 'string' ? searchParams.scan : null}
     />
   )
 }
