@@ -360,13 +360,12 @@ export async function POST(request) {
 
     const embedUrl = `https://www.instagram.com/${igMatch[1]}/${igMatch[2]}/embed/captioned/`
 
-    // Fetch all three text/image sources IN PARALLEL — direct embed usually
-    // 403s from cloud IPs, so don't make Jina wait behind it
-    const [embed, jinaEmbed, jinaPost] = await Promise.all([
-      tryInstagramEmbed(igMatch[1], igMatch[2]),
-      fetchViaJina(embedUrl),
-      fetchViaJina(url),
-    ])
+    // Kick off all three sources at once, but only WAIT for Jina when the
+    // direct embed didn't deliver — embed typically answers in ~2s while
+    // Jina takes 10-20s, so this saves most of the wait on the happy path
+    const jinaEmbedP = fetchViaJina(embedUrl)
+    const jinaPostP = fetchViaJina(url)
+    const embed = await tryInstagramEmbed(igMatch[1], igMatch[2])
 
     if (!embed._err) {
       igImage = embed.image || null
@@ -375,18 +374,22 @@ export async function POST(request) {
       errors.push(embed._err)
     }
 
-    if (!jinaEmbed._err && jinaEmbed.chars > 100) {
-      if (!igImage) igImage = extractJinaImage(jinaEmbed.text)
-      if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaEmbed.text}` : jinaEmbed.text
-    } else {
-      errors.push(`EMBED:${jinaEmbed._err || `SHORT(${jinaEmbed.chars ?? 0}ch)`}`)
-    }
+    if (!igImage || igText.length < 80) {
+      const [jinaEmbed, jinaPost] = await Promise.all([jinaEmbedP, jinaPostP])
 
-    if (!jinaPost._err && jinaPost.chars > 100) {
-      if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaPost.text}` : jinaPost.text
-      if (!igImage) igImage = extractJinaImage(jinaPost.text)
-    } else {
-      errors.push(`POST:${jinaPost._err || `SHORT(${jinaPost.chars ?? 0}ch)`}`)
+      if (!jinaEmbed._err && jinaEmbed.chars > 100) {
+        if (!igImage) igImage = extractJinaImage(jinaEmbed.text)
+        if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaEmbed.text}` : jinaEmbed.text
+      } else {
+        errors.push(`EMBED:${jinaEmbed._err || `SHORT(${jinaEmbed.chars ?? 0}ch)`}`)
+      }
+
+      if (!jinaPost._err && jinaPost.chars > 100) {
+        if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaPost.text}` : jinaPost.text
+        if (!igImage) igImage = extractJinaImage(jinaPost.text)
+      } else {
+        errors.push(`POST:${jinaPost._err || `SHORT(${jinaPost.chars ?? 0}ch)`}`)
+      }
     }
 
     // oEmbed API as last text source (requires Meta app review — often fails)
@@ -400,12 +403,15 @@ export async function POST(request) {
       }
     }
 
-    // Proxy the image first (vision needs a data URL), then run caption-Gemini
-    // and flyer-vision IN PARALLEL — halves latency and avoids timeouts
-    const imageData = igImage ? await proxyImage(igImage, url) : null
-    const [textResult, visionData] = await Promise.all([
+    // Caption-Gemini doesn't need the image, so run it in parallel with the
+    // whole proxy→vision chain instead of waiting for the proxy first
+    const [textResult, { imageData, visionData }] = await Promise.all([
       igText.length > 50 ? callGemini(igText, apiKey) : Promise.resolve({ data: null, diag: 'no-text' }),
-      imageData?.startsWith('data:') ? callGeminiVision(imageData, apiKey) : Promise.resolve(null),
+      (async () => {
+        const img = igImage ? await proxyImage(igImage, url) : null
+        const vd = img?.startsWith('data:') ? await callGeminiVision(img, apiKey) : null
+        return { imageData: img, visionData: vd }
+      })(),
     ])
     const textData = textResult.data
     if (!textData && textResult.diag) errors.push(`GEMINI_TEXT(${textResult.diag})`)
@@ -491,6 +497,9 @@ export async function POST(request) {
     }
     if (!merged.og_image && jinaText) merged.og_image = extractJinaImage(jinaText)
 
+    // Start downloading the cover image now — runs while Gemini reads the page text
+    const proxyP = merged.og_image ? proxyImage(merged.og_image, url) : Promise.resolve(null)
+
     // Gemini input priority: Jina (full page) → OG description (when Jina is login-walled, FB
     // serves "Sat Jun 20 at 10 PM · City of Martinez" in og:description to crawler UAs) → iCal desc
     const ogDescText = (!ogResult._err && ogResult.description)
@@ -517,7 +526,8 @@ export async function POST(request) {
     }
 
     if (merged.title || merged.date) {
-      merged.og_image = await proxyImage(merged.og_image, url)
+      // Graph API fallback may have set an already-proxied data URL — keep it
+      if (!merged.og_image?.startsWith('data:')) merged.og_image = await proxyP
       // Vision on cover image for any still-missing fields
       if (merged.og_image?.startsWith('data:') && (!merged.date || !merged.time_str || !merged.location)) {
         const vd = await callGeminiVision(merged.og_image, apiKey)
@@ -615,8 +625,10 @@ export async function POST(request) {
     if (!jinaResult._err && jinaResult.text) ogImageUrl = extractJinaImage(jinaResult.text)
   }
 
-  const ogImageData = await proxyImage(ogImageUrl, url)
-  const { data, diag } = await callGemini(textForGemini, apiKey)
+  const [ogImageData, { data, diag }] = await Promise.all([
+    proxyImage(ogImageUrl, url),
+    callGemini(textForGemini, apiKey),
+  ])
   if (data) return NextResponse.json({ ...data, og_image: ogImageData || ogImageUrl })
 
   return NextResponse.json({ error: `Could not extract event details from that URL.${diag ? ` [GEMINI: ${diag}]` : ''}` }, { status: 500 })

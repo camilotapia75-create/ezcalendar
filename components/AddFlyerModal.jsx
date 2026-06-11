@@ -82,6 +82,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
   const [linkWarning, setLinkWarning] = useState(null)
   const [ogImageUrl, setOgImageUrl] = useState(null)
   const [linkScanned, setLinkScanned] = useState(false)
+  const [detailFilling, setDetailFilling] = useState(false)
   const [manualMode, setManualMode] = useState(false)
 
   const videoRef = useRef()
@@ -195,39 +196,43 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
         setShowEndDate(true)
       }
       setOgImageUrl(data.og_image || null)
-
-      // Fallback: link gave us an image but missed details — run the image
-      // through the flyer pipeline (same resize + endpoint as photo uploads)
-      const missingDetails = !data.date || !data.time_str || !data.location || !data.title
-      if (missingDetails && data.og_image?.startsWith('data:')) {
-        try {
-          const small = await resizeImage(data.og_image, 800, 0.7)
-          const fres = await fetch('/api/analyze-flyer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageData: small, mediaType: 'image/jpeg' }),
-          })
-          if (fres.ok) {
-            const fd = await fres.json()
-            if (!data.title && fd.title) setTitle(fd.title)
-            if (!data.time_str && fd.time_str) setTimeStr(fd.time_str)
-            if (!data.location && fd.location) setLocation(fd.location)
-            if (!data.date && fd.date && /^\d{4}-\d{2}-\d{2}$/.test(fd.date)) {
-              setEventDate(fd.date)
-              setAiDetectedDate(true)
-            }
-            if (!data.end_date && fd.end_date && /^\d{4}-\d{2}-\d{2}$/.test(fd.end_date)) {
-              setEndDate(fd.end_date)
-              setShowEndDate(true)
-            }
-            // Flyer read succeeded — the link warning no longer applies
-            if (fd.title || fd.date) data.warning = null
-          }
-        } catch {}
-      }
-
       if (data.warning) setLinkWarning(data.warning)
       setLinkScanned(true)
+
+      // Fallback: link gave us an image but missed details — run the image
+      // through the flyer pipeline (same resize + endpoint as photo uploads).
+      // Runs in the BACKGROUND so the form shows instantly; fields pop in.
+      const missingDetails = !data.date || !data.time_str || !data.location || !data.title
+      if (missingDetails && data.og_image?.startsWith('data:')) {
+        setDetailFilling(true)
+        ;(async () => {
+          try {
+            const small = await resizeImage(data.og_image, 800, 0.7)
+            const fres = await fetch('/api/analyze-flyer', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageData: small, mediaType: 'image/jpeg' }),
+            })
+            if (fres.ok) {
+              const fd = await fres.json()
+              if (!data.title && fd.title) setTitle(fd.title)
+              if (!data.time_str && fd.time_str) setTimeStr(fd.time_str)
+              if (!data.location && fd.location) setLocation(fd.location)
+              if (!data.date && fd.date && /^\d{4}-\d{2}-\d{2}$/.test(fd.date)) {
+                setEventDate(fd.date)
+                setAiDetectedDate(true)
+              }
+              if (!data.end_date && fd.end_date && /^\d{4}-\d{2}-\d{2}$/.test(fd.end_date)) {
+                setEndDate(fd.end_date)
+                setShowEndDate(true)
+              }
+              // Flyer read succeeded — the link warning no longer applies
+              if (fd.title || fd.date) setLinkWarning(null)
+            }
+          } catch {}
+          finally { setDetailFilling(false) }
+        })()
+      }
     } catch (err) {
       setLinkError(err.message)
     } finally {
@@ -242,6 +247,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
     setTitle(''); setLocation(''); setTimeStr(''); setEndDate(''); setShowEndDate(false)
     setLinkMode(false); setLinkUrl(''); setLinkScanning(false)
     setLinkError(null); setLinkWarning(null); setOgImageUrl(null); setLinkScanned(false)
+    setDetailFilling(false)
     setManualMode(false)
     if (!date) setEventDate('')
   }
@@ -461,6 +467,11 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: 'rgba(0,0,0,0.7)' }}>
                     <div className="w-8 h-8 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
                     <p className="text-xs text-violet-300 font-medium tracking-wide">Reading…</p>
+                  </div>
+                )}
+                {detailFilling && !analyzing && !linkScanning && (
+                  <div className="absolute bottom-0 inset-x-0 py-1.5 text-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+                    <p className="text-[11px] text-violet-300 animate-pulse">Reading flyer for more details…</p>
                   </div>
                 )}
                 {!analyzing && !linkScanning && (
