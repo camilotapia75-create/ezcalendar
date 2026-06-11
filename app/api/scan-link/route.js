@@ -414,6 +414,31 @@ export async function POST(request) {
   let baseUrl = url
   try { baseUrl = new URL(url).origin } catch {}
 
+  // —— Facebook short/share links (what the FB mobile app's share sheet produces) ——
+  // fb.me/e/XXXX and facebook.com/share/... redirect to the real event URL.
+  // Resolve them first so the event path below can handle them.
+  if (/(?:fb\.me\/|fb\.watch\/|facebook\.com\/share\/)/i.test(url) && !/facebook\.com\/events\/\d+/i.test(url)) {
+    try {
+      const res = await fetch(url, {
+        headers: BROWSER_HEADERS,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(8000),
+      })
+      // res.url is the final URL after redirects — even a login redirect
+      // carries the original destination in its ?next= param
+      const finalUrl = decodeURIComponent(res.url || '')
+      const m = finalUrl.match(/facebook\.com\/events\/\d+/i)
+      if (m) url = `https://www.${m[0]}/`
+    } catch {}
+    // Event short link that wouldn't resolve — the generic scanner can't do
+    // anything useful with Facebook, so fail with actionable advice instead
+    if (/fb\.me\/e\//i.test(url)) {
+      return NextResponse.json({
+        error: "Couldn't resolve that Facebook short link. Open the event in your browser and share the full facebook.com/events/... URL instead.",
+      }, { status: 400 })
+    }
+  }
+
   // —— Instagram posts / reels ——
   const igMatch = url.match(/instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)/i)
   if (igMatch) {
