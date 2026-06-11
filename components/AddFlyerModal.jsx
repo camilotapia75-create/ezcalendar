@@ -459,16 +459,26 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
 
           {linkMode && !linkScanned && (
             <div className="space-y-3">
-              <input
-                type="url"
-                placeholder="https://..."
-                value={linkUrl}
-                onChange={e => setLinkUrl(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && scanLink()}
-                autoFocus
-                className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none text-white"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
-              />
+              {linkScanning ? (
+                <div className="relative rounded-2xl overflow-hidden" style={{ height: 180, background: '#0a0612' }}>
+                  <div className="anim-scanline" />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <p className="text-xs text-violet-300 font-medium tracking-wide animate-pulse -mt-6" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>Collecting data…</p>
+                  </div>
+                  <ScanBot />
+                </div>
+              ) : (
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={linkUrl}
+                  onChange={e => setLinkUrl(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && scanLink()}
+                  autoFocus
+                  className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none text-white"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+                />
+              )}
               {linkError && (
                 <p className="text-xs px-1" style={{ color: 'rgba(248,113,113,0.9)' }}>{linkError}</p>
               )}
