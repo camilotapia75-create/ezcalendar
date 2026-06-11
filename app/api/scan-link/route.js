@@ -30,7 +30,10 @@ function getVisionPrompt() {
 const MODELS = [
   'gemini-2.5-flash',
   'gemini-2.0-flash',
+  'gemini-2.0-flash-001',
   'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
 ].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
 
 const BROWSER_HEADERS = {
@@ -217,8 +220,9 @@ async function tryFacebookOg(pageUrl) {
       html.match(new RegExp(`content=["']([^"']+)["'][^>]+property=["']og:${prop}["']`, 'i'))?.[1] || null
     const image = decodeHtml(meta('image'))
     const title = decodeHtml(meta('title'))
-    if (!image && !title) return { _err: `FB_OG_EMPTY(${html.length}ch)` }
-    return { image, title }
+    const description = decodeHtml(meta('description'))
+    if (!image && !title && !description) return { _err: `FB_OG_EMPTY(${html.length}ch)` }
+    return { image, title, description }
   } catch (e) {
     return { _err: `FB_OG_THROW: ${e.message}` }
   }
@@ -320,14 +324,14 @@ async function proxyImage(imageUrl, referer) {
       headers: { 'User-Agent': ua, 'Referer': referer || imageUrl },
       signal: AbortSignal.timeout(8000),
     })
-    if (!res.ok) return imageUrl
+    if (!res.ok) return isFbCdn ? null : imageUrl
     const ct = res.headers.get('content-type') || 'image/jpeg'
-    if (!ct.startsWith('image/')) return imageUrl
+    if (!ct.startsWith('image/')) return isFbCdn ? null : imageUrl
     const buf = await res.arrayBuffer()
     if (buf.byteLength >= 2000000) return imageUrl
     return `data:${ct};base64,${arrayBufferToBase64(buf)}`
   } catch {
-    return imageUrl
+    return isFbCdn ? null : imageUrl
   }
 }
 
@@ -477,12 +481,21 @@ export async function POST(request) {
 
     // Jina: full rendered page text → Gemini extracts venue name + time
     // Facebook's rendered page explicitly states "Saturday, June 20 at 10 PM – 2 AM CDT"
-    let jinaText = (!jinaResult._err && jinaResult.chars > 100) ? jinaResult.text : ''
-    if (!jinaText) errors.push(jinaResult._err || `JINA_SHORT(${jinaResult.chars ?? 0}ch)`)
+    let jinaText = ''
+    if (!jinaResult._err && jinaResult.chars > 100) {
+      const isLoginWall = /log in|sign in|create an account|join facebook|you must be logged in/i.test(jinaResult.text.slice(0, 600))
+      if (isLoginWall) errors.push('JINA_FB_LOGIN_WALL')
+      else jinaText = jinaResult.text
+    } else {
+      errors.push(jinaResult._err || `JINA_SHORT(${jinaResult.chars ?? 0}ch)`)
+    }
     if (!merged.og_image && jinaText) merged.og_image = extractJinaImage(jinaText)
 
-    // Gemini on Jina text (preferred) or iCal description (fallback)
-    const geminiInput = jinaText || (icalResult.description ? `${merged.title || ''}\n${icalResult.description}` : '')
+    // Gemini input priority: Jina (full page) → OG description (when Jina is login-walled, FB
+    // serves "Sat Jun 20 at 10 PM · City of Martinez" in og:description to crawler UAs) → iCal desc
+    const ogDescText = (!ogResult._err && ogResult.description)
+      ? `${merged.title || ''}\n${ogResult.description}` : ''
+    const geminiInput = jinaText || ogDescText || (icalResult.description ? `${merged.title || ''}\n${icalResult.description}` : '')
     if (geminiInput.length > 30) {
       const { data, diag } = await callGemini(geminiInput, apiKey)
       if (data) {
