@@ -82,6 +82,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   const [linkWarning, setLinkWarning] = useState(null)
   const [ogImageUrl, setOgImageUrl] = useState(null)
   const [linkScanned, setLinkScanned] = useState(false)
+  const [scanDiag, setScanDiag] = useState(null)
   const [detailFilling, setDetailFilling] = useState(false)
   const [manualMode, setManualMode] = useState(false)
 
@@ -218,7 +219,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to read link')
-      if (data._diag) console.log('[scan-link]', data._diag)
+      if (data._diag) { console.log('[scan-link]', data._diag); setScanDiag(data._diag) }
       if (data.title) typeIn(setTitle, data.title)
       if (data.time_str) typeIn(setTimeStr, data.time_str)
       if (data.location) typeIn(setLocation, data.location)
@@ -284,7 +285,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
     setTitle(''); setLocation(''); setTimeStr(''); setEndDate(''); setShowEndDate(false)
     setLinkMode(false); setLinkUrl(''); setLinkScanning(false)
     setLinkError(null); setLinkWarning(null); setOgImageUrl(null); setLinkScanned(false)
-    setDetailFilling(false)
+    setScanDiag(null); setDetailFilling(false)
     setManualMode(false)
     if (!date) setEventDate('')
   }
@@ -493,7 +494,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                 {imagePreview ? (
                   <img src={imagePreview} alt="flyer" className="w-full h-full object-contain" />
                 ) : ogImageUrl ? (
-                  <img src={ogImageUrl} alt="flyer" className="w-full h-full object-contain" />
+                  <img src={ogImageUrl} alt="flyer" className="w-full h-full object-contain"
+                    onError={() => setOgImageUrl(null)} />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
                     <IconLink />
@@ -526,6 +528,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.40)' }}>
                   {linkWarning}
                 </div>
+              )}
+              {!manualMode && scanDiag && !linkScanning && (
+                <p className="px-1 text-[9px] leading-snug break-all" style={{ color: 'rgba(255,255,255,0.18)' }}>{scanDiag}</p>
               )}
               {!manualMode && aiError && !analyzing && (
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{

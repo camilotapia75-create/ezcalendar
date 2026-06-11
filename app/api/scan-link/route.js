@@ -364,7 +364,8 @@ async function callGeminiVision(dataUrl, apiKey) {
 
 async function proxyImage(imageUrl, referer) {
   if (!imageUrl) return null
-  const isFbCdn = /fbcdn\.net|scontent\./i.test(imageUrl)
+  // lookaside.fbsbx.com is what FB serves as og:image to alternate crawler UAs
+  const isFbCdn = /fbcdn\.net|scontent\.|fbsbx\.com/i.test(imageUrl)
 
   const attempt = async (ua, fetchUrl = imageUrl, timeout = 8000) => {
     try {
@@ -618,10 +619,12 @@ export async function POST(request) {
     if (merged.title || merged.date) {
       // Graph API fallback may have set an already-proxied data URL — keep it
       if (!merged.og_image?.startsWith('data:')) {
-        const hadUrl = !!merged.og_image
+        const srcUrl = merged.og_image
         merged.og_image = await proxyP
-        if (!hadUrl) errors.push('NO_OG_IMAGE_FOUND')
-        else if (!merged.og_image?.startsWith('data:')) errors.push(`IMG_PROXY_FELL_BACK(${merged.og_image ? 'weserv-url' : 'null'})`)
+        if (!srcUrl) errors.push('NO_OG_IMAGE_FOUND')
+        else if (!merged.og_image?.startsWith('data:')) {
+          errors.push(`IMG_PROXY_FELL_BACK(${merged.og_image ? 'url' : 'null'}) src=${srcUrl.slice(0, 100)}`)
+        }
       }
       // Vision on cover image for any still-missing fields
       if (merged.og_image?.startsWith('data:') && (!merged.date || !merged.time_str || !merged.location)) {
