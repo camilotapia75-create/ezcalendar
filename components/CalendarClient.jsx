@@ -224,22 +224,19 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const [notes, setNotes]               = useState({})
   const [activeTab, setActiveTab]       = useState('feed')
   const [notifEvents, setNotifEvents]   = useState({})
-  // 'all' | 'mine' | a friend's user id — which calendar(s) to show
-  const [calFilter, setCalFilter]       = useState('all')
+  // 'mine' = just your events; 'shared' = yours + connected friends' together
+  const [calFilter, setCalFilter]       = useState('mine')
   const swRegRef = useRef(null)
   const router = useRouter()
   const supabase = createClient()
 
   const visibleEvents =
-    calFilter === 'all'  ? events :
-    calFilter === 'mine' ? events.filter(e => e.user_id === user.id) :
-    events.filter(e => e.user_id === calFilter)
+    calFilter === 'shared' ? events : events.filter(e => e.user_id === user.id)
 
   const disconnectFriend = async (friendId) => {
     const [a, b] = user.id < friendId ? [user.id, friendId] : [friendId, user.id]
     await supabase.from('calendar_connections').delete().eq('user_a_id', a).eq('user_b_id', b)
     setEvents(prev => prev.filter(e => e.user_id !== friendId))
-    if (calFilter === friendId) setCalFilter('all')
     showToast('Left the shared calendar')
     router.refresh()
   }
@@ -505,9 +502,8 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         {connectedFriends.length > 0 && (activeTab === 'feed' || activeTab === 'calendar') && (
           <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             {[
-              { id: 'all',  label: 'Everyone' },
-              { id: 'mine', label: 'My events' },
-              ...connectedFriends.map(f => ({ id: f.id, label: (f.name || f.email || 'Friend').split(/[\s@]/)[0] })),
+              { id: 'mine',   label: '📒 My calendar' },
+              { id: 'shared', label: '👥 Shared' },
             ].map(c => (
               <button key={c.id} onClick={() => setCalFilter(c.id)}
                 style={{
