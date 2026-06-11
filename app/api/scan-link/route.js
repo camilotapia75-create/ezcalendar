@@ -366,30 +366,32 @@ async function proxyImage(imageUrl, referer) {
   if (!imageUrl) return null
   const isFbCdn = /fbcdn\.net|scontent\./i.test(imageUrl)
 
-  const attempt = async (ua, fetchUrl = imageUrl) => {
+  const attempt = async (ua, fetchUrl = imageUrl, timeout = 8000) => {
     try {
       const res = await fetch(fetchUrl, {
         headers: { 'User-Agent': ua, 'Referer': referer || imageUrl },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(timeout),
       })
       if (!res.ok) return null
       const ct = res.headers.get('content-type') || 'image/jpeg'
       if (!ct.startsWith('image/')) return null
       const buf = await res.arrayBuffer()
-      if (buf.byteLength >= 2000000) return imageUrl
+      // Raw fbcdn URLs are signed + expiring — browsers can't load them later
+      if (buf.byteLength >= 2000000) return isFbCdn ? null : imageUrl
       return `data:${ct};base64,${arrayBufferToBase64(buf)}`
     } catch { return null }
   }
 
   if (isFbCdn) {
-    // Facebook CDN: try their own crawler UA, then a browser UA, then route
-    // through the weserv.nl image CDN (their infra isn't blocked by fbcdn).
-    // Never return the raw fbcdn URL — browsers can't load it (signed/expiring)
+    // fbcdn blocks our egress IPs — route through the weserv.nl image CDN.
+    // w=1200 makes weserv resize before sending, keeping the fetch fast and small.
+    // Last resort: hand the browser the weserv URL itself to load directly.
+    const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(imageUrl)}&w=1200`
     return (
       await attempt('facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)') ??
       await attempt(BROWSER_HEADERS['User-Agent']) ??
-      await attempt('Mozilla/5.0 (compatible; EZCalendar/1.0)', `https://images.weserv.nl/?url=${encodeURIComponent(imageUrl)}`) ??
-      null
+      await attempt('Mozilla/5.0 (compatible; EZCalendar/1.0)', weservUrl, 15000) ??
+      weservUrl
     )
   }
   return (await attempt('Mozilla/5.0 (compatible; EZCalendar/1.0)')) ?? imageUrl
@@ -615,7 +617,12 @@ export async function POST(request) {
 
     if (merged.title || merged.date) {
       // Graph API fallback may have set an already-proxied data URL — keep it
-      if (!merged.og_image?.startsWith('data:')) merged.og_image = await proxyP
+      if (!merged.og_image?.startsWith('data:')) {
+        const hadUrl = !!merged.og_image
+        merged.og_image = await proxyP
+        if (!hadUrl) errors.push('NO_OG_IMAGE_FOUND')
+        else if (!merged.og_image?.startsWith('data:')) errors.push(`IMG_PROXY_FELL_BACK(${merged.og_image ? 'weserv-url' : 'null'})`)
+      }
       // Vision on cover image for any still-missing fields
       if (merged.og_image?.startsWith('data:') && (!merged.date || !merged.time_str || !merged.location)) {
         const vd = await callGeminiVision(merged.og_image, apiKey)
