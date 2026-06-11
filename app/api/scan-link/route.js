@@ -299,7 +299,7 @@ async function callGeminiVision(dataUrl, apiKey) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(30000),
       })
       if (!res.ok) continue
       const result = await res.json()

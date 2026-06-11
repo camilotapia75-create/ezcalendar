@@ -195,6 +195,37 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId }) {
         setShowEndDate(true)
       }
       setOgImageUrl(data.og_image || null)
+
+      // Fallback: link gave us an image but missed details — run the image
+      // through the flyer pipeline (same resize + endpoint as photo uploads)
+      const missingDetails = !data.date || !data.time_str || !data.location || !data.title
+      if (missingDetails && data.og_image?.startsWith('data:')) {
+        try {
+          const small = await resizeImage(data.og_image, 800, 0.7)
+          const fres = await fetch('/api/analyze-flyer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageData: small, mediaType: 'image/jpeg' }),
+          })
+          if (fres.ok) {
+            const fd = await fres.json()
+            if (!data.title && fd.title) setTitle(fd.title)
+            if (!data.time_str && fd.time_str) setTimeStr(fd.time_str)
+            if (!data.location && fd.location) setLocation(fd.location)
+            if (!data.date && fd.date && /^\d{4}-\d{2}-\d{2}$/.test(fd.date)) {
+              setEventDate(fd.date)
+              setAiDetectedDate(true)
+            }
+            if (!data.end_date && fd.end_date && /^\d{4}-\d{2}-\d{2}$/.test(fd.end_date)) {
+              setEndDate(fd.end_date)
+              setShowEndDate(true)
+            }
+            // Flyer read succeeded — the link warning no longer applies
+            if (fd.title || fd.date) data.warning = null
+          }
+        } catch {}
+      }
+
       if (data.warning) setLinkWarning(data.warning)
       setLinkScanned(true)
     } catch (err) {
