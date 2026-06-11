@@ -184,7 +184,7 @@ async function tryFacebookICal(eventId) {
         const h = parseInt(d[4])
         time = `${h % 12 === 0 ? 12 : h % 12}:${d[5]} ${h >= 12 ? 'PM' : 'AM'}`
       }
-      return { date: `${d[1]}-${d[2]}-${d[3]}`, time }
+      return { date: `${d[1]}-${d[2]}-${d[3]}`, time, utc: isUtc && !hasTz }
     }
     const s = parseDt(get('DTSTART'))
     const e = parseDt(get('DTEND'))
@@ -193,6 +193,7 @@ async function tryFacebookICal(eventId) {
     return {
       title: unesc(get('SUMMARY')?.[2]) || null,
       date: s?.date || null,
+      dateIsUtc: s?.utc || false,
       end_date: e && s && e.date !== s.date ? e.date : null,
       time_str,
       location: unesc(get('LOCATION')?.[2]) || null,
@@ -226,6 +227,42 @@ async function tryFacebookOg(pageUrl) {
   } catch (e) {
     return { _err: `FB_OG_THROW: ${e.message}` }
   }
+}
+
+// Directly parse Facebook's og:description to extract time/date/location without Gemini.
+// Facebook serves predictable formats like:
+// "Wednesday, October 28, 2026 at 7:00 PM UTC-07:00 · Oakland Arena, Oakland, California"
+function parseFacebookOgDescription(description) {
+  if (!description) return {}
+  const result = {}
+
+  // Time: "at 7 PM", "at 7:00 PM", optionally "– 10:00 PM", with optional timezone suffix
+  const timeM = description.match(
+    /\bat\s+(\d{1,2}(?::\d{2})?\s*(?:AM|PM))(?:\s*(?:UTC[+-][\d:]+|[A-Z]{2,4}T))?(?:\s*[-–]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)))?/i
+  )
+  if (timeM) {
+    result.time_str = timeM[2]
+      ? `${timeM[1].trim()} – ${timeM[2].trim()}`
+      : timeM[1].trim()
+  }
+
+  // Location: text after the · separator Facebook uses between time and venue
+  const bulletIdx = description.indexOf('·')
+  if (bulletIdx !== -1) {
+    result.location = description.slice(bulletIdx + 1).trim().split('\n')[0].trim()
+  }
+
+  // Date: "Wednesday, October 28, 2026" or just "October 28"
+  const MONTHS = { january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 }
+  const dateM = description.match(/(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+)?(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:,?\s*(\d{4}))?/i)
+  if (dateM) {
+    const month = MONTHS[dateM[1].toLowerCase()]
+    const day = parseInt(dateM[2])
+    const year = dateM[3] ? parseInt(dateM[3]) : new Date().getFullYear()
+    if (month) result.date = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+  }
+
+  return result
 }
 
 async function fetchViaJina(url, format = 'markdown') {
@@ -314,25 +351,33 @@ async function callGeminiVision(dataUrl, apiKey) {
 
 async function proxyImage(imageUrl, referer) {
   if (!imageUrl) return null
-  // Facebook CDN serves images more reliably to their own crawler UA
   const isFbCdn = /fbcdn\.net|scontent\./i.test(imageUrl)
-  const ua = isFbCdn
-    ? 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
-    : 'Mozilla/5.0 (compatible; EZCalendar/1.0)'
-  try {
-    const res = await fetch(imageUrl, {
-      headers: { 'User-Agent': ua, 'Referer': referer || imageUrl },
-      signal: AbortSignal.timeout(8000),
-    })
-    if (!res.ok) return isFbCdn ? null : imageUrl
-    const ct = res.headers.get('content-type') || 'image/jpeg'
-    if (!ct.startsWith('image/')) return isFbCdn ? null : imageUrl
-    const buf = await res.arrayBuffer()
-    if (buf.byteLength >= 2000000) return imageUrl
-    return `data:${ct};base64,${arrayBufferToBase64(buf)}`
-  } catch {
-    return isFbCdn ? null : imageUrl
+
+  const attempt = async (ua) => {
+    try {
+      const res = await fetch(imageUrl, {
+        headers: { 'User-Agent': ua, 'Referer': referer || imageUrl },
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) return null
+      const ct = res.headers.get('content-type') || 'image/jpeg'
+      if (!ct.startsWith('image/')) return null
+      const buf = await res.arrayBuffer()
+      if (buf.byteLength >= 2000000) return imageUrl
+      return `data:${ct};base64,${arrayBufferToBase64(buf)}`
+    } catch { return null }
   }
+
+  if (isFbCdn) {
+    // Facebook CDN: try their own crawler UA first, fall back to a browser UA.
+    // Never return the raw fbcdn URL — browsers can't load it (signed/expiring)
+    return (
+      await attempt('facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)') ??
+      await attempt(BROWSER_HEADERS['User-Agent']) ??
+      null
+    )
+  }
+  return (await attempt('Mozilla/5.0 (compatible; EZCalendar/1.0)')) ?? imageUrl
 }
 
 export async function POST(request) {
@@ -475,6 +520,8 @@ export async function POST(request) {
       if (icalResult.date)     merged.date     = icalResult.date
       if (icalResult.end_date) merged.end_date = icalResult.end_date
       if (icalResult.time_str) merged.time_str = icalResult.time_str
+      // UTC iCal date can be off by 1 day — og:description carries the correct local date
+      if (icalResult.dateIsUtc) merged._utcDate = true
     }
 
     // OG: event cover image (decode HTML entities — Facebook HTML has &amp; in URLs)
@@ -485,13 +532,29 @@ export async function POST(request) {
       errors.push(ogResult._err)
     }
 
+    // Direct-parse Facebook's og:description for time/location/date —
+    // Facebook serves "Wednesday, October 28 at 7:00 PM UTC-07:00 · Oakland Arena, City"
+    // which is more reliable than Gemini for these structured formats
+    if (!ogResult._err && ogResult.description) {
+      const direct = parseFacebookOgDescription(ogResult.description)
+      if (direct.time_str && !merged.time_str) merged.time_str = direct.time_str
+      if (direct.location && !merged.location) merged.location = direct.location
+      // Allow direct-parsed local date to override a potentially off-by-one UTC iCal date
+      if (direct.date && (!merged.date || merged._utcDate)) merged.date = direct.date
+    }
+
     // Jina: full rendered page text → Gemini extracts venue name + time
     // Facebook's rendered page explicitly states "Saturday, June 20 at 10 PM – 2 AM CDT"
     let jinaText = ''
     if (!jinaResult._err && jinaResult.chars > 100) {
       const isLoginWall = /log in|sign in|create an account|join facebook|you must be logged in/i.test(jinaResult.text.slice(0, 600))
-      if (isLoginWall) errors.push('JINA_FB_LOGIN_WALL')
-      else jinaText = jinaResult.text
+      if (isLoginWall) {
+        errors.push('JINA_FB_LOGIN_WALL')
+        // The login wall page often still contains the event cover image URL — try to extract it
+        if (!merged.og_image) merged.og_image = extractJinaImage(jinaResult.text)
+      } else {
+        jinaText = jinaResult.text
+      }
     } else {
       errors.push(jinaResult._err || `JINA_SHORT(${jinaResult.chars ?? 0}ch)`)
     }
@@ -512,13 +575,13 @@ export async function POST(request) {
         if (data.location) merged.location = data.location
         if (data.time_str && !merged.time_str) merged.time_str = data.time_str
         if (data.title && !merged.title) merged.title = data.title
-        if (data.date && !merged.date) merged.date = data.date
+        if (data.date && (!merged.date || merged._utcDate)) merged.date = data.date
         if (data.end_date && !merged.end_date) merged.end_date = data.end_date
       } else if (diag) errors.push(`GEMINI(${diag})`)
     }
 
     // Last resort: Graph API (requires special app permissions, usually fails)
-    if (!merged.title || !merged.date) {
+    if (!merged.title || !merged.date || !merged.og_image) {
       const fb = await tryFacebookGraphAPI(occurrenceId || seriesId)
       if (!fb._err) {
         for (const k of Object.keys(merged)) if (!merged[k] && fb[k]) merged[k] = fb[k]
@@ -533,6 +596,7 @@ export async function POST(request) {
         const vd = await callGeminiVision(merged.og_image, apiKey)
         if (vd) for (const k of Object.keys(merged)) if (!merged[k] && vd[k]) merged[k] = vd[k]
       }
+      delete merged._utcDate
       return NextResponse.json({
         ...merged,
         ...(merged.date ? {} : { warning: "Couldn't read the date — set it below." }),

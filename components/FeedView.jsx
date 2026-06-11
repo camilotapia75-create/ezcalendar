@@ -87,10 +87,33 @@ function NoFlyer({ accent }) {
 
 function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0 }) {
   const [imgFailed, setImgFailed] = React.useState(false)
+  const [imgLoaded, setImgLoaded] = React.useState(false)
   return (
     <div onClick={onTap} className={faded ? undefined : 'anim-card'} style={{ animationDelay: `${Math.min(animIndex, 10) * 45}ms`, marginBottom: 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #e8ddd0', boxShadow: faded ? 'none' : '3px 3px 0 rgba(140,100,60,0.12)', background: '#fffdf8', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
       {event.image_url && !imgFailed ? (
-        <img src={event.image_url} alt={event.title || ''} onError={() => setImgFailed(true)} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+        <div style={{ position: 'relative', overflow: 'hidden', aspectRatio: '4/3' }}>
+          {!imgLoaded && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 1,
+              background: `linear-gradient(90deg, ${accent}12 0%, ${accent}28 50%, ${accent}12 100%)`,
+              backgroundSize: '200% 100%',
+              animation: 'shimmer 1.6s ease-in-out infinite',
+            }} />
+          )}
+          <img
+            src={event.image_url}
+            alt={event.title || ''}
+            onError={() => setImgFailed(true)}
+            onLoad={() => setImgLoaded(true)}
+            style={{
+              width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block',
+              opacity: imgLoaded ? 1 : 0,
+              filter: imgLoaded ? 'none' : 'blur(12px)',
+              transform: imgLoaded ? 'scale(1)' : 'scale(1.06)',
+              transition: 'opacity 0.45s ease, filter 0.45s ease, transform 0.45s ease',
+            }}
+          />
+        </div>
       ) : (
         <NoFlyer accent={accent} />
       )}

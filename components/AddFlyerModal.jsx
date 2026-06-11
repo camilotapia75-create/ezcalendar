@@ -500,7 +500,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                   </div>
                 )}
                 {(analyzing || linkScanning) && (
-                  <div className="absolute inset-0 overflow-hidden flex flex-col items-center justify-center gap-3" style={{ background: 'rgba(0,0,0,0.55)' }}>
+                  <div className="absolute inset-0 overflow-hidden flex flex-col items-center justify-center gap-3" style={{ background: 'rgba(4,0,16,0.72)' }}>
                     <div className="anim-scanline" />
                     <p className="text-xs text-violet-300 font-medium tracking-wide animate-pulse" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>Reading…</p>
                   </div>
