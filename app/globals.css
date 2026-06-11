@@ -21,6 +21,25 @@ input[type='date']::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+/* Scan robot base layout (animations live in the motion block below) */
+.scanbot {
+  position: absolute;
+  bottom: 0;
+  left: calc(50% - 19px);
+  width: 38px;
+  height: 42px;
+}
+.scanbot-bit {
+  position: absolute;
+  bottom: 18px;
+  font-size: 10px;
+  font-family: monospace;
+  font-weight: 700;
+  color: #c4b5fd;
+  text-shadow: 0 0 7px rgba(139, 92, 246, 0.9);
+  opacity: 0;
+}
+
 /* ── Motion system ──────────────────────────────────────────────────────────
    GPU-composited transforms/opacity only — zero layout cost at any scale.
    Everything is disabled for users who prefer reduced motion. */
@@ -75,6 +94,53 @@ input[type='date']::-webkit-calendar-picker-indicator {
   @keyframes shimmer {
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+  }
+
+  /* Scan robot: sprints back and forth collecting data bits */
+  .scanbot {
+    animation: scanbotRun 3.4s linear infinite;
+    filter: drop-shadow(0 2px 8px rgba(124,58,237,0.65));
+  }
+  .scanbot svg { animation: scanbotBob 0.32s ease-in-out infinite; }
+  @keyframes scanbotRun {
+    0%   { left: 3%;               transform: scaleX(1); }
+    47%  { left: calc(97% - 38px); transform: scaleX(1); }
+    50%  { left: calc(97% - 38px); transform: scaleX(-1); }
+    97%  { left: 3%;               transform: scaleX(-1); }
+    100% { left: 3%;               transform: scaleX(1); }
+  }
+  @keyframes scanbotBob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-2.5px); }
+  }
+  .scanbot-leg {
+    transform-box: fill-box;
+    transform-origin: 50% 0;
+    animation: scanbotLeg 0.32s ease-in-out infinite;
+  }
+  .scanbot-leg-r { animation-delay: 0.16s; }
+  @keyframes scanbotLeg {
+    0%, 100% { transform: rotate(30deg); }
+    50%      { transform: rotate(-30deg); }
+  }
+  .scanbot-eye {
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+    animation: scanbotBlink 2.7s ease-in-out infinite;
+  }
+  @keyframes scanbotBlink {
+    0%, 91%, 100% { transform: scaleY(1); }
+    95%           { transform: scaleY(0.12); }
+  }
+  .scanbot-antenna { animation: scanbotPing 0.85s ease-in-out infinite; }
+  @keyframes scanbotPing {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+  }
+  .scanbot-bit { animation: scanbotBit 2s ease-in-out infinite; }
+  @keyframes scanbotBit {
+    0%, 100% { opacity: 0; transform: translateY(5px); }
+    45%, 60% { opacity: 1; transform: translateY(0); }
   }
 
   /* AI just filled this field: violet glow pulse */

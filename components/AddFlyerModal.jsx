@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
+import ScanBot from './ScanBot'
 
 function toDateKey(date) {
   if (!date) return ''
@@ -503,14 +504,16 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                   </div>
                 )}
                 {(analyzing || linkScanning) && (
-                  <div className="absolute inset-0 overflow-hidden flex flex-col items-center justify-center gap-3" style={{ background: 'rgba(4,0,16,0.72)' }}>
+                  <div className="absolute inset-0 overflow-hidden flex flex-col items-center justify-center" style={{ background: 'rgba(4,0,16,0.72)' }}>
                     <div className="anim-scanline" />
-                    <p className="text-xs text-violet-300 font-medium tracking-wide animate-pulse" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>Reading…</p>
+                    <p className="text-xs text-violet-300 font-medium tracking-wide animate-pulse -mt-4" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>Collecting data…</p>
+                    <ScanBot />
                   </div>
                 )}
                 {detailFilling && !analyzing && !linkScanning && (
                   <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className="anim-scanline" />
+                    <ScanBot raise={28} />
                     <div className="absolute bottom-0 inset-x-0 py-1.5 text-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
                       <p className="text-[11px] text-violet-300 animate-pulse">Reading flyer for more details…</p>
                     </div>
