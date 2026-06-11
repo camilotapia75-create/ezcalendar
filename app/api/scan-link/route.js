@@ -204,29 +204,37 @@ async function tryFacebookICal(eventId) {
   }
 }
 
-// Facebook serves og:image/og:title to link-preview crawlers
+// Facebook serves og:image/og:title to link-preview crawlers — but blocks some
+// datacenter IPs / UA combos with 403, so rotate through several crawler identities
 async function tryFacebookOg(pageUrl) {
-  try {
-    const res = await fetch(pageUrl, {
-      headers: {
-        'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-        'Accept': 'text/html',
-      },
-      signal: AbortSignal.timeout(10000),
-    })
-    if (!res.ok) return { _err: `FB_OG_HTTP_${res.status}` }
-    const html = await res.text()
-    const meta = (prop) =>
-      html.match(new RegExp(`property=["']og:${prop}["'][^>]+content=["']([^"']+)["']`, 'i'))?.[1] ||
-      html.match(new RegExp(`content=["']([^"']+)["'][^>]+property=["']og:${prop}["']`, 'i'))?.[1] || null
-    const image = decodeHtml(meta('image'))
-    const title = decodeHtml(meta('title'))
-    const description = decodeHtml(meta('description'))
-    if (!image && !title && !description) return { _err: `FB_OG_EMPTY(${html.length}ch)` }
-    return { image, title, description }
-  } catch (e) {
-    return { _err: `FB_OG_THROW: ${e.message}` }
+  const UAS = [
+    'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+    'WhatsApp/2.23.20.0 A',
+    'Twitterbot/1.0',
+    'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+  ]
+  const errs = []
+  for (const ua of UAS) {
+    try {
+      const res = await fetch(pageUrl, {
+        headers: { 'User-Agent': ua, 'Accept': 'text/html' },
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) { errs.push(`${ua.split('/')[0]}:${res.status}`); continue }
+      const html = await res.text()
+      const meta = (prop) =>
+        html.match(new RegExp(`property=["']og:${prop}["'][^>]+content=["']([^"']+)["']`, 'i'))?.[1] ||
+        html.match(new RegExp(`content=["']([^"']+)["'][^>]+property=["']og:${prop}["']`, 'i'))?.[1] || null
+      const image = decodeHtml(meta('image'))
+      const title = decodeHtml(meta('title'))
+      const description = decodeHtml(meta('description'))
+      if (!image && !title && !description) { errs.push(`${ua.split('/')[0]}:EMPTY(${html.length}ch)`); continue }
+      return { image, title, description }
+    } catch (e) {
+      errs.push(`${ua.split('/')[0]}:${(e.message || 'err').slice(0, 20)}`)
+    }
   }
+  return { _err: `FB_OG[${errs.join(',')}]` }
 }
 
 // Directly parse Facebook's og:description to extract time/date/location without Gemini.
@@ -273,7 +281,12 @@ async function fetchViaJina(url, format = 'markdown') {
       'X-Return-Format': format,
       'X-Timeout': '20',
     }
-    if (process.env.JINA_API_KEY) headers['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`
+    if (process.env.JINA_API_KEY) {
+      headers['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`
+      // Facebook blocks Jina's default datacenter IPs with a login wall —
+      // route through Jina's rotating proxy pool for those
+      if (/facebook\.com/i.test(url)) headers['X-Proxy'] = 'auto'
+    }
     const res = await fetch(`https://r.jina.ai/${url}`, {
       headers,
       signal: AbortSignal.timeout(22000),
@@ -353,9 +366,9 @@ async function proxyImage(imageUrl, referer) {
   if (!imageUrl) return null
   const isFbCdn = /fbcdn\.net|scontent\./i.test(imageUrl)
 
-  const attempt = async (ua) => {
+  const attempt = async (ua, fetchUrl = imageUrl) => {
     try {
-      const res = await fetch(imageUrl, {
+      const res = await fetch(fetchUrl, {
         headers: { 'User-Agent': ua, 'Referer': referer || imageUrl },
         signal: AbortSignal.timeout(8000),
       })
@@ -369,11 +382,13 @@ async function proxyImage(imageUrl, referer) {
   }
 
   if (isFbCdn) {
-    // Facebook CDN: try their own crawler UA first, fall back to a browser UA.
+    // Facebook CDN: try their own crawler UA, then a browser UA, then route
+    // through the weserv.nl image CDN (their infra isn't blocked by fbcdn).
     // Never return the raw fbcdn URL — browsers can't load it (signed/expiring)
     return (
       await attempt('facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)') ??
       await attempt(BROWSER_HEADERS['User-Agent']) ??
+      await attempt('Mozilla/5.0 (compatible; EZCalendar/1.0)', `https://images.weserv.nl/?url=${encodeURIComponent(imageUrl)}`) ??
       null
     )
   }
@@ -549,9 +564,11 @@ export async function POST(request) {
     if (!jinaResult._err && jinaResult.chars > 100) {
       const isLoginWall = /log in|sign in|create an account|join facebook|you must be logged in/i.test(jinaResult.text.slice(0, 600))
       if (isLoginWall) {
-        errors.push('JINA_FB_LOGIN_WALL')
-        // The login wall page often still contains the event cover image URL — try to extract it
-        if (!merged.og_image) merged.og_image = extractJinaImage(jinaResult.text)
+        errors.push(`JINA_FB_LOGIN_WALL(${jinaResult.chars}ch)`)
+        // A login banner often sits ABOVE real event content — when the page is
+        // substantial, use it anyway instead of throwing the details away
+        if (jinaResult.chars > 1500) jinaText = jinaResult.text
+        else if (!merged.og_image) merged.og_image = extractJinaImage(jinaResult.text)
       } else {
         jinaText = jinaResult.text
       }
@@ -580,6 +597,14 @@ export async function POST(request) {
       } else if (diag) errors.push(`GEMINI(${diag})`)
     }
 
+    // Safety net: when Gemini is rate-limited, the same "...at 7 PM..." pattern
+    // FB uses in og:description also appears in the rendered page text
+    if ((!merged.time_str || (!merged.date && !merged._utcDate)) && geminiInput.length > 30) {
+      const direct = parseFacebookOgDescription(geminiInput)
+      if (direct.time_str && !merged.time_str) merged.time_str = direct.time_str
+      if (direct.date && !merged.date) merged.date = direct.date
+    }
+
     // Last resort: Graph API (requires special app permissions, usually fails)
     if (!merged.title || !merged.date || !merged.og_image) {
       const fb = await tryFacebookGraphAPI(occurrenceId || seriesId)
@@ -600,6 +625,8 @@ export async function POST(request) {
       return NextResponse.json({
         ...merged,
         ...(merged.date ? {} : { warning: "Couldn't read the date — set it below." }),
+        // Surfaced in the browser console for debugging partial scans
+        ...(errors.length ? { _diag: errors.join(' | ') } : {}),
       })
     }
 

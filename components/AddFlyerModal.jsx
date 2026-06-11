@@ -218,6 +218,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to read link')
+      if (data._diag) console.log('[scan-link]', data._diag)
       if (data.title) typeIn(setTitle, data.title)
       if (data.time_str) typeIn(setTimeStr, data.time_str)
       if (data.location) typeIn(setLocation, data.location)
