@@ -500,6 +500,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
 
       {/* ── Content ── */}
       <main style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}>
+        <div key={activeTab} className="anim-tab">
         {/* Calendar filter — only meaningful once friends are connected */}
         {connectedFriends.length > 0 && (activeTab === 'feed' || activeTab === 'calendar') && (
           <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -549,6 +550,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         {activeTab === 'friends' && (
           <FriendsTab inviteCode={inviteCode} connectedCount={connectedCount} connectedFriends={connectedFriends} accent={theme.accent} dark={theme.dark} onDisconnect={disconnectFriend} />
         )}
+        </div>
       </main>
 
       {/* ── Bottom Nav ── */}

@@ -369,8 +369,8 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
   const currentPin = PIN_STYLES.find(p => p.id === pinStyle) || PIN_STYLES[0]
 
   return (
-    <div className="fixed inset-0 z-50" style={{ background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)' }} onClick={writeMode ? undefined : onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '4%', left: '4%', right: '4%', bottom: '4%', background: '#fffaee', border: '5px solid #1a1a2e', borderRadius: 6, boxShadow: '10px 10px 0 rgba(0,0,0,0.40)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="fixed inset-0 z-50 anim-backdrop" style={{ background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)' }} onClick={writeMode ? undefined : onClose}>
+      <div onClick={e => e.stopPropagation()} className="anim-modal" style={{ position: 'absolute', top: '4%', left: '4%', right: '4%', bottom: '4%', background: '#fffaee', border: '5px solid #1a1a2e', borderRadius: 6, boxShadow: '10px 10px 0 rgba(0,0,0,0.40)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header */}
         <div style={{ flexShrink: 0, padding: '14px 18px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '2px solid #e9e0cc', position: 'relative' }}>

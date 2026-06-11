@@ -26,10 +26,12 @@ export default function EventDetailModal({ event, accent = '#7c3aed', onClose, o
   return (
     <div
       onClick={onClose}
+      className="anim-backdrop"
       style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
     >
       <div
         onClick={e => e.stopPropagation()}
+        className="anim-modal"
         style={{ width: '100%', maxWidth: 480, maxHeight: '88dvh', display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', background: '#fffaee', border: '2px solid #e9e0cc', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}
       >
 

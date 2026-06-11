@@ -108,6 +108,26 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ── Magic scan: AI-found values type themselves in with a glow ──
+  const typeTimers = useRef([])
+  useEffect(() => () => typeTimers.current.forEach(clearInterval), [])
+  const typeIn = (setter, value) => {
+    if (!value) return
+    const step = Math.max(1, Math.round(value.length / 16))
+    let i = 0
+    const t = setInterval(() => {
+      i += step
+      if (i >= value.length) { setter(value); clearInterval(t) }
+      else setter(value.slice(0, i))
+    }, 26)
+    typeTimers.current.push(t)
+  }
+  const [glow, setGlow] = useState({})
+  const flashGlow = (...names) => {
+    setGlow(g => { const n = { ...g }; names.forEach(k => { n[k] = true }); return n })
+    setTimeout(() => setGlow(g => { const n = { ...g }; names.forEach(k => { delete n[k] }); return n }), 1300)
+  }
+
   const stopCamera = () => {
     cameraStream?.getTracks().forEach(t => t.stop())
     setCameraStream(null)
@@ -155,9 +175,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
       const data = await res.json()
       if (res.status === 429) { setAiError('quota'); setAiDetail(data.detail); return }
       if (!res.ok) { setAiError('failed'); setAiDetail(data.detail); return }
-      if (data.title) setTitle(data.title)
-      if (data.time_str) setTimeStr(data.time_str)
-      if (data.location) setLocation(data.location)
+      if (data.title) typeIn(setTitle, data.title)
+      if (data.time_str) typeIn(setTimeStr, data.time_str)
+      if (data.location) typeIn(setLocation, data.location)
       if (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
         setEventDate(data.date)
         setAiDetectedDate(true)
@@ -166,6 +186,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         setEndDate(data.end_date)
         setShowEndDate(true)
       }
+      flashGlow(...[data.title && 'title', data.time_str && 'time', data.location && 'location', data.date && 'date'].filter(Boolean))
       if (!data.title && !data.date && !data.time_str && !data.location) setAiError('failed')
     } catch (err) {
       setAiError('failed'); setAiDetail(err.message)
@@ -197,9 +218,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to read link')
-      if (data.title) setTitle(data.title)
-      if (data.time_str) setTimeStr(data.time_str)
-      if (data.location) setLocation(data.location)
+      if (data.title) typeIn(setTitle, data.title)
+      if (data.time_str) typeIn(setTimeStr, data.time_str)
+      if (data.location) typeIn(setLocation, data.location)
       if (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
         setEventDate(data.date)
         setAiDetectedDate(true)
@@ -208,6 +229,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         setEndDate(data.end_date)
         setShowEndDate(true)
       }
+      flashGlow(...[data.title && 'title', data.time_str && 'time', data.location && 'location', data.date && 'date'].filter(Boolean))
       setOgImageUrl(data.og_image || null)
       if (data.warning) setLinkWarning(data.warning)
       setLinkScanned(true)
@@ -228,9 +250,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
             })
             if (fres.ok) {
               const fd = await fres.json()
-              if (!data.title && fd.title) setTitle(fd.title)
-              if (!data.time_str && fd.time_str) setTimeStr(fd.time_str)
-              if (!data.location && fd.location) setLocation(fd.location)
+              if (!data.title && fd.title) typeIn(setTitle, fd.title)
+              if (!data.time_str && fd.time_str) typeIn(setTimeStr, fd.time_str)
+              if (!data.location && fd.location) typeIn(setLocation, fd.location)
               if (!data.date && fd.date && /^\d{4}-\d{2}-\d{2}$/.test(fd.date)) {
                 setEventDate(fd.date)
                 setAiDetectedDate(true)
@@ -239,6 +261,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                 setEndDate(fd.end_date)
                 setShowEndDate(true)
               }
+              flashGlow(...[!data.title && fd.title && 'title', !data.time_str && fd.time_str && 'time', !data.location && fd.location && 'location', !data.date && fd.date && 'date'].filter(Boolean))
               // Flyer read succeeded — the link warning no longer applies
               if (fd.title || fd.date) setLinkWarning(null)
             }
@@ -351,9 +374,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   }
 
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-end md:items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-end md:items-center justify-center z-50 anim-backdrop" onClick={onClose}>
       <div
-        className="w-full md:max-w-md rounded-t-[28px] md:rounded-[20px] overflow-hidden"
+        className="w-full md:max-w-md rounded-t-[28px] md:rounded-[20px] overflow-hidden anim-modal"
         style={{ background: '#131316', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 -8px 40px rgba(0,0,0,0.6)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -477,14 +500,17 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                   </div>
                 )}
                 {(analyzing || linkScanning) && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: 'rgba(0,0,0,0.7)' }}>
-                    <div className="w-8 h-8 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
-                    <p className="text-xs text-violet-300 font-medium tracking-wide">Reading…</p>
+                  <div className="absolute inset-0 overflow-hidden flex flex-col items-center justify-center gap-3" style={{ background: 'rgba(0,0,0,0.55)' }}>
+                    <div className="anim-scanline" />
+                    <p className="text-xs text-violet-300 font-medium tracking-wide animate-pulse" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>Reading…</p>
                   </div>
                 )}
                 {detailFilling && !analyzing && !linkScanning && (
-                  <div className="absolute bottom-0 inset-x-0 py-1.5 text-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
-                    <p className="text-[11px] text-violet-300 animate-pulse">Reading flyer for more details…</p>
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="anim-scanline" />
+                    <div className="absolute bottom-0 inset-x-0 py-1.5 text-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+                      <p className="text-[11px] text-violet-300 animate-pulse">Reading flyer for more details…</p>
+                    </div>
                   </div>
                 )}
                 {!analyzing && !linkScanning && (
@@ -520,7 +546,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                   <div className="space-y-2">
                     <div className="relative">
                       <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} required
-                        className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80"
+                        className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80${glow.date ? ' anim-fieldglow' : ''}`}
                         style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${aiDetectedDate ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.08)'}` }}
                       />
                       {aiDetectedDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 font-semibold tracking-widest">AI</span>}
@@ -547,16 +573,16 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                       </button>
                     )}
                     <input type="text" placeholder="Event title" value={title} onChange={e => setTitle(e.target.value)}
-                      className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white"
+                      className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.title ? ' anim-fieldglow' : ''}`}
                       style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${title ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <input type="text" placeholder="Location" value={location} onChange={e => setLocation(e.target.value)}
-                        className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white"
+                        className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.location ? ' anim-fieldglow' : ''}`}
                         style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${location ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
                       />
                       <input type="text" placeholder="Time" value={timeStr} onChange={e => setTimeStr(e.target.value)}
-                        className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white"
+                        className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.time ? ' anim-fieldglow' : ''}`}
                         style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${timeStr ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
                       />
                     </div>

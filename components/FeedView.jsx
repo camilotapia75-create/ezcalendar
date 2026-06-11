@@ -85,10 +85,10 @@ function NoFlyer({ accent }) {
   )
 }
 
-function EventCard({ event, accent, onTap, onDelete, faded }) {
+function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0 }) {
   const [imgFailed, setImgFailed] = React.useState(false)
   return (
-    <div onClick={onTap} style={{ marginBottom: 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #e8ddd0', boxShadow: faded ? 'none' : '3px 3px 0 rgba(140,100,60,0.12)', background: '#fffdf8', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
+    <div onClick={onTap} className={faded ? undefined : 'anim-card'} style={{ animationDelay: `${Math.min(animIndex, 10) * 45}ms`, marginBottom: 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #e8ddd0', boxShadow: faded ? 'none' : '3px 3px 0 rgba(140,100,60,0.12)', background: '#fffdf8', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
       {event.image_url && !imgFailed ? (
         <img src={event.image_url} alt={event.title || ''} onError={() => setImgFailed(true)} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
       ) : (
@@ -145,6 +145,7 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
     )
   }
 
+  let cardIndex = 0
   return (
     <div style={{ padding: '12px 12px 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
       {groups.map((group, gi) => (
@@ -157,6 +158,7 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
           </div>
           {group.items.map(event => (
             <EventCard key={event.id} event={event} accent={accent} faded={group.past}
+              animIndex={cardIndex++}
               onTap={() => onEventTap(event)}
               onDelete={onDeleteEvent}
             />

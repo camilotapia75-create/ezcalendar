@@ -12,12 +12,12 @@ export default function FlyerModal({ events, activeIndex, onNavigate, onDelete, 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center anim-backdrop"
       style={{ background: 'rgba(109,40,217,0.18)', backdropFilter: 'blur(16px)' }}
       onClick={onClose}
     >
       <div
-        className="w-full md:max-w-sm rounded-t-3xl md:rounded-2xl overflow-hidden"
+        className="w-full md:max-w-sm rounded-t-3xl md:rounded-2xl overflow-hidden anim-modal"
         style={{ background: '#fff', boxShadow: '0 8px 48px rgba(124,58,237,0.22)' }}
         onClick={(e) => e.stopPropagation()}
       >

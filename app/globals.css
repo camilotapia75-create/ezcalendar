@@ -20,3 +20,63 @@ input[type='date']::-webkit-calendar-picker-indicator {
   filter: invert(0.4);
   cursor: pointer;
 }
+
+/* ── Motion system ──────────────────────────────────────────────────────────
+   GPU-composited transforms/opacity only — zero layout cost at any scale.
+   Everything is disabled for users who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+
+  /* Modal entrances: backdrop fades, sheet springs up */
+  .anim-backdrop { animation: backdropIn 0.22s ease-out; }
+  .anim-modal    { animation: modalRise 0.32s cubic-bezier(0.32, 1.25, 0.32, 1); }
+  @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes modalRise {
+    from { opacity: 0; transform: translateY(28px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Feed cards: staggered fade-up (delay set inline per card) */
+  .anim-card {
+    animation: cardIn 0.38s cubic-bezier(0.21, 0.9, 0.35, 1) backwards;
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Tab switches: soft crossfade + rise */
+  .anim-tab { animation: tabIn 0.25s ease-out; }
+  @keyframes tabIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* AI scan: light bar sweeping over the flyer */
+  .anim-scanline {
+    position: absolute; left: 0; right: 0; height: 64px; pointer-events: none;
+    background: linear-gradient(to bottom,
+      transparent 0%,
+      rgba(167,139,250,0.05) 30%,
+      rgba(167,139,250,0.45) 50%,
+      rgba(167,139,250,0.05) 70%,
+      transparent 100%);
+    animation: scanSweep 1.6s ease-in-out infinite;
+  }
+  @keyframes scanSweep {
+    0%   { top: -64px; }
+    55%  { top: calc(100% + 0px); }
+    100% { top: -64px; }
+  }
+
+  /* AI just filled this field: violet glow pulse */
+  .anim-fieldglow { animation: fieldGlow 1.2s ease-out; }
+  @keyframes fieldGlow {
+    0%   { box-shadow: 0 0 0 0 rgba(124,58,237,0); }
+    25%  { box-shadow: 0 0 0 3px rgba(124,58,237,0.45), 0 0 18px rgba(124,58,237,0.35); }
+    100% { box-shadow: 0 0 0 0 rgba(124,58,237,0); }
+  }
+
+  /* Universal press feedback (inline transforms win, so decorated
+     buttons like the elevated scan button are unaffected) */
+  button:active { transform: scale(0.965); }
+}

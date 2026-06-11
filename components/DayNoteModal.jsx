@@ -122,11 +122,12 @@ export default function DayNoteModal({ dateStr, existingNote, onSave, onDelete, 
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 anim-backdrop"
       style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(10px)' }}
       onClick={onClose}
     >
       <div
+        className="anim-modal"
         style={{
           width: '100%', maxWidth: 440,
           background: '#fffef0',

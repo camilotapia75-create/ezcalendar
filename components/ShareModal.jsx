@@ -28,7 +28,7 @@ export default function ShareModal({ inviteCode, connectedCount, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50"
+      className="fixed inset-0 z-50 anim-backdrop"
       style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
     >
