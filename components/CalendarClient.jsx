@@ -112,9 +112,11 @@ const CamIcon = () => (
 )
 
 // ── Friends tab ────────────────────────────────────────────────────────────
-function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent, dark }) {
+function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent, dark, onDisconnect }) {
   const [inviteUrl, setInviteUrl] = useState('')
   const [copied, setCopied]     = useState(false)
+  const [confirmId, setConfirmId] = useState(null)
+  const [leaving, setLeaving] = useState(null)
 
   useEffect(() => { setInviteUrl(`${window.location.origin}/join/${inviteCode}`) }, [inviteCode])
 
@@ -153,7 +155,34 @@ function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent,
                 {f.name && <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: dark ? '#e2e8f0' : '#1a1a2e', lineHeight: 1.2 }}>{f.name}</p>}
                 <p style={{ margin: 0, fontSize: 13, color: dark ? '#9ca3af' : '#7c6a56', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.email}</p>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', background: 'rgba(34,197,94,0.10)', borderRadius: 999, padding: '2px 8px' }}>Sharing</span>
+              {confirmId === f.id ? (
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button
+                    onClick={async () => { setLeaving(f.id); await onDisconnect(f.id); setLeaving(null); setConfirmId(null) }}
+                    disabled={leaving === f.id}
+                    style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#dc2626', border: 'none', borderRadius: 999, padding: '4px 10px', cursor: 'pointer', opacity: leaving === f.id ? 0.6 : 1 }}
+                  >
+                    {leaving === f.id ? 'Leaving…' : 'Confirm'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmId(null)}
+                    style={{ fontSize: 11, fontWeight: 700, color: dark ? '#9ca3af' : '#7c6a56', background: 'transparent', border: dark ? '1px solid rgba(255,255,255,0.15)' : '1px solid #e0ccb4', borderRadius: 999, padding: '4px 10px', cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', background: 'rgba(34,197,94,0.10)', borderRadius: 999, padding: '2px 8px' }}>Sharing</span>
+                  <button
+                    onClick={() => setConfirmId(f.id)}
+                    title="Leave shared calendar"
+                    style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', background: 'rgba(220,38,38,0.08)', border: 'none', borderRadius: 999, padding: '4px 10px', cursor: 'pointer' }}
+                  >
+                    Leave
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -195,9 +224,25 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const [notes, setNotes]               = useState({})
   const [activeTab, setActiveTab]       = useState('feed')
   const [notifEvents, setNotifEvents]   = useState({})
+  // 'all' | 'mine' | a friend's user id — which calendar(s) to show
+  const [calFilter, setCalFilter]       = useState('all')
   const swRegRef = useRef(null)
   const router = useRouter()
   const supabase = createClient()
+
+  const visibleEvents =
+    calFilter === 'all'  ? events :
+    calFilter === 'mine' ? events.filter(e => e.user_id === user.id) :
+    events.filter(e => e.user_id === calFilter)
+
+  const disconnectFriend = async (friendId) => {
+    const [a, b] = user.id < friendId ? [user.id, friendId] : [friendId, user.id]
+    await supabase.from('calendar_connections').delete().eq('user_a_id', a).eq('user_b_id', b)
+    setEvents(prev => prev.filter(e => e.user_id !== friendId))
+    if (calFilter === friendId) setCalFilter('all')
+    showToast('Left the shared calendar')
+    router.refresh()
+  }
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -356,7 +401,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
   const getDayEvents = (date) => {
     if (!date) return []
     const key = [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
-    return events.filter(e => e.end_date ? e.date <= key && e.end_date >= key : e.date === key)
+    return visibleEvents.filter(e => e.end_date ? e.date <= key && e.end_date >= key : e.date === key)
   }
 
   const addEvent = async (eventData) => {
@@ -455,9 +500,31 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
 
       {/* ── Content ── */}
       <main style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}>
+        {/* Calendar filter — only meaningful once friends are connected */}
+        {connectedFriends.length > 0 && (activeTab === 'feed' || activeTab === 'calendar') && (
+          <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            {[
+              { id: 'all',  label: 'Everyone' },
+              { id: 'mine', label: 'My events' },
+              ...connectedFriends.map(f => ({ id: f.id, label: (f.name || f.email || 'Friend').split(/[\s@]/)[0] })),
+            ].map(c => (
+              <button key={c.id} onClick={() => setCalFilter(c.id)}
+                style={{
+                  flexShrink: 0, padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  background: calFilter === c.id ? theme.accent : (theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                  color: calFilter === c.id ? '#fff' : (theme.dark ? '#9ca3af' : '#7c6a56'),
+                  border: calFilter === c.id ? `1.5px solid ${theme.accent}` : (theme.dark ? '1.5px solid rgba(255,255,255,0.08)' : '1.5px solid rgba(0,0,0,0.08)'),
+                  transition: 'all 0.15s',
+                }}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
         {activeTab === 'feed' && (
           <FeedView
-            events={events}
+            events={visibleEvents}
             accent={theme.accent}
             dark={theme.dark}
             onEventTap={handleFeedEventTap}
@@ -470,7 +537,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
             <Calendar
               currentDate={currentDate}
               setCurrentDate={setCurrentDate}
-              events={events}
+              events={visibleEvents}
               onDayClick={d => setModal({ type: 'dayview', date: d })}
               onEventClick={d => setModal({ type: 'dayview', date: d })}
               theme={theme}
@@ -480,7 +547,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           </div>
         )}
         {activeTab === 'friends' && (
-          <FriendsTab inviteCode={inviteCode} connectedCount={connectedCount} connectedFriends={connectedFriends} accent={theme.accent} dark={theme.dark} />
+          <FriendsTab inviteCode={inviteCode} connectedCount={connectedCount} connectedFriends={connectedFriends} accent={theme.accent} dark={theme.dark} onDisconnect={disconnectFriend} />
         )}
       </main>
 
