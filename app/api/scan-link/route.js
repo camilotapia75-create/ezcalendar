@@ -36,6 +36,28 @@ const MODELS = [
   'gemini-1.5-flash-8b',
 ].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
 
+// Short-lived result cache — prevents Gemini rate-limit exhaustion when the
+// same URL is scanned back-to-back (user retries) or by many users sharing
+// one popular event link. In-memory is fine: Vercel reuses warm instances and
+// the TTL is short enough that stale data is never a real concern.
+const _scanCache = new Map()
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+function getCached(url) {
+  const e = _scanCache.get(url)
+  if (!e) return null
+  if (Date.now() - e.ts > CACHE_TTL_MS) { _scanCache.delete(url); return null }
+  return e.data
+}
+
+function setCached(url, data) {
+  if (_scanCache.size > 500) {
+    const now = Date.now()
+    for (const [k, v] of _scanCache) if (now - v.ts > CACHE_TTL_MS) _scanCache.delete(k)
+  }
+  _scanCache.set(url, { data, ts: Date.now() })
+}
+
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -411,6 +433,19 @@ export async function POST(request) {
   }
   if (!url) return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
 
+  // Normalise the cache key — strip tracking params that don't affect page content
+  const normUrl = (u) => {
+    try {
+      const p = new URL(u)
+      for (const k of ['utm_source','utm_medium','utm_campaign','fbclid','ref','mibextid']) p.searchParams.delete(k)
+      return p.toString().replace(/\/+$/, '')
+    } catch { return u.replace(/\/+$/, '') }
+  }
+
+  let cacheKey = normUrl(url)
+  const hit = getCached(cacheKey)
+  if (hit) return NextResponse.json(hit)
+
   let baseUrl = url
   try { baseUrl = new URL(url).origin } catch {}
 
@@ -430,6 +465,10 @@ export async function POST(request) {
       const m = finalUrl.match(/facebook\.com\/events\/\d+/i)
       if (m) url = `https://www.${m[0]}/`
     } catch {}
+    // Update cache key to resolved URL so short-link variants share the same entry
+    cacheKey = normUrl(url)
+    const hitResolved = getCached(cacheKey)
+    if (hitResolved) return NextResponse.json(hitResolved)
     // Event short link that wouldn't resolve — the generic scanner can't do
     // anything useful with Facebook, so fail with actionable advice instead
     if (/fb\.me\/e\//i.test(url)) {
@@ -516,13 +555,17 @@ export async function POST(request) {
     }
 
     if (merged.title || merged.date) {
-      return NextResponse.json({ ...merged, og_image: imageData || igImage })
+      const result = { ...merged, og_image: imageData || igImage }
+      setCached(cacheKey, result)
+      return NextResponse.json(result)
     }
     if (imageData) {
-      return NextResponse.json({
+      const result = {
         ...merged, og_image: imageData,
         warning: `Got the flyer image, but couldn't read the event details — fill them in below. [${errors.join(' | ')}]`,
-      })
+      }
+      setCached(cacheKey, result)
+      return NextResponse.json(result)
     }
 
     return NextResponse.json({
@@ -657,12 +700,13 @@ export async function POST(request) {
         if (vd) for (const k of Object.keys(merged)) if (!merged[k] && vd[k]) merged[k] = vd[k]
       }
       delete merged._utcDate
-      return NextResponse.json({
+      const result = {
         ...merged,
         ...(merged.date ? {} : { warning: "Couldn't read the date — set it below." }),
-        // Surfaced in the browser console for debugging partial scans
         ...(errors.length ? { _diag: errors.join(' | ') } : {}),
-      })
+      }
+      setCached(cacheKey, result)
+      return NextResponse.json(result)
     }
 
     return NextResponse.json({ error: `Could not access Facebook event. [${errors.join(' | ')}]` }, { status: 400 })
@@ -755,7 +799,11 @@ export async function POST(request) {
     proxyImage(ogImageUrl, url),
     callGemini(textForGemini, apiKey),
   ])
-  if (data) return NextResponse.json({ ...data, og_image: ogImageData || ogImageUrl })
+  if (data) {
+    const result = { ...data, og_image: ogImageData || ogImageUrl }
+    setCached(cacheKey, result)
+    return NextResponse.json(result)
+  }
 
   return NextResponse.json({ error: `Could not extract event details from that URL.${diag ? ` [GEMINI: ${diag}]` : ''}` }, { status: 500 })
 }

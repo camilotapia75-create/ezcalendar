@@ -502,8 +502,8 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         {connectedFriends.length > 0 && (activeTab === 'feed' || activeTab === 'calendar') && (
           <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             {[
-              { id: 'mine',   label: '📒 My calendar' },
-              { id: 'shared', label: '👥 Shared' },
+              { id: 'mine',   label: 'My calendar' },
+              { id: 'shared', label: 'Shared' },
             ].map(c => (
               <button key={c.id} onClick={() => setCalFilter(c.id)}
                 style={{
