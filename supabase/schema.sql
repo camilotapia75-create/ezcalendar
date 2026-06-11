@@ -18,11 +18,24 @@ create policy "Users can manage their own events" on events
   for all using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- Migration: add source_url to existing tables
--- alter table events add column if not exists source_url text;
+-- Migrations for existing installs (safe to run repeatedly):
+alter table events add column if not exists source_url text;
+alter table events add column if not exists end_date text;
 
--- Migration: add end_date for multi-day events
--- alter table events add column if not exists end_date text;
+-- ============================================================
+-- Push notifications (required for daily event reminders)
+-- ============================================================
+
+create table if not exists push_subscriptions (
+  user_id uuid references auth.users(id) on delete cascade primary key,
+  subscription jsonb not null,
+  updated_at timestamptz default now()
+);
+
+alter table push_subscriptions enable row level security;
+
+create policy "Users can manage their own push subscriptions" on push_subscriptions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ============================================================
 -- Shared Calendar: invite codes + friend connections
