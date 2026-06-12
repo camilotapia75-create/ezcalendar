@@ -1,31 +1,46 @@
 'use client'
 
-// Cute robot that runs back and forth "collecting data" while the AI reads.
-// Pure CSS/SVG — no assets, no libraries; animations live in globals.css.
 export default function ScanBot({ raise = 0 }) {
   return (
-    <div className="absolute inset-x-0 pointer-events-none" style={{ height: 48, bottom: 4 + raise }}>
-      {/* data bits popping up along the robot's path */}
-      {[10, 30, 52, 72, 88].map((pct, i) => (
-        <span key={i} className="scanbot-bit" style={{ left: `${pct}%`, animationDelay: `${i * 0.5}s` }}>
-          {i % 2 ? '1' : '0'}
-        </span>
-      ))}
+    <div className="absolute inset-x-0 pointer-events-none" style={{ height: 58, bottom: 4 + raise }}>
       <div className="scanbot">
-        <svg width="38" height="42" viewBox="0 0 38 42">
+        <svg width="40" height="50" viewBox="0 0 40 50" overflow="visible">
           {/* antenna */}
-          <line x1="19" y1="6" x2="19" y2="11" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" />
-          <circle className="scanbot-antenna" cx="19" cy="4.5" r="2.6" fill="#c4b5fd" />
-          {/* head */}
-          <rect x="9" y="10" width="20" height="13" rx="4.5" fill="#7c3aed" />
-          <circle className="scanbot-eye" cx="15" cy="16.5" r="2.3" fill="#fff" />
-          <circle className="scanbot-eye" cx="23" cy="16.5" r="2.3" fill="#fff" />
+          <line x1="20" y1="5" x2="20" y2="10" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" />
+          <circle className="scanbot-antenna" cx="20" cy="3" r="2.5" fill="#c4b5fd" />
+          {/* head — big and round */}
+          <rect x="3" y="10" width="34" height="21" rx="10" fill="#7c3aed" />
+          {/* left eye */}
+          <circle cx="13" cy="20.5" r="5" fill="white" />
+          <circle className="scanbot-eye" cx="13.5" cy="21" r="2.5" fill="#2e1065" />
+          <circle cx="15.2" cy="19" r="1.2" fill="white" opacity="0.85" />
+          {/* right eye */}
+          <circle cx="27" cy="20.5" r="5" fill="white" />
+          <circle className="scanbot-eye" cx="27.5" cy="21" r="2.5" fill="#2e1065" />
+          <circle cx="29.2" cy="19" r="1.2" fill="white" opacity="0.85" />
+          {/* blush */}
+          <ellipse cx="6" cy="27" rx="2.5" ry="1.5" fill="#f9a8d4" opacity="0.6" />
+          <ellipse cx="34" cy="27" rx="2.5" ry="1.5" fill="#f9a8d4" opacity="0.6" />
+          {/* smile */}
+          <path d="M 14 28.5 Q 20 33 26 28.5" stroke="#a78bfa" strokeWidth="1.3" fill="none" strokeLinecap="round" />
           {/* body */}
-          <rect x="11" y="24" width="16" height="10" rx="3.5" fill="#6d28d9" />
-          <rect x="14.5" y="26.5" width="9" height="4.5" rx="1.5" fill="#a78bfa" opacity="0.75" />
-          {/* legs */}
-          <rect className="scanbot-leg scanbot-leg-l" x="13" y="34" width="3.8" height="7" rx="1.8" fill="#5b21b6" />
-          <rect className="scanbot-leg scanbot-leg-r" x="21" y="34" width="3.8" height="7" rx="1.8" fill="#5b21b6" />
+          <rect x="11" y="32" width="18" height="12" rx="5" fill="#6d28d9" />
+          <rect x="14" y="34.5" width="12" height="6" rx="2" fill="#a78bfa" opacity="0.6" />
+          {/* left arm + magnifying glass */}
+          <g className="scanbot-arm scanbot-arm-l">
+            <rect x="-4" y="33" width="15" height="5" rx="2.5" fill="#5b21b6" />
+            <circle cx="-7" cy="35.5" r="3.8" fill="none" stroke="#c4b5fd" strokeWidth="1.5" />
+            <line x1="-4.5" y1="38.5" x2="-2" y2="41.5" stroke="#c4b5fd" strokeWidth="1.5" strokeLinecap="round" />
+          </g>
+          {/* right arm + wrench */}
+          <g className="scanbot-arm scanbot-arm-r">
+            <rect x="29" y="33" width="15" height="5" rx="2.5" fill="#5b21b6" />
+            <circle cx="46.5" cy="33.5" r="3" fill="none" stroke="#c4b5fd" strokeWidth="1.5" />
+            <line x1="45.5" y1="36.5" x2="43.5" y2="40.5" stroke="#c4b5fd" strokeWidth="2" strokeLinecap="round" />
+          </g>
+          {/* legs — short and stubby */}
+          <rect className="scanbot-leg scanbot-leg-l" x="13" y="44" width="6" height="6" rx="3" fill="#5b21b6" />
+          <rect className="scanbot-leg scanbot-leg-r" x="21" y="44" width="6" height="6" rx="3" fill="#5b21b6" />
         </svg>
       </div>
     </div>
