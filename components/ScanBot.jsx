@@ -1,46 +1,66 @@
 'use client'
 
+// Clock, compass, and map icons — what the robot is collecting:
+// time, location, and date.
+const ClockIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+    <circle cx="11" cy="11" r="9" fill="rgba(109,40,217,0.45)" stroke="#c4b5fd" strokeWidth="1.6"/>
+    <line x1="11" y1="11" x2="11" y2="5.5" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
+    <line x1="11" y1="11" x2="15" y2="13.5" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
+    <circle cx="11" cy="11" r="1.2" fill="#c4b5fd"/>
+  </svg>
+)
+
+const CompassIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+    <circle cx="11" cy="11" r="9" fill="rgba(109,40,217,0.45)" stroke="#c4b5fd" strokeWidth="1.6"/>
+    <polygon points="11,3 13.2,11 11,9 8.8,11" fill="white"/>
+    <polygon points="11,19 13.2,11 11,13 8.8,11" fill="#a78bfa"/>
+    <circle cx="11" cy="11" r="1.3" fill="#c4b5fd"/>
+  </svg>
+)
+
+const MapIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+    <path d="M3 6 L8 4 L14 6 L19 4 L19 17 L14 19 L8 17 L3 19 Z"
+          fill="rgba(109,40,217,0.45)" stroke="#c4b5fd" strokeWidth="1.3" strokeLinejoin="round"/>
+    <line x1="8"  y1="4"  x2="8"  y2="17" stroke="#c4b5fd" strokeWidth="1" opacity="0.65"/>
+    <line x1="14" y1="6"  x2="14" y2="19" stroke="#c4b5fd" strokeWidth="1" opacity="0.65"/>
+  </svg>
+)
+
 export default function ScanBot({ raise = 0 }) {
   return (
-    <div className="absolute inset-x-0 pointer-events-none" style={{ height: 58, bottom: 4 + raise }}>
+    <div className="absolute inset-x-0 pointer-events-none" style={{ height: 56, bottom: 4 + raise }}>
+      {/* collectibles — each appears at the wall just after the robot exits off-screen,
+          then pops off when the robot runs back through and grabs it */}
+      <span className="scanbot-item scanbot-item-clock"   style={{ position: 'absolute', bottom: 40, right: '4%' }}><ClockIcon /></span>
+      <span className="scanbot-item scanbot-item-compass" style={{ position: 'absolute', bottom: 40, left:  '4%' }}><CompassIcon /></span>
+      <span className="scanbot-item scanbot-item-map"     style={{ position: 'absolute', bottom: 40, right: '4%' }}><MapIcon /></span>
+
       <div className="scanbot">
-        <svg width="40" height="50" viewBox="0 0 40 50" overflow="visible">
+        <svg width="38" height="44" viewBox="0 0 38 44" overflow="visible">
           {/* antenna */}
-          <line x1="20" y1="5" x2="20" y2="10" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" />
-          <circle className="scanbot-antenna" cx="20" cy="3" r="2.5" fill="#c4b5fd" />
-          {/* head — big and round */}
-          <rect x="3" y="10" width="34" height="21" rx="10" fill="#7c3aed" />
+          <line x1="19" y1="5" x2="19" y2="10" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round"/>
+          <circle className="scanbot-antenna" cx="19" cy="3" r="2.2" fill="#c4b5fd"/>
+          {/* head */}
+          <rect x="6" y="9" width="26" height="17" rx="7" fill="#7c3aed"/>
           {/* left eye */}
-          <circle cx="13" cy="20.5" r="5" fill="white" />
-          <circle className="scanbot-eye" cx="13.5" cy="21" r="2.5" fill="#2e1065" />
-          <circle cx="15.2" cy="19" r="1.2" fill="white" opacity="0.85" />
+          <circle cx="13.5" cy="17.5" r="3.3" fill="white"/>
+          <circle className="scanbot-eye" cx="14" cy="18" r="1.7" fill="#2e1065"/>
+          <circle cx="15.3" cy="16.4" r="1.1" fill="white" opacity="0.9"/>
           {/* right eye */}
-          <circle cx="27" cy="20.5" r="5" fill="white" />
-          <circle className="scanbot-eye" cx="27.5" cy="21" r="2.5" fill="#2e1065" />
-          <circle cx="29.2" cy="19" r="1.2" fill="white" opacity="0.85" />
-          {/* blush */}
-          <ellipse cx="6" cy="27" rx="2.5" ry="1.5" fill="#f9a8d4" opacity="0.6" />
-          <ellipse cx="34" cy="27" rx="2.5" ry="1.5" fill="#f9a8d4" opacity="0.6" />
+          <circle cx="24.5" cy="17.5" r="3.3" fill="white"/>
+          <circle className="scanbot-eye" cx="25" cy="18" r="1.7" fill="#2e1065"/>
+          <circle cx="26.3" cy="16.4" r="1.1" fill="white" opacity="0.9"/>
           {/* smile */}
-          <path d="M 14 28.5 Q 20 33 26 28.5" stroke="#a78bfa" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+          <path d="M 13 23 Q 19 27.5 25 23" stroke="#a78bfa" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
           {/* body */}
-          <rect x="11" y="32" width="18" height="12" rx="5" fill="#6d28d9" />
-          <rect x="14" y="34.5" width="12" height="6" rx="2" fill="#a78bfa" opacity="0.6" />
-          {/* left arm + magnifying glass */}
-          <g className="scanbot-arm scanbot-arm-l">
-            <rect x="-4" y="33" width="15" height="5" rx="2.5" fill="#5b21b6" />
-            <circle cx="-7" cy="35.5" r="3.8" fill="none" stroke="#c4b5fd" strokeWidth="1.5" />
-            <line x1="-4.5" y1="38.5" x2="-2" y2="41.5" stroke="#c4b5fd" strokeWidth="1.5" strokeLinecap="round" />
-          </g>
-          {/* right arm + wrench */}
-          <g className="scanbot-arm scanbot-arm-r">
-            <rect x="29" y="33" width="15" height="5" rx="2.5" fill="#5b21b6" />
-            <circle cx="46.5" cy="33.5" r="3" fill="none" stroke="#c4b5fd" strokeWidth="1.5" />
-            <line x1="45.5" y1="36.5" x2="43.5" y2="40.5" stroke="#c4b5fd" strokeWidth="2" strokeLinecap="round" />
-          </g>
-          {/* legs — short and stubby */}
-          <rect className="scanbot-leg scanbot-leg-l" x="13" y="44" width="6" height="6" rx="3" fill="#5b21b6" />
-          <rect className="scanbot-leg scanbot-leg-r" x="21" y="44" width="6" height="6" rx="3" fill="#5b21b6" />
+          <rect x="9" y="27" width="20" height="11" rx="4.5" fill="#6d28d9"/>
+          <rect x="12" y="29" width="14" height="6"  rx="2"   fill="#a78bfa" opacity="0.65"/>
+          {/* legs */}
+          <rect className="scanbot-leg scanbot-leg-l" x="11" y="38" width="5" height="6" rx="2.5" fill="#5b21b6"/>
+          <rect className="scanbot-leg scanbot-leg-r" x="22" y="38" width="5" height="6" rx="2.5" fill="#5b21b6"/>
         </svg>
       </div>
     </div>
