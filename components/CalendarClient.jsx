@@ -9,6 +9,34 @@ import FeedView from './FeedView'
 import EventDetailModal from './EventDetailModal'
 import Portal from './Portal'
 
+// The Push API requires applicationServerKey as a Uint8Array, NOT a base64 string.
+// Without this conversion pushManager.subscribe() throws and background push never works.
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(base64)
+  const arr = new Uint8Array(raw.length)
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i)
+  return arr
+}
+
+// Create (or refresh) the Web Push subscription and sync it to the server.
+// Safe to call on every load — pushManager.subscribe() returns the existing
+// subscription if one already matches, so this also self-heals rotated subs.
+async function subscribePush(reg) {
+  const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  if (!vapidKey || !reg?.pushManager) return
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(vapidKey),
+  })
+  await fetch('/api/push-subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sub),
+  })
+}
+
 const THEMES = {
   paper: {
     bg: '#fef9f2',
@@ -243,7 +271,16 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(reg => { swRegRef.current = reg }).catch(() => {})
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        swRegRef.current = reg
+        // Self-heal: if the user already enabled notifications, make sure a valid
+        // push subscription exists on the server. Fixes users whose subscription
+        // was never created (earlier bug) or was rotated by the browser.
+        if (localStorage.getItem('notificationsEnabled') === 'true' &&
+            'Notification' in window && Notification.permission === 'granted') {
+          subscribePush(reg).catch(() => {})
+        }
+      }).catch(() => {})
     }
     const saved = localStorage.getItem('calendarTheme')
     if (saved && THEMES[saved]) setThemeId(saved)
@@ -375,21 +412,10 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
     setNotifEnabled(true)
     localStorage.setItem('notificationsEnabled', 'true')
     checkAndNotify(events)
-    // Subscribe to Web Push for background notifications
+    // Subscribe to Web Push so reminders arrive in the background (app closed)
     try {
       const reg = swRegRef.current || await navigator.serviceWorker.ready
-      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-      if (vapidKey) {
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: vapidKey,
-        })
-        await fetch('/api/push-subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sub),
-        })
-      }
+      await subscribePush(reg)
     } catch {}
   }
 

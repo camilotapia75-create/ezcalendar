@@ -8,37 +8,40 @@ export default async function CalendarPage({ searchParams }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/')
 
-  // Get or create user's invite code (gracefully no-ops if table doesn't exist yet)
-  let inviteCode = ''
-  try {
-    let { data: invite, error } = await supabase
-      .from('calendar_invites')
-      .select('invite_code')
-      .eq('owner_id', user.id)
-      .single()
+  // These three queries are independent — run them concurrently to cut the
+  // server round-trips (and the time-to-first-byte) roughly in half.
+  const [inviteRes, connectionsRes, eventsRes] = await Promise.all([
+    // Invite code (gracefully no-ops if table doesn't exist yet)
+    supabase.from('calendar_invites').select('invite_code').eq('owner_id', user.id).single()
+      .then(r => r).catch(() => ({ data: null })),
+    // Connections
+    supabase.from('calendar_connections').select('user_a_id, user_b_id')
+      .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
+      .then(r => r).catch(() => ({ data: null })),
+    // Events — RLS includes connected users' events automatically
+    supabase.from('events').select('*').order('date', { ascending: true })
+      .then(r => r).catch(() => ({ data: null })),
+  ])
 
-    if (!invite) {
+  // Create invite code on first visit if one doesn't exist yet
+  let inviteCode = inviteRes?.data?.invite_code || ''
+  if (!inviteCode) {
+    try {
       const { data: newInvite } = await supabase
         .from('calendar_invites')
         .insert({ owner_id: user.id })
         .select('invite_code')
         .single()
-      invite = newInvite
-    }
-    inviteCode = invite?.invite_code || ''
-  } catch (_) {}
+      inviteCode = newInvite?.invite_code || ''
+    } catch (_) {}
+  }
 
-  // Fetch connected friends with their display info
-  let connectedCount = 0
+  // Resolve connected friends' display info (depends on the connections result)
+  const connections = connectionsRes?.data || []
+  let connectedCount = connections.length
   let connectedFriends = []
-  try {
-    const { data: connections } = await supabase
-      .from('calendar_connections')
-      .select('user_a_id, user_b_id')
-      .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
-    connectedCount = (connections || []).length
-
-    if (connections?.length && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (connections.length && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
       const adminSupabase = createAdminClient()
       const friendIds = connections.map(c => c.user_a_id === user.id ? c.user_b_id : c.user_a_id)
       connectedFriends = await Promise.all(friendIds.map(async id => {
@@ -49,14 +52,10 @@ export default async function CalendarPage({ searchParams }) {
           return { id, email, name }
         } catch { return { id, email: '', name: '' } }
       }))
-    }
-  } catch (_) {}
+    } catch (_) {}
+  }
 
-  // Fetch events — RLS includes connected users' events automatically
-  const { data: events } = await supabase
-    .from('events')
-    .select('*')
-    .order('date', { ascending: true })
+  const events = eventsRes?.data
 
   return (
     <CalendarClient
