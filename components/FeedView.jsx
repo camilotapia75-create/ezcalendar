@@ -20,12 +20,18 @@ function getGroups(events) {
   const tom = new Date(todayStart); tom.setDate(todayStart.getDate() + 1)
   const tomorrowKey = toKey(tom)
 
-  const future = [...events].filter(e => e.date >= todayKey).sort((a,b) => a.date.localeCompare(b.date))
-  const past   = [...events].filter(e => e.date <  todayKey).sort((a,b) => a.date.localeCompare(b.date))
+  // A multi-day event isn't "past" until its LAST day passes, so key off the
+  // end date (falling back to start). This keeps events that span today in the
+  // upcoming feed instead of dropping them into Past.
+  const endKey = e => e.end_date || e.date
+  const future = [...events].filter(e => endKey(e) >= todayKey).sort((a,b) => a.date.localeCompare(b.date))
+  const past   = [...events].filter(e => endKey(e) <  todayKey).sort((a,b) => a.date.localeCompare(b.date))
 
   const buckets = { Today: [], Tomorrow: [], 'This Week': [], 'Next Week': [], 'Coming Up': [] }
   future.forEach(e => {
-    if (e.date === todayKey)    { buckets.Today.push(e); return }
+    // Happening today = started on/before today AND ends on/after today
+    // (covers single-day events today and multi-day events spanning today)
+    if (e.date <= todayKey && endKey(e) >= todayKey) { buckets.Today.push(e); return }
     if (e.date === tomorrowKey) { buckets.Tomorrow.push(e); return }
     const diff = Math.floor((parseLocalDate(e.date) - todayStart) / 86400000)
     if (diff <= 7)  buckets['This Week'].push(e)
