@@ -3,10 +3,18 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import CalendarClient from '@/components/CalendarClient'
 
+// Edge runtime eliminates serverless cold-starts (which caused 1-3s blank screens
+// on mobile). All Supabase clients used here are fetch-based and Edge-compatible.
+export const runtime = 'edge'
+
 export default async function CalendarPage({ searchParams }) {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/')
+
+  // getSession reads the signed cookie — no network call, instant.
+  // Middleware already guards this route; RLS policies protect each DB query.
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) redirect('/')
+  const user = session.user
 
   // These three queries are independent — run them concurrently to cut the
   // server round-trips (and the time-to-first-byte) roughly in half.

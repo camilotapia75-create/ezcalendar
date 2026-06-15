@@ -43,14 +43,16 @@ export async function GET(request) {
   const tom = new Date(today); tom.setDate(today.getDate() + 1)
   const tomorrowKey = `${tom.getFullYear()}-${pad(tom.getMonth()+1)}-${pad(tom.getDate())}`
 
-  // Single query for ALL subscribed users' events — avoids N+1 at scale
+  // Single query for ALL subscribed users' events — avoids N+1 at scale.
+  // The OR filter captures multi-day events that started before today (date < today)
+  // but end today or tomorrow (end_date >= today).
   const userIds = subs.map(s => s.user_id)
   const { data: allEvents } = await supabase
     .from('events')
     .select('user_id, title, date, end_date')
     .in('user_id', userIds)
-    .gte('date', todayKey)
     .lte('date', tomorrowKey)
+    .or(`date.gte.${todayKey},end_date.gte.${todayKey}`)
 
   // Group events by user_id for O(1) lookup per subscriber
   const eventsByUser = {}
