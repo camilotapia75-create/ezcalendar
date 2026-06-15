@@ -377,15 +377,12 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   }
 
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-end md:items-center justify-center z-50 anim-backdrop" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-50 p-4 anim-backdrop" onClick={onClose}>
       <div
-        className="w-full md:max-w-md rounded-t-[28px] md:rounded-[20px] overflow-hidden anim-modal"
-        style={{ background: '#131316', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 -8px 40px rgba(0,0,0,0.6)' }}
+        className="w-full max-w-md rounded-[20px] overflow-hidden anim-modal"
+        style={{ background: '#131316', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 12px 48px rgba(0,0,0,0.7)' }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-3 md:hidden">
-          <div className="w-9 h-[3px] bg-white/10 rounded-full" />
-        </div>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <span className="text-[15px] font-semibold text-white">
             {!showForm
