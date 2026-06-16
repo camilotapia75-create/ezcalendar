@@ -11,6 +11,7 @@
     }
   ],
   "functions": {
-    "app/api/scan-link/route.js": { "maxDuration": 60 }
+    "app/api/scan-link/route.js": { "maxDuration": 60 },
+    "app/api/push-test/route.js": { "maxDuration": 15 }
   }
 }

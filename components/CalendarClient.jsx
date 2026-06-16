@@ -445,12 +445,12 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/') }
 
   const sendTestPush = async () => {
-    showToast('Close the app now — test push is being sent…')
+    showToast('Close the app NOW — test push arrives in ~8 seconds')
     try {
-      const res = await fetch('/api/push-test', { method: 'POST' })
+      const res = await fetch('/api/push-test', { method: 'POST', keepalive: true })
       const data = await res.json()
       if (!res.ok) showToast(`Push failed: ${data.error}`)
-    } catch { showToast('Could not reach server') }
+    } catch { /* app may be closed by now — request continues server-side */ }
   }
 
   const getDayEvents = (date) => {

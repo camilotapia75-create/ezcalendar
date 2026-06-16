@@ -29,10 +29,15 @@ export async function POST(request) {
     process.env.VAPID_PRIVATE_KEY,
   )
 
+  // Hold for 8s before sending so the user has time to close the app and confirm
+  // the notification truly arrives in the BACKGROUND (the whole point of the test).
+  // The request stays alive server-side even after the client closes the app.
+  await new Promise(r => setTimeout(r, 8000))
+
   try {
     await webpush.sendNotification(
       sub.subscription,
-      JSON.stringify({ title: '📌 Test notification', body: 'Background push is working! Close the app before tapping the button to confirm.' })
+      JSON.stringify({ title: '📌 Test notification', body: 'Background push is working! 🎉' })
     )
     return NextResponse.json({ ok: true })
   } catch (err) {
