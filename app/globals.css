@@ -4,6 +4,8 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+@keyframes calLoadSpin { to { transform: rotate(360deg); } }
+
 body {
   font-family: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
   background: #f5eef8;

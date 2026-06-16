@@ -584,7 +584,7 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
           </div>
         )}
         {activeTab === 'feed' && (
-          <FeedView events={visibleEvents} accent={accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dark} loading={eventsLoading} />
+          <FeedView events={visibleEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} />
         )}
         {activeTab === 'calendar' && (
           <div style={{ padding: '16px 12px 8px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
