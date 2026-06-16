@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Calendar from './Calendar'
@@ -375,39 +375,6 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
     setNotes(prev => ({ ...prev, [dateStr]: (prev[dateStr] || []).filter(n => n.id !== noteId) }))
   }
 
-  const checkAndNotify = useCallback(async (eventsToCheck) => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return
-    if (Notification.permission !== 'granted') return
-    let notifEvts = {}
-    try { notifEvts = JSON.parse(localStorage.getItem('eventNotifs') || '{}') } catch {}
-    const today = new Date()
-    const pad = n => String(n).padStart(2, '0')
-    const todayKey = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`
-    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
-    const tomorrowKey = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}`
-    if (localStorage.getItem(`notified_${todayKey}`)) return
-    const inRange = (e, key) => e.end_date ? e.date <= key && e.end_date >= key : e.date === key
-    const todayEvents    = eventsToCheck.filter(e => inRange(e, todayKey)    && notifEvts[e.id] !== false)
-    const tomorrowEvents = eventsToCheck.filter(e => inRange(e, tomorrowKey) && notifEvts[e.id] !== false)
-    const fire = async (title, body) => {
-      const opts = { body, icon: '/icon', badge: '/icon' }
-      try {
-        const reg = swRegRef.current || await navigator.serviceWorker.ready
-        await reg.showNotification(title, opts)
-      } catch {
-        new Notification(title, opts)
-      }
-      localStorage.setItem(`notified_${todayKey}`, '1')
-    }
-    if (todayEvents.length > 0) {
-      await fire(`${todayEvents.length} event${todayEvents.length > 1 ? 's' : ''} today! 📌`, todayEvents.map(e => e.title || 'Event').join(' • '))
-    } else if (tomorrowEvents.length > 0) {
-      await fire(`${tomorrowEvents.length} event${tomorrowEvents.length > 1 ? 's' : ''} tomorrow 📌`, tomorrowEvents.map(e => e.title || 'Event').join(' • '))
-    }
-  }, [])
-
-  useEffect(() => { if (notifEnabled) checkAndNotify(events) }, [notifEnabled, events, checkAndNotify])
-
   const toggleNotifications = async () => {
     if (notifEnabled) {
       setNotifEnabled(false)
@@ -434,12 +401,14 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
     }
     setNotifEnabled(true)
     localStorage.setItem('notificationsEnabled', 'true')
-    checkAndNotify(events)
-    // Subscribe to Web Push so reminders arrive in the background (app closed)
+    // Subscribe to Web Push so the daily digest arrives in the background (app closed)
     try {
       const reg = swRegRef.current || await navigator.serviceWorker.ready
       await subscribePush(reg)
-    } catch {}
+      showToast("Notifications on — you'll get a daily heads-up about your events.")
+    } catch {
+      showToast("Couldn't enable notifications — try again.")
+    }
   }
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/') }
