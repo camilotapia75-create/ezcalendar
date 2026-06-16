@@ -81,7 +81,7 @@ export default function ShareModal({ inviteCode, connectedCount, onClose }) {
               fontWeight: 700,
               transition: 'all 0.2s',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              fontFamily: 'var(--font-caveat), Caveat, cursive',
+              fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif',
             }}
           >
             {copied ? '✓ Copied!' : '📋 Copy invite link'}

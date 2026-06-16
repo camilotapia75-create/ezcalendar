@@ -153,12 +153,20 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0 }) {
   )
 }
 
-export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark }) {
+export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading }) {
   const groups = getGroups(events)
 
   const headingColor  = dark ? '#e2e8f0' : '#1a1a2e'
   const dividerColor  = dark ? 'rgba(255,255,255,0.18)' : '#1a1a2e'
   const dividerMuted  = dark ? 'rgba(255,255,255,0.08)' : '#e5e5e5'
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100dvh - 130px)', gap: 12 }}>
+        <div style={{ width: 28, height: 28, borderRadius: '50%', border: `3px solid ${accent}30`, borderTopColor: accent, animation: 'calLoadSpin 0.7s linear infinite' }} />
+      </div>
+    )
+  }
 
   if (events.length === 0) {
     return (
@@ -167,7 +175,7 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
         <h2 style={{ fontSize: 30, fontWeight: 700, color: headingColor, margin: 0 }}>Nothing pinned yet</h2>
         <p style={{ fontSize: 17, color: dark ? '#9ca3af' : '#7c6a56', margin: 0, maxWidth: 260, lineHeight: 1.5 }}>See a flyer? Snap it and it shows up here.</p>
         <button onClick={onScan}
-          style={{ marginTop: 8, padding: '12px 30px', background: dark ? '#e2e8f0' : '#1a1a2e', color: dark ? '#0d0d14' : '#fff', border: dark ? '2px solid rgba(255,255,255,0.15)' : '2px solid #1a1a2e', borderRadius: 6, boxShadow: `3px 3px 0 ${accent}`, fontSize: 20, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-caveat), Caveat, cursive' }}>
+          style={{ marginTop: 8, padding: '12px 30px', background: dark ? '#e2e8f0' : '#1a1a2e', color: dark ? '#0d0d14' : '#fff', border: dark ? '2px solid rgba(255,255,255,0.15)' : '2px solid #1a1a2e', borderRadius: 6, boxShadow: `3px 3px 0 ${accent}`, fontSize: 20, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif' }}>
           📷 Scan a flyer
         </button>
       </div>

@@ -64,7 +64,7 @@ export default function SetPasswordPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required minLength={6} autoFocus
-                style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1.5px solid #c8b4a0', outline: 'none', fontSize: 18, color: '#1a1a2e', padding: '8px 32px 8px 2px', fontFamily: 'var(--font-caveat), Caveat, cursive' }}
+                style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1.5px solid #c8b4a0', outline: 'none', fontSize: 18, color: '#1a1a2e', padding: '8px 32px 8px 2px', fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif' }}
                 onFocus={e => e.target.style.borderBottomColor = '#7c3aed'}
                 onBlur={e => e.target.style.borderBottomColor = '#c8b4a0'}
               />
@@ -82,7 +82,7 @@ export default function SetPasswordPage() {
             {error && <p style={{ fontSize: 15, color: '#b91c1c', margin: 0 }}>{error}</p>}
 
             <button type="submit" disabled={loading}
-              style={{ width: '100%', padding: '11px', background: '#1a1a2e', color: '#fff', border: '2px solid #1a1a2e', borderRadius: 6, boxShadow: loading ? 'none' : '3px 3px 0 #7c3aed', fontSize: 20, fontFamily: 'var(--font-caveat), Caveat, cursive', cursor: 'pointer', fontWeight: 700, opacity: loading ? 0.55 : 1 }}>
+              style={{ width: '100%', padding: '11px', background: '#1a1a2e', color: '#fff', border: '2px solid #1a1a2e', borderRadius: 6, boxShadow: loading ? 'none' : '3px 3px 0 #7c3aed', fontSize: 20, fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif', cursor: 'pointer', fontWeight: 700, opacity: loading ? 0.55 : 1 }}>
               {loading ? 'Saving…' : 'Set password → go to calendar'}
             </button>
           </form>

@@ -461,7 +461,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                   if (e.key === 'Escape') { setPendingText(null); setPendingTextVal('') }
                 }}
                 rows={1} placeholder="Type…"
-                style={{ background: 'transparent', border: 'none', outline: '1.5px dashed rgba(124,58,237,0.4)', resize: 'none', fontSize: penSize * 9, fontFamily: 'var(--font-caveat), Caveat, cursive', fontWeight: 700, color: penColor, minWidth: 100, lineHeight: 1.2, padding: '1px 4px', borderRadius: 3 }}
+                style={{ background: 'transparent', border: 'none', outline: '1.5px dashed rgba(124,58,237,0.4)', resize: 'none', fontSize: penSize * 9, fontFamily: 'var(--font-jakarta), \'Plus Jakarta Sans\', system-ui, sans-serif', fontWeight: 700, color: penColor, minWidth: 100, lineHeight: 1.2, padding: '1px 4px', borderRadius: 3 }}
               />
               <button onPointerDown={e => { e.preventDefault(); flushText() }}
                 style={{ width: 24, height: 24, borderRadius: '50%', background: '#7c3aed', border: 'none', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>✓</button>

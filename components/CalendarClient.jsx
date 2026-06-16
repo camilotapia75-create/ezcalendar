@@ -224,7 +224,7 @@ function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent,
         <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', width: 44, height: 20, background: 'rgba(253,224,71,0.75)', borderRadius: 3 }} />
         <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: '#a89888', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Your invite link</p>
         <p style={{ margin: '0 0 14px', fontSize: 13, color: '#4b5563', wordBreak: 'break-all', fontFamily: 'monospace', lineHeight: 1.5 }}>{inviteUrl || `…/${inviteCode}`}</p>
-        <button onClick={copyLink} style={{ width: '100%', padding: '11px', background: copied ? 'rgba(34,197,94,0.10)' : '#1a1a2e', color: copied ? '#166534' : '#fff', border: copied ? '1.5px solid rgba(34,197,94,0.3)' : '2px solid #1a1a2e', borderRadius: 6, boxShadow: copied ? 'none' : `3px 3px 0 ${accent}`, cursor: 'pointer', fontSize: 18, fontWeight: 700, transition: 'all 0.2s', fontFamily: 'var(--font-caveat), Caveat, cursive', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <button onClick={copyLink} style={{ width: '100%', padding: '11px', background: copied ? 'rgba(34,197,94,0.10)' : '#1a1a2e', color: copied ? '#166534' : '#fff', border: copied ? '1.5px solid rgba(34,197,94,0.3)' : '2px solid #1a1a2e', borderRadius: 6, boxShadow: copied ? 'none' : `3px 3px 0 ${accent}`, cursor: 'pointer', fontSize: 18, fontWeight: 700, transition: 'all 0.2s', fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           {copied ? '✓ Copied!' : '📋 Copy invite link'}
         </button>
       </div>
@@ -236,8 +236,12 @@ function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent,
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function CalendarClient({ initialEvents, user, inviteCode, connectedCount = 0, connectedFriends = [], joined = false, joinErr, scanUrl = null }) {
-  const [events, setEvents]         = useState(initialEvents)
+export default function CalendarClient({ user, joined = false, joinErr, scanUrl = null }) {
+  const [events, setEvents]         = useState([])
+  const [eventsLoading, setEventsLoading] = useState(true)
+  const [inviteCode, setInviteCode]   = useState('')
+  const [connectedCount, setConnectedCount] = useState(0)
+  const [connectedFriends, setConnectedFriends] = useState([])
   const [currentDate, setCurrentDate] = useState(new Date())
   // Single modal state — only one overlay can ever show at a time
   // null | { type: 'add', date: Date|null }
@@ -282,6 +286,25 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
         }
       }).catch(() => {})
     }
+    // Client-side data loading — server only checks auth cookie (instant, zero DB calls).
+    // All data loads here so the app shell renders immediately with no blank screen.
+    Promise.all([
+      supabase.from('events').select('*').order('date', { ascending: true }),
+      supabase.from('calendar_connections').select('user_a_id, user_b_id')
+        .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`),
+      supabase.from('calendar_invites').select('invite_code').eq('owner_id', user.id).single(),
+    ]).then(async ([eventsRes, connectionsRes, inviteRes]) => {
+      setEvents(eventsRes.data || [])
+      setEventsLoading(false)
+      setConnectedCount(connectionsRes.data?.length || 0)
+      let code = inviteRes.data?.invite_code || ''
+      if (!code) {
+        const { data: newInvite } = await supabase.from('calendar_invites')
+          .insert({ owner_id: user.id }).select('invite_code').single()
+        code = newInvite?.invite_code || ''
+      }
+      setInviteCode(code)
+    }).catch(() => setEventsLoading(false))
     const saved = localStorage.getItem('calendarTheme')
     if (saved && THEMES[saved]) setThemeId(saved)
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
@@ -546,14 +569,7 @@ export default function CalendarClient({ initialEvents, user, inviteCode, connec
           </div>
         )}
         {activeTab === 'feed' && (
-          <FeedView
-            events={visibleEvents}
-            accent={theme.accent}
-            dark={theme.dark}
-            onEventTap={handleFeedEventTap}
-            onDeleteEvent={deleteEvent}
-            onScan={() => setModal({ type: 'add', date: null })}
-          />
+          <FeedView events={visibleEvents} accent={accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dark} loading={eventsLoading} />
         )}
         {activeTab === 'calendar' && (
           <div style={{ padding: '16px 12px 8px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
