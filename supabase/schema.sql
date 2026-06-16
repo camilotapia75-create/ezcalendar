@@ -29,8 +29,12 @@ alter table events add column if not exists end_date text;
 create table if not exists push_subscriptions (
   user_id uuid references auth.users(id) on delete cascade primary key,
   subscription jsonb not null,
+  timezone text,            -- IANA tz (e.g. 'America/Los_Angeles') for per-user delivery time
   updated_at timestamptz default now()
 );
+
+-- Migration for deployments created before timezone tracking:
+alter table push_subscriptions add column if not exists timezone text;
 
 alter table push_subscriptions enable row level security;
 

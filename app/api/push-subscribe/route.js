@@ -6,15 +6,19 @@ export async function POST(request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const subscription = await request.json()
+  const body = await request.json()
+  // Back-compat: older clients POSTed the raw subscription object directly.
+  const subscription = body.subscription || body
+  const timezone = body.timezone || null
   if (!subscription?.endpoint) return NextResponse.json({ error: 'Invalid subscription' }, { status: 400 })
+
+  const row = { user_id: user.id, subscription, updated_at: new Date().toISOString() }
+  // Only set timezone when provided, so an old client doesn't wipe a stored value.
+  if (timezone) row.timezone = timezone
 
   await supabase
     .from('push_subscriptions')
-    .upsert(
-      { user_id: user.id, subscription: subscription, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' }
-    )
+    .upsert(row, { onConflict: 'user_id' })
 
   return NextResponse.json({ ok: true })
 }

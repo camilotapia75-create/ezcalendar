@@ -30,10 +30,13 @@ async function subscribePush(reg) {
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(vapidKey),
   })
+  // Send the user's timezone so the daily digest fires at their local morning,
+  // not a fixed UTC hour. Re-sent on every subscribe so it stays current if they travel.
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null
   await fetch('/api/push-subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sub),
+    body: JSON.stringify({ subscription: sub, timezone }),
   })
 }
 
@@ -413,15 +416,6 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/') }
 
-  const sendTestPush = async () => {
-    showToast('Close the app NOW — test push arrives in ~8 seconds')
-    try {
-      const res = await fetch('/api/push-test', { method: 'POST', keepalive: true })
-      const data = await res.json()
-      if (!res.ok) showToast(`Push failed: ${data.error}`)
-    } catch { /* app may be closed by now — request continues server-side */ }
-  }
-
   const getDayEvents = (date) => {
     if (!date) return []
     const key = [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
@@ -498,12 +492,6 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '4px 6px' }}>
             {notifEnabled ? '🔔' : '🔕'}
           </button>
-          {notifEnabled && (
-            <button onClick={sendTestPush} title="Send a test push to verify background delivery"
-              style={{ background: 'none', border: `1px solid ${theme.accent}60`, borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700, color: theme.accent, padding: '2px 5px', lineHeight: 1.4 }}>
-              test
-            </button>
-          )}
           <button onClick={handleSignOut}
             style={{ fontSize: 12, color: theme.accent, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}>
             sign out
