@@ -4,8 +4,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
-// Send the daily digest at this local hour (24h) in each user's own timezone.
-const TARGET_HOUR = 8
 // Fallback timezone for subscriptions saved before we tracked it.
 const DEFAULT_TZ = 'America/Los_Angeles'
 // Max concurrent push deliveries — prevents OOM with thousands of subscribers
@@ -19,17 +17,11 @@ async function runBatch(tasks, concurrency) {
   await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker))
 }
 
-// Local hour (integer 0–23) and local date key (YYYY-MM-DD) for a timezone.
-function localParts(tz, date) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
+// Local date key (YYYY-MM-DD) for a timezone at a given instant.
+function localDateKey(tz, date) {
+  return new Intl.DateTimeFormat('en-CA', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', hour12: false,
-  }).formatToParts(date)
-  const get = t => parts.find(p => p.type === t)?.value
-  return {
-    hour: parseInt(get('hour'), 10) % 24, // Intl can emit "24" at midnight
-    dateKey: `${get('year')}-${get('month')}-${get('day')}`,
-  }
+  }).format(date)
 }
 
 export async function GET(request) {
@@ -54,32 +46,29 @@ export async function GET(request) {
   const now = new Date()
   const tomorrow = new Date(now.getTime() + 86400000)
 
-  // Resolve each timezone once (many users share a timezone). A subscriber is
-  // "active" this run only if their local time is currently TARGET_HOUR — which
-  // happens exactly once per day per timezone, so each user gets one digest/day.
-  const tzInfo = {}
-  const activeSubs = []
-  for (const sub of subs) {
+  // The Hobby plan caps cron at one run/day, so we can't deliver at each user's
+  // local 8 AM. Instead we run once at a fixed UTC hour and notify everyone — but
+  // we still compute each user's "today/tomorrow" in THEIR timezone, so the digest
+  // content is correct for their local calendar day. Resolve each timezone once
+  // (many users share one) to avoid redundant Intl work.
+  const tzKeys = {}
+  const resolve = sub => {
     const tz = sub.timezone || DEFAULT_TZ
-    if (!(tz in tzInfo)) {
+    if (!(tz in tzKeys)) {
       try {
-        const cur = localParts(tz, now)
-        tzInfo[tz] = cur.hour === TARGET_HOUR
-          ? { todayKey: cur.dateKey, tomorrowKey: localParts(tz, tomorrow).dateKey }
-          : null
+        tzKeys[tz] = { todayKey: localDateKey(tz, now), tomorrowKey: localDateKey(tz, tomorrow) }
       } catch {
-        tzInfo[tz] = null // invalid timezone string — skip
+        tzKeys[tz] = { todayKey: localDateKey(DEFAULT_TZ, now), tomorrowKey: localDateKey(DEFAULT_TZ, tomorrow) }
       }
     }
-    if (tzInfo[tz]) activeSubs.push({ ...sub, ...tzInfo[tz] })
+    return tzKeys[tz]
   }
+  const targets = subs.map(sub => ({ ...sub, ...resolve(sub) }))
 
-  if (!activeSubs.length) return NextResponse.json({ sent: 0, checked: subs.length })
-
-  // Query events across the union of active local-date windows in one shot.
+  // Query events across the union of all users' local-date windows in one shot.
   // No per-user IN filter, so it scales without overflowing the request URL.
-  const minKey = activeSubs.reduce((m, s) => s.todayKey    < m ? s.todayKey    : m, activeSubs[0].todayKey)
-  const maxKey = activeSubs.reduce((m, s) => s.tomorrowKey > m ? s.tomorrowKey : m, activeSubs[0].tomorrowKey)
+  const minKey = targets.reduce((m, s) => s.todayKey    < m ? s.todayKey    : m, targets[0].todayKey)
+  const maxKey = targets.reduce((m, s) => s.tomorrowKey > m ? s.tomorrowKey : m, targets[0].tomorrowKey)
   const { data: allEvents } = await supabase
     .from('events')
     .select('user_id, title, date, end_date')
@@ -98,7 +87,7 @@ export async function GET(request) {
   const expiredUserIds = []
   let sent = 0
 
-  const tasks = activeSubs.map(sub => async () => {
+  const tasks = targets.map(sub => async () => {
     const events = eventsByUser[sub.user_id] || []
     const todayEvts    = events.filter(e => inRange(e, sub.todayKey))
     const tomorrowEvts = events.filter(e => inRange(e, sub.tomorrowKey))
@@ -134,6 +123,6 @@ export async function GET(request) {
     await supabase.from('push_subscriptions').delete().in('user_id', expiredUserIds)
   }
 
-  console.log('[push-notify] done', { checked: subs.length, active: activeSubs.length, sent, expired: expiredUserIds.length })
-  return NextResponse.json({ sent, active: activeSubs.length, expired: expiredUserIds.length })
+  console.log('[push-notify] done', { subs: subs.length, sent, expired: expiredUserIds.length })
+  return NextResponse.json({ sent, expired: expiredUserIds.length })
 }
