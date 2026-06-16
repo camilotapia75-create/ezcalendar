@@ -224,7 +224,7 @@ function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent,
         <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', width: 44, height: 20, background: 'rgba(253,224,71,0.75)', borderRadius: 3 }} />
         <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: '#a89888', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Your invite link</p>
         <p style={{ margin: '0 0 14px', fontSize: 13, color: '#4b5563', wordBreak: 'break-all', fontFamily: 'monospace', lineHeight: 1.5 }}>{inviteUrl || `…/${inviteCode}`}</p>
-        <button onClick={copyLink} style={{ width: '100%', padding: '11px', background: copied ? 'rgba(34,197,94,0.10)' : '#1a1a2e', color: copied ? '#166534' : '#fff', border: copied ? '1.5px solid rgba(34,197,94,0.3)' : '2px solid #1a1a2e', borderRadius: 6, boxShadow: copied ? 'none' : `3px 3px 0 ${accent}`, cursor: 'pointer', fontSize: 18, fontWeight: 700, transition: 'all 0.2s', fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <button onClick={copyLink} style={{ width: '100%', padding: '11px', background: copied ? 'rgba(34,197,94,0.10)' : '#1a1a2e', color: copied ? '#166534' : '#fff', border: copied ? '1.5px solid rgba(34,197,94,0.3)' : '2px solid #1a1a2e', borderRadius: 6, boxShadow: copied ? 'none' : `3px 3px 0 ${accent}`, cursor: 'pointer', fontSize: 18, fontWeight: 700, transition: 'all 0.2s', fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           {copied ? '✓ Copied!' : '📋 Copy invite link'}
         </button>
       </div>
@@ -444,6 +444,15 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/') }
 
+  const sendTestPush = async () => {
+    showToast('Close the app now — test push is being sent…')
+    try {
+      const res = await fetch('/api/push-test', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) showToast(`Push failed: ${data.error}`)
+    } catch { showToast('Could not reach server') }
+  }
+
   const getDayEvents = (date) => {
     if (!date) return []
     const key = [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
@@ -520,6 +529,12 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '4px 6px' }}>
             {notifEnabled ? '🔔' : '🔕'}
           </button>
+          {notifEnabled && (
+            <button onClick={sendTestPush} title="Send a test push to verify background delivery"
+              style={{ background: 'none', border: `1px solid ${theme.accent}60`, borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700, color: theme.accent, padding: '2px 5px', lineHeight: 1.4 }}>
+              test
+            </button>
+          )}
           <button onClick={handleSignOut}
             style={{ fontSize: 12, color: theme.accent, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}>
             sign out

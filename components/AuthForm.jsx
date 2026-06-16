@@ -24,7 +24,7 @@ const BTN_STYLE = {
   borderRadius: 6,
   boxShadow: '3px 3px 0 #7c3aed',
   fontSize: 20,
-  fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif',
+  fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif',
   cursor: 'pointer',
   fontWeight: 700,
   transition: 'opacity 0.15s',
@@ -125,7 +125,7 @@ export default function AuthForm({ next, isInvite }) {
           {loading ? 'Sending…' : 'Send reset link'}
         </button>
         <button type="button" onClick={() => switchMode('signin')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#a89888', fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#a89888', fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif' }}
         >
           ← Back to sign in
         </button>
@@ -165,7 +165,7 @@ export default function AuthForm({ next, isInvite }) {
               cursor: 'pointer',
               fontSize: 18,
               color: mode === m ? '#1a1a2e' : '#a89888',
-              fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif',
+              fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif',
               fontWeight: mode === m ? 700 : 400,
             }}
           >
@@ -213,7 +213,7 @@ export default function AuthForm({ next, isInvite }) {
 
       {mode === 'signin' && (
         <button type="button" onClick={() => switchMode('reset')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#a89888', fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#a89888', fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif' }}
         >
           Forgot password?
         </button>

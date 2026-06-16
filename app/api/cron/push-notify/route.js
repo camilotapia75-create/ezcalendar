@@ -86,7 +86,12 @@ export async function GET(request) {
       await webpush.sendNotification(sub.subscription, JSON.stringify({ title, body }))
       sent++
     } catch (err) {
-      if (err.statusCode === 410) expiredUserIds.push(sub.user_id)
+      if (err.statusCode === 410) {
+        expiredUserIds.push(sub.user_id)
+      } else {
+        // Log non-410 errors (e.g. 401 = VAPID key mismatch) so they're visible in Vercel logs
+        console.error('[push-notify] sendNotification failed', { statusCode: err.statusCode, message: err.message, user: sub.user_id })
+      }
     }
   })
 
@@ -97,5 +102,6 @@ export async function GET(request) {
     await supabase.from('push_subscriptions').delete().in('user_id', expiredUserIds)
   }
 
+  console.log('[push-notify] done', { subs: subs.length, sent, expired: expiredUserIds.length })
   return NextResponse.json({ sent, expired: expiredUserIds.length })
 }

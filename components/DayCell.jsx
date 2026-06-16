@@ -73,7 +73,7 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
             fontWeight: isWeekend || isToday ? 800 : 600,
             lineHeight: 1,
             letterSpacing: '-0.5px',
-            fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif',
+            fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif',
           }}
         >
           {day}

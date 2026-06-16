@@ -49,7 +49,7 @@ export default function EventDetailModal({ event, accent = '#7c3aed', onClose, o
           {/* Details */}
           <div style={{ padding: '18px 20px 4px', background: '#fffaee' }}>
             {event.title && (
-              <h2 style={{ margin: '0 0 14px', fontSize: 24, fontWeight: 800, color: '#1a1a2e', lineHeight: 1.2, fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif' }}>
+              <h2 style={{ margin: '0 0 14px', fontSize: 24, fontWeight: 800, color: '#1a1a2e', lineHeight: 1.2, fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif' }}>
                 {event.title}
               </h2>
             )}
@@ -98,19 +98,19 @@ export default function EventDetailModal({ event, accent = '#7c3aed', onClose, o
           {onToggleReminder !== undefined && (
             <div style={{ padding: '10px 16px 0' }}>
               <button onClick={onToggleReminder}
-                style={{ width: '100%', padding: '10px', background: reminderOn ? 'rgba(234,179,8,0.15)' : 'rgba(0,0,0,0.04)', border: reminderOn ? '1.5px solid rgba(234,179,8,0.5)' : '1.5px solid rgba(0,0,0,0.08)', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', color: reminderOn ? '#92400e' : '#6b7280', fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                style={{ width: '100%', padding: '10px', background: reminderOn ? 'rgba(234,179,8,0.15)' : 'rgba(0,0,0,0.04)', border: reminderOn ? '1.5px solid rgba(234,179,8,0.5)' : '1.5px solid rgba(0,0,0,0.08)', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', color: reminderOn ? '#92400e' : '#6b7280', fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 {reminderOn ? '🔔 Reminder on' : '🔕 Reminder off'}
               </button>
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, padding: '10px 16px 14px' }}>
             <button onClick={onClose}
-              style={{ flex: 1, padding: '12px', background: 'rgba(0,0,0,0.05)', border: '1.5px solid rgba(0,0,0,0.08)', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif' }}>
+              style={{ flex: 1, padding: '12px', background: 'rgba(0,0,0,0.05)', border: '1.5px solid rgba(0,0,0,0.08)', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif' }}>
               Close
             </button>
             {onDelete && (
               <button onClick={handleDelete}
-                style={{ flex: 1, padding: '12px', background: 'rgba(239,68,68,0.07)', border: '1.5px solid rgba(239,68,68,0.25)', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#dc2626', fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif' }}>
+                style={{ flex: 1, padding: '12px', background: 'rgba(239,68,68,0.07)', border: '1.5px solid rgba(239,68,68,0.25)', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#dc2626', fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif' }}>
                 Delete event
               </button>
             )}

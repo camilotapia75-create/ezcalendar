@@ -171,7 +171,7 @@ export default function DayNoteModal({ dateStr, existingNote, onSave, onDelete, 
               flex: 1, minHeight: 240,
               padding: '14px 20px',
               fontSize: 24,
-              fontFamily: 'var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif',
+              fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif',
               lineHeight: '1.95',
               background: `repeating-linear-gradient(
                 transparent, transparent calc(1.95em - 1px),
