@@ -421,7 +421,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                   <div style={{ flexShrink: 0, padding: '5px 7px 7px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {event.title && <p style={{ margin: '0 0 3px', fontSize: 11, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</p>}
-                      {event.time_str && <p style={{ margin: '0 0 1px', fontSize: 11, fontWeight: 600, color: '#374151', lineHeight: 1.3 }}>🕐 {event.time_str}</p>}
+                      {event.time_str && <p style={{ margin: '0 0 1px', fontSize: 11, fontWeight: 600, color: '#374151', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>🕐 {event.time_str}</p>}
                       {event.location && <p style={{ margin: 0, fontSize: 10, fontWeight: 500, color: '#6b7280', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {event.location}</p>}
                     </div>
                   </div>
