@@ -331,7 +331,13 @@ export default function CalendarClient() {
       ]).then(async ([eventsRes, connectionsRes, inviteRes]) => {
         setEvents(eventsRes.data || [])
         setEventsLoading(false)
-        setConnectedCount(connectionsRes.data?.length || 0)
+        const count = connectionsRes.data?.length || 0
+        setConnectedCount(count)
+        if (count > 0) {
+          fetch('/api/friend-profiles').then(r => r.json()).then(({ friends }) => {
+            if (friends?.length) setConnectedFriends(friends)
+          }).catch(() => {})
+        }
         let code = inviteRes.data?.invite_code || ''
         if (!code) {
           const { data: newInvite } = await supabase.from('calendar_invites')
@@ -530,7 +536,16 @@ export default function CalendarClient() {
         <span style={{ fontSize: 24, fontWeight: 700, color: navActive, letterSpacing: '-0.5px' }}>ezcalendar</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button onClick={e => { e.stopPropagation(); setShowThemePicker(p => !p) }} title="Change theme"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '4px 6px' }}>🎨</button>
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center', lineHeight: 1 }}>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={navMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <circle cx="8" cy="10" r="1.5" fill={navMuted} stroke="none"/>
+              <circle cx="12" cy="7" r="1.5" fill={navMuted} stroke="none"/>
+              <circle cx="16" cy="10" r="1.5" fill={navMuted} stroke="none"/>
+              <circle cx="16" cy="15" r="1.5" fill={navMuted} stroke="none"/>
+              <circle cx="8" cy="15" r="1.5" fill={navMuted} stroke="none"/>
+            </svg>
+          </button>
           <button onClick={toggleNotifications} title={notifEnabled ? 'Notifications on' : 'Enable notifications'}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center', lineHeight: 1 }}>
             <svg width="19" height="19" viewBox="0 0 24 24"
