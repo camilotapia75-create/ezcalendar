@@ -329,9 +329,9 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#9ca3af', marginTop: 3 }}>{dayName} · {monthName} {year}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-            <button onClick={() => writeMode ? exitWriteMode() : setWriteMode(true)} title={writeMode ? 'Done writing' : 'Write on this day'}
-              style={{ width: 32, height: 32, borderRadius: '50%', background: writeMode ? '#7c3aed' : notes.length > 0 ? '#fef9c3' : '#e5e5e5', border: writeMode ? '2px solid #5b21b6' : notes.length > 0 ? '2px solid #ca8a04' : '2px solid transparent', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', color: writeMode ? '#fff' : undefined }}>
-              {writeMode ? '✓' : '✏️'}
+            <button onClick={() => writeMode ? exitWriteMode() : setWriteMode(true)} title={writeMode ? 'Done writing' : 'Add note'}
+              style={{ height: 32, padding: '0 12px', borderRadius: 16, background: writeMode ? '#7c3aed' : notes.length > 0 ? '#fef9c3' : '#e5e5e5', border: writeMode ? '2px solid #5b21b6' : notes.length > 0 ? '2px solid #ca8a04' : '2px solid transparent', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', color: writeMode ? '#fff' : '#374151', whiteSpace: 'nowrap' }}>
+              {writeMode ? '✓ Done' : 'Add note'}
             </button>
             <button onClick={writeMode ? exitWriteMode : onClose}
               style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e5e5', border: 'none', cursor: 'pointer', fontSize: 14, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✕</button>
@@ -350,9 +350,9 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           {/* Note manager button */}
           {notes.length > 0 && !writeMode && (
             <div style={{ position: 'absolute', bottom: 10, right: 10, zIndex: 35 }} onClick={e => e.stopPropagation()}>
-              <button onClick={() => setShowNoteManager(p => !p)} title="Manage notes"
-                style={{ width: 28, height: 28, borderRadius: '50%', background: showNoteManager ? '#7c3aed' : 'rgba(0,0,0,0.32)', border: 'none', color: '#fff', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
-                ✏️
+              <button onClick={() => setShowNoteManager(p => !p)} title="Delete note"
+                style={{ height: 28, padding: '0 10px', borderRadius: 14, background: showNoteManager ? '#7c3aed' : 'rgba(0,0,0,0.32)', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', whiteSpace: 'nowrap' }}>
+                Delete note
               </button>
               {showNoteManager && (
                 <div style={{ position: 'absolute', bottom: 34, right: 0, background: '#fff', borderRadius: 12, padding: '10px 10px 8px', boxShadow: '0 6px 24px rgba(0,0,0,0.18)', border: '1.5px solid #e9e0cc', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 130 }}>
