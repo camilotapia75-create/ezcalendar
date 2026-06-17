@@ -259,7 +259,6 @@ export default function CalendarClient() {
   const [notifToast, setNotifToast]     = useState(null)
   const [themeId, setThemeId]           = useState('paper')
   const [showThemePicker, setShowThemePicker] = useState(false)
-  const [pinStyle, setPinStyle]         = useState('classic')
   const [notes, setNotes]               = useState({})
   const [activeTab, setActiveTab]       = useState('feed')
   const [notifEvents, setNotifEvents]   = useState({})
@@ -603,7 +602,6 @@ export default function CalendarClient() {
               onDayClick={d => setModal({ type: 'dayview', date: d })}
               onEventClick={d => setModal({ type: 'dayview', date: d })}
               theme={theme}
-              pinStyle={pinStyle}
               notes={notes}
             />
           </div>
@@ -664,7 +662,6 @@ export default function CalendarClient() {
           onClose={() => setModal(null)}
           onAdd={() => setModal({ type: 'add', date: modal.date })}
           onDelete={deleteEvent}
-          onPinStyleChange={id => setPinStyle(id)}
           onSaveNote={saveNote}
           onDeleteNote={deleteNote}
           accent={theme.accent}

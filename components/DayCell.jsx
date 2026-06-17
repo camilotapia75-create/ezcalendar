@@ -1,27 +1,8 @@
-const EMOJI_PINS = {
-  star: '⭐', heart: '❤️', flower: '🌸', gem: '💎',
-  ribbon: '🎀', butterfly: '🦋', moon: '🌙',
-  fire: '🔥', rainbow: '🌈', lightning: '⚡', sparkle: '✨',
-}
-
-const Pin = ({ styleId }) => {
-  if (!styleId || styleId === 'classic') {
-    return (
-      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none' }}>
-        <svg width="13" height="17" viewBox="0 0 13 17" fill="none">
-          <circle cx="6.5" cy="5" r="5" fill="#ef4444" />
-          <circle cx="4.8" cy="3.2" r="1.8" fill="rgba(255,255,255,0.32)" />
-          <line x1="6.5" y1="9.5" x2="6.5" y2="16.5" stroke="#9ca3af" strokeWidth="1.4" strokeLinecap="round" />
-        </svg>
-      </div>
-    )
-  }
-  return (
-    <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none', fontSize: 14, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.25))' }}>
-      {EMOJI_PINS[styleId] || '📌'}
-    </div>
-  )
-}
+const Pin = () => (
+  <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none', fontSize: 14, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.25))' }}>
+    📌
+  </div>
+)
 
 const getFanStyle = (idx, total) => {
   if (total === 1) return { left: '6%', right: '6%', rotate: -1 }
@@ -33,7 +14,7 @@ const getFanStyle = (idx, total) => {
   return { left: '44%', right: '-6%', rotate: 13 }
 }
 
-export default function DayCell({ day, currentMonth, isToday, isWeekend, events, hasNote, onClick, onEventClick, theme, pinStyle }) {
+export default function DayCell({ day, currentMonth, isToday, isWeekend, events, hasNote, onClick, onEventClick, theme }) {
   const displayed = events.slice(0, 3)
   const count = displayed.length
   const accent = theme?.accent || '#7c3aed'
@@ -55,7 +36,10 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
       style={{
         borderRight: dark ? '2px solid rgba(255,255,255,0.08)' : '2px solid #1a1a2e',
         borderBottom: dark ? '2px solid rgba(255,255,255,0.08)' : '2px solid #1a1a2e',
-        background: !currentMonth ? (dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)') : 'transparent',
+        background: isToday && currentMonth
+          ? `${accent}1a`
+          : !currentMonth ? (dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)') : 'transparent',
+        boxShadow: isToday && currentMonth ? `inset 0 0 0 2.5px ${accent}` : undefined,
       }}
     >
       <div style={{ padding: '5px 5px 3px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -79,7 +63,7 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
           {day}
         </span>
         {hasNote && currentMonth && (
-          <span style={{ fontSize: 9, lineHeight: 1, opacity: 0.6 }}>📝</span>
+          <span style={{ fontSize: 7, lineHeight: 1, opacity: 0.7, fontWeight: 700, color: numColor }}>Notes</span>
         )}
       </div>
 
@@ -98,7 +82,7 @@ export default function DayCell({ day, currentMonth, isToday, isWeekend, events,
                   className="absolute"
                   style={{ left: s.left, right: s.right, bottom: 10, height: 54, transform: `rotate(${s.rotate}deg)`, zIndex: idx + 1 }}
                 >
-                  <Pin styleId={pinStyle} />
+                  <Pin />
                   {event.image_url ? (
                     <img
                       src={event.image_url}

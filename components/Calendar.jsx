@@ -7,7 +7,7 @@ const MONTHS = [
 ]
 const ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
 
-export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick, theme, pinStyle, notes = {} }) {
+export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick, theme, notes = {} }) {
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
@@ -150,7 +150,6 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
             onClick={() => cell.current && onDayClick(cell.date)}
             onEventClick={() => cell.current && onEventClick(cell.date)}
             theme={theme}
-            pinStyle={pinStyle}
           />
         ))}
       </div>

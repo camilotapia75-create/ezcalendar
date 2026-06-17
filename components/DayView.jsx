@@ -3,40 +3,11 @@ import { useState, useEffect, useRef } from 'react'
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
-const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#8b5cf6']
 
-const PIN_STYLES = [
-  { id: 'classic',   emoji: '📌', label: 'Classic' },
-  { id: 'star',      emoji: '⭐', label: 'Star' },
-  { id: 'heart',     emoji: '❤️', label: 'Heart' },
-  { id: 'flower',    emoji: '🌸', label: 'Flower' },
-  { id: 'gem',       emoji: '💎', label: 'Gem' },
-  { id: 'ribbon',    emoji: '🎀', label: 'Bow' },
-  { id: 'butterfly', emoji: '🦋', label: 'Butterfly' },
-  { id: 'moon',      emoji: '🌙', label: 'Moon' },
-  { id: 'fire',      emoji: '🔥', label: 'Fire' },
-  { id: 'rainbow',   emoji: '🌈', label: 'Rainbow' },
-  { id: 'lightning', emoji: '⚡', label: 'Lightning' },
-  { id: 'sparkle',   emoji: '✨', label: 'Sparkle' },
-]
-const EMOJI_PINS = Object.fromEntries(PIN_STYLES.slice(1).map(p => [p.id, p.emoji]))
-
-function Pin({ styleId, colorIdx }) {
-  const color = PIN_COLORS[colorIdx % PIN_COLORS.length]
-  if (styleId === 'classic') {
-    return (
-      <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
-        <svg width="24" height="32" viewBox="0 0 24 32" fill="none">
-          <circle cx="12" cy="10" r="10" fill={color} />
-          <circle cx="8.5" cy="6.5" r="4" fill="rgba(255,255,255,0.30)" />
-          <line x1="12" y1="19" x2="12" y2="31" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" />
-        </svg>
-      </div>
-    )
-  }
+function Pin() {
   return (
     <div style={{ position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none', fontSize: 26, lineHeight: 1, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.28))' }}>
-      {EMOJI_PINS[styleId] || '📌'}
+      📌
     </div>
   )
 }
@@ -159,10 +130,7 @@ function NoteThumbnail({ data, highlighted }) {
   )
 }
 
-export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onPinStyleChange, onSaveNote, onDeleteNote, accent = '#7c3aed', onEventTap }) {
-  const [pinStyle, setPinStyle] = useState('classic')
-  const [showPinPicker, setShowPinPicker] = useState(false)
-
+export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onSaveNote, onDeleteNote, accent = '#7c3aed', onEventTap }) {
   const [showNoteManager, setShowNoteManager] = useState(false)
   const [hoveredNoteId, setHoveredNoteId] = useState(null)
   const [writeMode, setWriteMode] = useState(false)
@@ -203,13 +171,6 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
     String(date.getDate()).padStart(2, '0'),
   ].join('-')
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('pinStyle')
-      if (saved) setPinStyle(saved)
-    } catch {}
-  }, [])
-
   // Init drawing canvas with full DPR resolution
   useEffect(() => {
     if (!writeMode || !canvasRef.current || !boardRef.current) return
@@ -230,14 +191,6 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
   useEffect(() => {
     if (pendingText && textInputRef.current) textInputRef.current.focus()
   }, [pendingText])
-
-  const selectPinStyle = (id) => {
-    setPinStyle(id)
-    setShowPinPicker(false)
-    try { localStorage.setItem('pinStyle', id) } catch {}
-    onPinStyleChange?.(id)
-  }
-
 
   // CSS pixel coords — ctx.setTransform(dpr…) handles the rest
   const getPoint = (e) => {
@@ -366,7 +319,6 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
   const MAX = 9
   const shown = events.slice(0, MAX)
   const extra = events.length - MAX
-  const currentPin = PIN_STYLES.find(p => p.id === pinStyle) || PIN_STYLES[0]
 
   return (
     <div className="fixed inset-0 z-50 anim-backdrop" style={{ background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)' }} onClick={writeMode ? undefined : onClose}>
@@ -383,31 +335,14 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
               style={{ width: 32, height: 32, borderRadius: '50%', background: writeMode ? '#7c3aed' : notes.length > 0 ? '#fef9c3' : '#e5e5e5', border: writeMode ? '2px solid #5b21b6' : notes.length > 0 ? '2px solid #ca8a04' : '2px solid transparent', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', color: writeMode ? '#fff' : undefined }}>
               {writeMode ? '✓' : '✏️'}
             </button>
-            {!writeMode && (
-              <button onClick={e => { e.stopPropagation(); setShowPinPicker(p => !p) }} title="Change pin style"
-                style={{ width: 32, height: 32, borderRadius: '50%', background: showPinPicker ? '#ede9fe' : '#e5e5e5', border: showPinPicker ? '2px solid #7c3aed' : '2px solid transparent', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {currentPin.emoji}
-              </button>
-            )}
             <button onClick={writeMode ? exitWriteMode : onClose}
               style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e5e5', border: 'none', cursor: 'pointer', fontSize: 14, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✕</button>
           </div>
 
-          {showPinPicker && !writeMode && (
-            <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 18, zIndex: 100, background: '#fff', borderRadius: 18, padding: '12px 14px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', border: '2px solid #e9e0cc', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, width: 208 }}>
-              <div style={{ gridColumn: '1/-1', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 4 }}>Choose a pin</div>
-              {PIN_STYLES.map(ps => (
-                <button key={ps.id} onClick={() => selectPinStyle(ps.id)} title={ps.label}
-                  style={{ width: 40, height: 40, borderRadius: 10, background: pinStyle === ps.id ? '#ede9fe' : 'rgba(0,0,0,0.03)', border: pinStyle === ps.id ? '2px solid #7c3aed' : '2px solid transparent', cursor: 'pointer', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {ps.emoji}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Board */}
-        <div ref={boardRef} style={{ flex: 1, minHeight: 0, position: 'relative', overflow: writeMode ? 'hidden' : 'auto', WebkitOverflowScrolling: 'touch' }} onClick={() => setShowPinPicker(false)}>
+        <div ref={boardRef} style={{ flex: 1, minHeight: 0, position: 'relative', overflow: writeMode ? 'hidden' : 'auto', WebkitOverflowScrolling: 'touch' }}>
 
           {/* Note overlays — vector, crisp at any DPR, scale to current board size */}
           {notes.map(n => n.drawing_data && (
@@ -480,7 +415,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
               {shown.map((event, idx) => (
                 <div key={event.id} onClick={() => !writeMode && onEventTap?.(event)}
                   style={{ position: 'relative', display: 'flex', flexDirection: 'column', background: '#fff', border: '3px solid #fff', boxShadow: '0 6px 24px rgba(0,0,0,0.22)', transform: shown.length === 1 ? `rotate(${rots[idx]}deg)` : 'none', transformOrigin: 'top center', cursor: writeMode ? 'default' : 'pointer', userSelect: 'none', WebkitTapHighlightColor: 'transparent', zIndex: writeMode ? 'auto' : 28 }}>
-                  <Pin styleId={pinStyle} colorIdx={idx} />
+                  <Pin />
                   {event.image_url
                     ? <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }} />
                     : <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, background: `linear-gradient(135deg, ${accent}14, ${accent}30)` }}><span style={{ fontSize: 26, lineHeight: 1 }}>📌</span><p style={{ fontSize: 11, fontWeight: 700, textAlign: 'center', color: accent, margin: 0, padding: '0 6px' }}>{event.title}</p></div>

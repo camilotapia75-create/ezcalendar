@@ -37,13 +37,6 @@ async function resizeImage(dataUrl, maxWidth, quality) {
   })
 }
 
-const IconCamera = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
-    <circle cx="12" cy="13" r="4"/>
-  </svg>
-)
-
 const IconUpload = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -74,8 +67,6 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   const [aiDetectedDate, setAiDetectedDate] = useState(false)
   const [aiError, setAiError] = useState(null)
   const [aiDetail, setAiDetail] = useState(null)
-  const [cameraActive, setCameraActive] = useState(false)
-  const [cameraStream, setCameraStream] = useState(null)
   const [linkMode, setLinkMode] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkScanning, setLinkScanning] = useState(false)
@@ -87,18 +78,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   const [detailFilling, setDetailFilling] = useState(false)
   const [manualMode, setManualMode] = useState(false)
 
-  const videoRef = useRef()
   const fileRef = useRef()
-
-  useEffect(() => {
-    return () => { cameraStream?.getTracks().forEach(t => t.stop()) }
-  }, [cameraStream])
-
-  useEffect(() => {
-    if (cameraActive && videoRef.current && cameraStream) {
-      videoRef.current.srcObject = cameraStream
-    }
-  }, [cameraActive, cameraStream])
 
   // Opened via the system share sheet — start scanning the shared link immediately
   useEffect(() => {
@@ -128,35 +108,6 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   const flashGlow = (...names) => {
     setGlow(g => { const n = { ...g }; names.forEach(k => { n[k] = true }); return n })
     setTimeout(() => setGlow(g => { const n = { ...g }; names.forEach(k => { delete n[k] }); return n }), 1300)
-  }
-
-  const stopCamera = () => {
-    cameraStream?.getTracks().forEach(t => t.stop())
-    setCameraStream(null)
-    setCameraActive(false)
-  }
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false,
-      })
-      setCameraStream(stream)
-      setCameraActive(true)
-    } catch {
-      fileRef.current.click()
-    }
-  }
-
-  const capturePhoto = () => {
-    const video = videoRef.current
-    const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d').drawImage(video, 0, 0)
-    analyzeImage(canvas.toDataURL('image/jpeg', 0.92))
-    stopCamera()
   }
 
   const analyzeImage = async (dataUrl) => {
@@ -280,7 +231,6 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   }
 
   const reset = () => {
-    stopCamera()
     setImagePreview(null); setImageForStorage(null)
     setAiDetectedDate(false); setAiError(null); setAiDetail(null); setSaveError(null)
     setTitle(''); setLocation(''); setTimeStr(''); setEndDate(''); setShowEndDate(false)
@@ -300,7 +250,17 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
     try {
       let image_url = null
       if (manualMode) {
-        // no image
+        if (imageForStorage) {
+          try {
+            const uploadRes = await fetch('/api/upload-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageData: imageForStorage, userId }),
+            })
+            const uploadData = await uploadRes.json()
+            if (uploadRes.ok) image_url = uploadData.url
+          } catch {}
+        }
       } else if (linkMode) {
         if (ogImageUrl?.startsWith('data:')) {
           try {
@@ -344,38 +304,6 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   const showForm = imagePreview || linkScanned || manualMode
   const canSubmit = eventDate && (linkMode || manualMode ? true : !!imageForStorage)
 
-  if (cameraActive) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black flex flex-col">
-        <div className="flex items-center justify-between px-5 pt-14 pb-4">
-          <button onClick={stopCamera} className="text-sm text-white/50 hover:text-white transition-colors">Cancel</button>
-          <span className="text-xs font-medium text-white/25 tracking-widest uppercase">Scan flyer</span>
-          <div className="w-12" />
-        </div>
-        <div className="flex-1 relative overflow-hidden">
-          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="relative" style={{ width: 256, height: 320 }}>
-              <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white rounded-tl-xl" />
-              <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white rounded-tr-xl" />
-              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white rounded-bl-xl" />
-              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white rounded-br-xl" />
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-col items-center gap-3 pb-16 pt-8">
-          <button onClick={capturePhoto}
-            className="w-[72px] h-[72px] rounded-full flex items-center justify-center active:scale-95 transition-transform"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', boxShadow: '0 0 32px rgba(124,58,237,0.5)' }}
-          >
-            <div className="w-12 h-12 rounded-full border-2 border-white/30" />
-          </button>
-          <span className="text-xs text-white/30">Tap to capture</span>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-50 p-4 anim-backdrop" onClick={onClose}>
       <div
@@ -402,28 +330,16 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         <div className="p-4">
           {!showForm && !linkMode && (
             <div className="space-y-2">
-              <button type="button" onClick={startCamera}
+              <button type="button" onClick={() => fileRef.current.click()}
                 className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all active:scale-[0.98]"
                 style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}
               >
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-violet-400 flex-shrink-0" style={{ background: 'rgba(124,58,237,0.15)' }}>
-                  <IconCamera />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">Use camera</p>
-                  <p className="text-xs text-white/30 mt-0.5">Point at the flyer</p>
-                </div>
-              </button>
-              <button type="button" onClick={() => fileRef.current.click()}
-                className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all active:scale-[0.98]"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }}>
                   <IconUpload />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white/70">Upload image</p>
-                  <p className="text-xs text-white/25 mt-0.5">From your photos</p>
+                  <p className="text-sm font-medium text-white">Upload image</p>
+                  <p className="text-xs text-white/30 mt-0.5">Choose from your photo library</p>
                 </div>
               </button>
               <button type="button" onClick={() => setLinkMode(true)}
@@ -498,7 +414,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
 
           {showForm && (
             <form onSubmit={handleSubmit} className="space-y-3">
-              {!manualMode && <div className="relative rounded-2xl overflow-hidden bg-black" style={{ height: 180 }}>
+              {/* Image preview: always in upload mode, only when image selected in manual mode */}
+              {(!manualMode || imagePreview) && <div className="relative rounded-2xl overflow-hidden bg-black" style={{ height: 180 }}>
                 {imagePreview ? (
                   <img src={imagePreview} alt="flyer" className="w-full h-full object-contain" />
                 ) : ogImageUrl ? (
@@ -527,10 +444,14 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                   </div>
                 )}
                 {!analyzing && !linkScanning && (
-                  <button type="button" onClick={reset}
+                  <button type="button"
+                    onClick={manualMode
+                      ? () => { setImagePreview(null); setImageForStorage(null); setAiError(null) }
+                      : reset
+                    }
                     className="absolute top-3 right-3 text-xs text-white/70 px-3 py-1.5 rounded-lg font-medium"
                     style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
-                  >Retake</button>
+                  >{manualMode ? 'Remove' : 'Retake'}</button>
                 )}
               </div>}
 
@@ -542,7 +463,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
               {!manualMode && scanDiag && !linkScanning && (
                 <p className="px-1 text-[9px] leading-snug break-all" style={{ color: 'rgba(255,255,255,0.18)' }}>{scanDiag}</p>
               )}
-              {!manualMode && aiError && !analyzing && (
+              {(!manualMode || imagePreview) && aiError && !analyzing && (
                 <div className="px-3 py-2.5 rounded-xl text-xs" style={{
                   background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
                   color: aiError === 'quota' ? 'rgba(248,113,113,0.9)' : 'rgba(255,255,255,0.35)',
@@ -560,6 +481,16 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
               {(manualMode || (!analyzing && !linkScanning)) && (
                 <>
                   <div className="space-y-2">
+                    {/* Optional photo attach in manual mode — AI fills fields if image is readable */}
+                    {manualMode && !imagePreview && (
+                      <button type="button" onClick={() => fileRef.current.click()}
+                        className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl text-sm transition-all active:scale-[0.98]"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.35)' }}
+                      >
+                        <IconUpload />
+                        <span>Add photo (optional)</span>
+                      </button>
+                    )}
                     <div className="relative">
                       <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} required
                         className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80${glow.date ? ' anim-fieldglow' : ''}`}
@@ -618,7 +549,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
             </form>
           )}
 
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => handleFile(e.target.files[0])} />
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { handleFile(e.target.files[0]); e.target.value = '' }} />
         </div>
       </div>
     </div>

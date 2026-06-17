@@ -142,7 +142,7 @@ export default function DayNoteModal({ dateStr, existingNote, onSave, onDelete, 
         {/* Header */}
         <div style={{ padding: '12px 16px 10px', borderBottom: '2px solid #e9e0cc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#1a1a1a' }}>📝 Day note</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#1a1a1a' }}>Day note</div>
             <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>{formatDate(dateStr)}</div>
           </div>
           <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: '50%', background: '#e5e5e5', border: 'none', cursor: 'pointer', fontSize: 12, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✕</button>
