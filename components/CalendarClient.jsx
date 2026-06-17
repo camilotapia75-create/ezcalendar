@@ -239,7 +239,11 @@ function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent,
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function CalendarClient({ user, joined = false, joinErr, scanUrl = null }) {
+export default function CalendarClient() {
+  // The /calendar page is fully static (served instantly from the CDN — no
+  // serverless cold start, no white screen). We resolve the signed-in user
+  // client-side here; RLS protects every query regardless.
+  const [user, setUser]             = useState(null)
   const [events, setEvents]         = useState([])
   const [eventsLoading, setEventsLoading] = useState(true)
   const [inviteCode, setInviteCode]   = useState('')
@@ -265,8 +269,9 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
   const router = useRouter()
   const supabase = createClient()
 
-  const visibleEvents =
-    calFilter === 'shared' ? events : events.filter(e => e.user_id === user.id)
+  const visibleEvents = !user
+    ? []
+    : calFilter === 'shared' ? events : events.filter(e => e.user_id === user.id)
 
   const disconnectFriend = async (friendId) => {
     const [a, b] = user.id < friendId ? [user.id, friendId] : [friendId, user.id]
@@ -289,49 +294,65 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
         }
       }).catch(() => {})
     }
-    // Client-side data loading — server only checks auth cookie (instant, zero DB calls).
-    // All data loads here so the app shell renders immediately with no blank screen.
-    Promise.all([
-      supabase.from('events').select('*').order('date', { ascending: true }),
-      supabase.from('calendar_connections').select('user_a_id, user_b_id')
-        .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`),
-      supabase.from('calendar_invites').select('invite_code').eq('owner_id', user.id).single(),
-    ]).then(async ([eventsRes, connectionsRes, inviteRes]) => {
-      setEvents(eventsRes.data || [])
-      setEventsLoading(false)
-      setConnectedCount(connectionsRes.data?.length || 0)
-      let code = inviteRes.data?.invite_code || ''
-      if (!code) {
-        const { data: newInvite } = await supabase.from('calendar_invites')
-          .insert({ owner_id: user.id }).select('invite_code').single()
-        code = newInvite?.invite_code || ''
-      }
-      setInviteCode(code)
-    }).catch(() => setEventsLoading(false))
+
+    // Local prefs (no auth needed) — apply immediately so the UI matches the user.
     const saved = localStorage.getItem('calendarTheme')
     if (saved && THEMES[saved]) setThemeId(saved)
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
     try { setNotifEvents(JSON.parse(localStorage.getItem('eventNotifs') || '{}')) } catch {}
-    const savedPin = localStorage.getItem('pinStyle')
-    if (savedPin) setPinStyle(savedPin)
-    if (joined)                showToast('🎉 Connected! You now see your friend\'s events too.')
+
+    // URL params (this page is static, so we read them on the client)
+    const params = new URLSearchParams(window.location.search)
+    const joined  = params.get('joined') === '1'
+    const joinErr = params.get('join_err')
+    const scanUrl = params.get('scan')
+    if (joined)                      showToast('🎉 Connected! You now see your friend\'s events too.')
     else if (joinErr === 'self')     showToast("That's your own invite link!")
     else if (joinErr === 'notfound') showToast('Invite link not found — ask your friend for a new one.')
-    // Shared link from the system share sheet — open the Add modal scanning it,
-    // and scrub the query param so a refresh doesn't re-trigger the scan
-    if (scanUrl) {
-      setModal({ type: 'add', date: null, scanUrl })
-      window.history.replaceState(null, '', '/calendar')
-    }
-    supabase.from('day_notes').select('id, date, text_note, drawing_data').then(({ data }) => {
-      if (!data) return
-      const map = {}
-      data.forEach(n => {
-        if (!map[n.date]) map[n.date] = []
-        map[n.date].push({ id: n.id, text_note: n.text_note, drawing_data: n.drawing_data })
+
+    // Resolve the signed-in user client-side, then load everything. Redirect to
+    // the landing page if there's no session.
+    let cancelled = false
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return
+      if (!session) { router.replace('/'); return }
+      const u = session.user
+      setUser(u)
+
+      if (scanUrl) {
+        setModal({ type: 'add', date: null, scanUrl })
+        window.history.replaceState(null, '', '/calendar')
+      }
+
+      Promise.all([
+        supabase.from('events').select('*').order('date', { ascending: true }),
+        supabase.from('calendar_connections').select('user_a_id, user_b_id')
+          .or(`user_a_id.eq.${u.id},user_b_id.eq.${u.id}`),
+        supabase.from('calendar_invites').select('invite_code').eq('owner_id', u.id).single(),
+      ]).then(async ([eventsRes, connectionsRes, inviteRes]) => {
+        setEvents(eventsRes.data || [])
+        setEventsLoading(false)
+        setConnectedCount(connectionsRes.data?.length || 0)
+        let code = inviteRes.data?.invite_code || ''
+        if (!code) {
+          const { data: newInvite } = await supabase.from('calendar_invites')
+            .insert({ owner_id: u.id }).select('invite_code').single()
+          code = newInvite?.invite_code || ''
+        }
+        setInviteCode(code)
+      }).catch(() => setEventsLoading(false))
+
+      supabase.from('day_notes').select('id, date, text_note, drawing_data').then(({ data }) => {
+        if (!data) return
+        const map = {}
+        data.forEach(n => {
+          if (!map[n.date]) map[n.date] = []
+          map[n.date].push({ id: n.id, text_note: n.text_note, drawing_data: n.drawing_data })
+        })
+        setNotes(map)
       })
-      setNotes(map)
     })
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
@@ -461,6 +482,29 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
   const isEventOn = (id) => notifEvents[id] !== false
 
   const theme = THEMES[themeId] || THEMES.paper
+
+  // Branded shell shown until the client resolves the session. Because the page
+  // is static, THIS is the HTML the CDN serves instantly — no white screen.
+  if (!user) {
+    return (
+      <div style={{
+        minHeight: '100dvh', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 18,
+        ...buildBg(themeId),
+      }}>
+        <div style={{ fontSize: 34, fontWeight: 800, color: theme.dark ? '#e2e8f0' : '#1a1a2e', letterSpacing: '-0.5px' }}>
+          ezcalendar
+        </div>
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%',
+          border: `3px solid ${theme.accent}30`, borderTopColor: theme.accent,
+          animation: 'calLoadSpin 0.7s linear infinite',
+        }} />
+        <style>{'@keyframes calLoadSpin { to { transform: rotate(360deg); } }'}</style>
+      </div>
+    )
+  }
+
   const dateKey = (date) => [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
 
   const dk = theme.dark
@@ -489,8 +533,15 @@ export default function CalendarClient({ user, joined = false, joinErr, scanUrl 
           <button onClick={e => { e.stopPropagation(); setShowThemePicker(p => !p) }} title="Change theme"
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '4px 6px' }}>🎨</button>
           <button onClick={toggleNotifications} title={notifEnabled ? 'Notifications on' : 'Enable notifications'}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '4px 6px' }}>
-            {notifEnabled ? '🔔' : '🔕'}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center', lineHeight: 1 }}>
+            <svg width="19" height="19" viewBox="0 0 24 24"
+              fill={notifEnabled ? `${theme.accent}22` : 'none'}
+              stroke={notifEnabled ? theme.accent : navMuted}
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              {!notifEnabled && <line x1="3" y1="3" x2="21" y2="21" />}
+            </svg>
           </button>
           <button onClick={handleSignOut}
             style={{ fontSize: 12, color: theme.accent, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}>

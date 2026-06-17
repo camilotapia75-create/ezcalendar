@@ -47,5 +47,7 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|auth/).*)'],
+  // /calendar is intentionally excluded: it's a static page (instant CDN paint)
+  // that resolves auth client-side, so middleware must not add latency to it.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|auth/|calendar).*)'],
 }
