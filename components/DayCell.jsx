@@ -1,5 +1,5 @@
 const Pin = () => (
-  <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none', width: 40, height: 16, background: 'rgba(253,224,71,0.82)', borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.18)' }} />
+  <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none', width: 'clamp(17px, 4.4vw, 34px)', height: 'clamp(13px, 3.3vw, 16px)', background: 'rgba(253,224,71,0.82)', borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.18)' }} />
 )
 
 const getFanStyle = (idx, total) => {
