@@ -303,11 +303,10 @@ async function fetchViaJina(url, format = 'markdown') {
       'X-Return-Format': format,
       'X-Timeout': '20',
     }
+    // Facebook blocks most datacenter IPs — always route through Jina's proxy pool
+    if (/facebook\.com/i.test(url)) headers['X-Proxy'] = 'auto'
     if (process.env.JINA_API_KEY) {
       headers['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`
-      // Facebook blocks Jina's default datacenter IPs with a login wall —
-      // route through Jina's rotating proxy pool for those
-      if (/facebook\.com/i.test(url)) headers['X-Proxy'] = 'auto'
     }
     const res = await fetch(`https://r.jina.ai/${url}`, {
       headers,
@@ -469,11 +468,10 @@ export async function POST(request) {
     cacheKey = normUrl(url)
     const hitResolved = getCached(cacheKey)
     if (hitResolved) return NextResponse.json(hitResolved)
-    // Event short link that wouldn't resolve — the generic scanner can't do
-    // anything useful with Facebook, so fail with actionable advice instead
-    if (/fb\.me\/e\//i.test(url)) {
+    // Short link that wouldn't resolve to an events URL — give actionable advice
+    if (/fb\.me\/e\/|facebook\.com\/share\//i.test(url)) {
       return NextResponse.json({
-        error: "Couldn't resolve that Facebook short link. Open the event in your browser and share the full facebook.com/events/... URL instead.",
+        error: "Couldn't open that Facebook link. Open the event in your browser and share the full facebook.com/events/... URL instead.",
       }, { status: 400 })
     }
   }
@@ -577,7 +575,11 @@ export async function POST(request) {
   const fbMatch = url.match(/facebook\.com\/events\/(\d+)(?:\/(\d+))?/i)
   if (fbMatch) {
     const seriesId = fbMatch[1]
-    const occurrenceId = fbMatch[2] || null
+    // Recurring events use ?event_time_id=NNN in query params, not a path segment
+    let occurrenceId = fbMatch[2] || null
+    if (!occurrenceId) {
+      try { occurrenceId = new URL(url).searchParams.get('event_time_id') || null } catch {}
+    }
     const cleanFbUrl = url.split('?')[0]
     const errors = []
 
