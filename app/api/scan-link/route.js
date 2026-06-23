@@ -448,6 +448,21 @@ export async function POST(request) {
   let baseUrl = url
   try { baseUrl = new URL(url).origin } catch {}
 
+  // —— Universal short-link resolution (bit.ly, t.co, lnkd.in, etc.) ——
+  // These redirect to the real page but land in the general path below with no content.
+  if (/^https?:\/\/(?:bit\.ly|t\.co|ow\.ly|tinyurl\.com|lnkd\.in|rb\.gy|short\.io|cutt\.ly|go\.tm|amzn\.to)\//i.test(url)) {
+    try {
+      const r = await fetch(url, { headers: BROWSER_HEADERS, redirect: 'follow', signal: AbortSignal.timeout(8000) })
+      if (r.url && r.url !== url) {
+        url = r.url
+        try { baseUrl = new URL(url).origin } catch {}
+        cacheKey = normUrl(url)
+        const hitShort = getCached(cacheKey)
+        if (hitShort) return NextResponse.json(hitShort)
+      }
+    } catch {}
+  }
+
   // —— Facebook short/share links (what the FB mobile app's share sheet produces) ——
   // fb.me/e/XXXX and facebook.com/share/... redirect to the real event URL.
   // Resolve them first so the event path below can handle them.
@@ -461,8 +476,14 @@ export async function POST(request) {
       // res.url is the final URL after redirects — even a login redirect
       // carries the original destination in its ?next= param
       const finalUrl = decodeURIComponent(res.url || '')
-      const m = finalUrl.match(/facebook\.com\/events\/\d+/i)
-      if (m) url = `https://www.${m[0]}/`
+      let eventMatch = finalUrl.match(/facebook\.com\/events\/\d+/i)
+      if (!eventMatch) {
+        try {
+          const nextParam = new URL(res.url).searchParams.get('next')
+          if (nextParam) eventMatch = decodeURIComponent(nextParam).match(/facebook\.com\/events\/\d+/i)
+        } catch {}
+      }
+      if (eventMatch) url = `https://www.${eventMatch[0]}/`
     } catch {}
     // Update cache key to resolved URL so short-link variants share the same entry
     cacheKey = normUrl(url)
@@ -503,15 +524,25 @@ export async function POST(request) {
       const [jinaEmbed, jinaPost] = await Promise.all([jinaEmbedP, jinaPostP])
 
       if (!jinaEmbed._err && jinaEmbed.chars > 100) {
-        if (!igImage) igImage = extractJinaImage(jinaEmbed.text)
-        if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaEmbed.text}` : jinaEmbed.text
+        const isWall = /log.?in|sign.?in|create an account|join instagram/i.test(jinaEmbed.text.slice(0, 600))
+        if (!isWall) {
+          if (!igImage) igImage = extractJinaImage(jinaEmbed.text)
+          if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaEmbed.text}` : jinaEmbed.text
+        } else {
+          errors.push(`EMBED:JINA_LOGIN_WALL(${jinaEmbed.chars}ch)`)
+        }
       } else {
         errors.push(`EMBED:${jinaEmbed._err || `SHORT(${jinaEmbed.chars ?? 0}ch)`}`)
       }
 
       if (!jinaPost._err && jinaPost.chars > 100) {
-        if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaPost.text}` : jinaPost.text
-        if (!igImage) igImage = extractJinaImage(jinaPost.text)
+        const isWall = /log.?in|sign.?in|create an account|join instagram/i.test(jinaPost.text.slice(0, 600))
+        if (!isWall) {
+          if (igText.length < 80) igText = igText ? `${igText}\n\n${jinaPost.text}` : jinaPost.text
+          if (!igImage) igImage = extractJinaImage(jinaPost.text)
+        } else {
+          errors.push(`POST:JINA_LOGIN_WALL(${jinaPost.chars}ch)`)
+        }
       } else {
         errors.push(`POST:${jinaPost._err || `SHORT(${jinaPost.chars ?? 0}ch)`}`)
       }
@@ -721,8 +752,15 @@ export async function POST(request) {
   let blocked = false
   try {
     const res = await fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(12000) })
-    if (res.ok) html = await res.text()
-    else blocked = true
+    if (res.ok) {
+      const ct = res.headers.get('content-type') || ''
+      if (!ct.includes('html') && !ct.includes('text/plain') && !ct.includes('xml')) {
+        return NextResponse.json({ error: 'That URL points to a file, not an event page. Share the event listing page URL instead.' }, { status: 400 })
+      }
+      html = await res.text()
+    } else {
+      blocked = true
+    }
   } catch (err) {
     return NextResponse.json({ error: `Could not reach URL: ${err.message}` }, { status: 400 })
   }
@@ -763,6 +801,16 @@ export async function POST(request) {
           }
         }
       } catch {}
+    }
+
+    // Ticketmaster artist pages list many shows but aren't a single event
+    if (/ticketmaster\.com\/[^?#]*\/artist\//i.test(url) && !structuredInfo) {
+      return NextResponse.json({ error: "That's a Ticketmaster artist page. Open a specific event and share that link instead." }, { status: 400 })
+    }
+
+    // Eventbrite private/gated events serve a login wall with no JSON-LD
+    if (/eventbrite\.com/i.test(url) && !structuredInfo && /sign in|log in|log into your account/i.test(html.slice(0, 8000))) {
+      return NextResponse.json({ error: "This Eventbrite event requires login to view. Make sure you're sharing a public event link." }, { status: 400 })
     }
 
     const metaDesc =
