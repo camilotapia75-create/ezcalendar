@@ -17,7 +17,7 @@ function getScanPrompt() {
 
 function getVisionPrompt() {
   const today = new Date().toISOString().split('T')[0]
-  return `Today is ${today}. Extract event details from this flyer image. Return ONLY valid JSON (null for anything not found):
+  return `Today is ${today}. Extract event details from this flyer image. If the flyer lists multiple events or dates, extract ONLY the FIRST one listed. Return ONLY valid JSON (null for anything not found):
 {
   "title": "event name",
   "date": "YYYY-MM-DD — if partial date like 'Jul 24' with no year, use nearest future year",
@@ -29,12 +29,26 @@ function getVisionPrompt() {
 
 const MODELS = [
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-001',
-  'gemini-2.0-flash-lite',
+  'gemini-2.5-flash-lite',
   'gemini-1.5-flash',
   'gemini-1.5-flash-8b',
 ].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
+
+// Extract the first syntactically complete JSON object from a string.
+// Gemini sometimes returns multiple objects (one per event) when a flyer
+// has several dates — the greedy /\{[\s\S]*\}/ regex would capture all of
+// them, and JSON.parse then fails with "Unexpected non-whitespace character".
+function extractFirstJson(text) {
+  const start = text.indexOf('{')
+  if (start === -1) return null
+  let depth = 0
+  for (let i = start; i < text.length; i++) {
+    const c = text[i]
+    if (c === '{') depth++
+    else if (c === '}') { depth--; if (depth === 0) return text.slice(start, i + 1) }
+  }
+  return null
+}
 
 // Short-lived result cache — prevents Gemini rate-limit exhaustion when the
 // same URL is scanned back-to-back (user retries) or by many users sharing
@@ -347,8 +361,8 @@ async function callGemini(text, apiKey) {
       const result = await res.json()
       const raw = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
       if (!raw) { diags.push(`${name}:empty`); continue }
-      const match = raw.match(/\{[\s\S]*\}/)
-      return { data: JSON.parse(match ? match[0] : raw), diag: diags.join(',') }
+      const extracted = extractFirstJson(raw) || raw
+      return { data: JSON.parse(extracted), diag: diags.join(',') }
     } catch (e) { diags.push(`${name}:${(e.message || 'err').slice(0, 30)}`); continue }
   }
   return { data: null, diag: diags.join(',') }
@@ -376,8 +390,7 @@ async function callGeminiVision(dataUrl, apiKey) {
       const result = await res.json()
       const raw = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
       if (!raw) continue
-      const match = raw.match(/\{[\s\S]*\}/)
-      return JSON.parse(match ? match[0] : raw)
+      return JSON.parse(extractFirstJson(raw) || raw)
     } catch { continue }
   }
   return null
