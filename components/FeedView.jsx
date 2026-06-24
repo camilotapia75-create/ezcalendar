@@ -147,111 +147,146 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0 }) {
   )
 }
 
-// Horizontal slideshow used for Today and This Week sections.
-// Auto-scrolls right slowly; pauses on touch or hover so the user can browse freely.
+// Horizontal slideshow for Today and This Week.
+// Uses setInterval + scrollBy(smooth) for auto-advance — compatible with CSS snap.
+// rAF pixel-by-pixel cannot be used: scroll-snap-mandatory cancels sub-card increments.
 function SlideShow({ items, accent, onEventTap, onDeleteEvent }) {
-  const scrollRef = React.useRef(null)
-  const paused = React.useRef(false)
+  const scrollRef  = React.useRef(null)
+  const timerRef   = React.useRef(null)
+  const touching   = React.useRef(false)
+  const resumeRef  = React.useRef(null)
+  const [activeIdx, setActiveIdx] = React.useState(0)
+
+  const cardWidth = () => {
+    const el = scrollRef.current
+    return el?.firstElementChild?.offsetWidth || 260
+  }
+
+  const goTo = React.useCallback((idx) => {
+    const el = scrollRef.current
+    if (!el) return
+    const w = cardWidth()
+    el.scrollTo({ left: idx * (w + 12), behavior: 'smooth' })
+  }, [])
+
+  const startAuto = React.useCallback(() => {
+    if (items.length <= 1) return
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      if (touching.current) return
+      const el = scrollRef.current
+      if (!el) return
+      const w = cardWidth()
+      const next = Math.round(el.scrollLeft / (w + 12)) + 1
+      if (next >= items.length) {
+        el.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        el.scrollBy({ left: w + 12, behavior: 'smooth' })
+      }
+    }, 3500)
+  }, [items.length])
+
+  const stopAuto = React.useCallback(() => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+  }, [])
+
+  // Track active dot
+  const onScroll = React.useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const w = cardWidth()
+    setActiveIdx(Math.round(el.scrollLeft / (w + 12)))
+  }, [])
 
   React.useEffect(() => {
     const el = scrollRef.current
-    if (!el || items.length <= 1) return
+    if (!el) return
 
-    let raf
-    let lastTs
-    let acc = 0
-    const SPEED = 24 // px per second
-
-    const step = (ts) => {
-      if (!paused.current) {
-        if (lastTs !== undefined) {
-          acc += (SPEED * (ts - lastTs)) / 1000
-          if (acc >= 1) {
-            const px = Math.floor(acc)
-            acc -= px
-            if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 4) {
-              el.scrollLeft = 0
-              acc = 0
-            } else {
-              el.scrollLeft += px
-            }
-          }
-        }
-        lastTs = ts
-      } else {
-        lastTs = undefined
-      }
-      raf = requestAnimationFrame(step)
+    const onTouchStart = () => {
+      touching.current = true
+      stopAuto()
+      if (resumeRef.current) clearTimeout(resumeRef.current)
+    }
+    const onTouchEnd = () => {
+      if (resumeRef.current) clearTimeout(resumeRef.current)
+      resumeRef.current = setTimeout(() => {
+        touching.current = false
+        startAuto()
+      }, 2500)
     }
 
-    raf = requestAnimationFrame(step)
+    el.addEventListener('touchstart',  onTouchStart, { passive: true })
+    el.addEventListener('touchend',    onTouchEnd,   { passive: true })
+    el.addEventListener('touchcancel', onTouchEnd,   { passive: true })
+    el.addEventListener('scroll',      onScroll,     { passive: true })
 
-    const pause  = () => { paused.current = true }
-    const resume = () => { paused.current = false }
-
-    el.addEventListener('touchstart',  pause,  { passive: true })
-    el.addEventListener('touchend',    resume, { passive: true })
-    el.addEventListener('touchcancel', resume, { passive: true })
-    el.addEventListener('mouseenter',  pause)
-    el.addEventListener('mouseleave',  resume)
+    startAuto()
 
     return () => {
-      cancelAnimationFrame(raf)
-      el.removeEventListener('touchstart',  pause)
-      el.removeEventListener('touchend',    resume)
-      el.removeEventListener('touchcancel', resume)
-      el.removeEventListener('mouseenter',  pause)
-      el.removeEventListener('mouseleave',  resume)
+      stopAuto()
+      if (resumeRef.current) clearTimeout(resumeRef.current)
+      el.removeEventListener('touchstart',  onTouchStart)
+      el.removeEventListener('touchend',    onTouchEnd)
+      el.removeEventListener('touchcancel', onTouchEnd)
+      el.removeEventListener('scroll',      onScroll)
     }
-  }, [items.length])
-
-  const nudge = (dir) => {
-    const el = scrollRef.current
-    if (!el) return
-    const cardW = el.firstChild?.offsetWidth || 260
-    el.scrollBy({ left: dir * (cardW + 12), behavior: 'smooth' })
-  }
+  }, [startAuto, stopAuto, onScroll])
 
   return (
-    <div style={{ position: 'relative', marginBottom: 4 }}>
-      {/* Left arrow (desktop only — hidden on narrow viewports) */}
-      <button
-        onClick={() => nudge(-1)}
-        aria-label="Scroll left"
-        style={{ position: 'absolute', left: -14, top: '38%', transform: 'translateY(-50%)', zIndex: 10, width: 28, height: 28, borderRadius: '50%', background: '#fff', border: '1.5px solid #e8ddd0', boxShadow: '0 2px 6px rgba(0,0,0,0.12)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#7c6a56' }}
-        className="hidden md:flex"
-      >‹</button>
-
+    <div style={{ position: 'relative', marginBottom: 8 }}>
       <div
         ref={scrollRef}
         className="hide-scroll"
-        style={{ display: 'flex', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch', paddingBottom: 8 }}
+        style={{
+          display: 'flex',
+          gap: 12,
+          overflowX: 'auto',
+          // 'proximity' snaps only when near a boundary — doesn't fight manual swipes
+          scrollSnapType: 'x proximity',
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: 4,
+        }}
       >
         {items.map((event, i) => (
-          <div key={event.id} style={{ flexShrink: 0, width: 'min(290px, 84vw)', scrollSnapAlign: 'start' }}>
+          <div
+            key={event.id}
+            style={{
+              flexShrink: 0,
+              // Fixed width so every card is identical; 72px less than viewport leaves a
+              // visible peek of the next card on any phone size (phones ~360-430px wide)
+              width: 'calc(100vw - 72px)',
+              maxWidth: 360,
+              scrollSnapAlign: 'start',
+            }}
+          >
             <EventCard
               event={event} accent={accent} faded={false} animIndex={i}
               onTap={() => onEventTap(event)} onDelete={onDeleteEvent}
             />
           </div>
         ))}
-        {/* Trailing spacer so the last card doesn't sit flush against the edge */}
-        <div style={{ flexShrink: 0, width: 4 }} />
+        <div style={{ flexShrink: 0, width: 8 }} />
       </div>
 
-      {/* Right arrow (desktop only) */}
-      <button
-        onClick={() => nudge(1)}
-        aria-label="Scroll right"
-        style={{ position: 'absolute', right: -14, top: '38%', transform: 'translateY(-50%)', zIndex: 10, width: 28, height: 28, borderRadius: '50%', background: '#fff', border: '1.5px solid #e8ddd0', boxShadow: '0 2px 6px rgba(0,0,0,0.12)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#7c6a56' }}
-        className="hidden md:flex"
-      >›</button>
-
-      {/* Dot indicators */}
+      {/* Dot indicators — active dot is filled */}
       {items.length > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 2, marginBottom: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 8 }}>
           {items.map((_, i) => (
-            <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: accent, opacity: 0.35 }} />
+            <button
+              key={i}
+              onClick={() => goTo(i)}
+              style={{
+                width: i === activeIdx ? 16 : 5,
+                height: 5,
+                borderRadius: 3,
+                background: accent,
+                opacity: i === activeIdx ? 0.85 : 0.3,
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+                transition: 'width 0.25s, opacity 0.25s',
+              }}
+            />
           ))}
         </div>
       )}
@@ -292,12 +327,12 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
 
   let cardIndex = 0
   return (
-    <div style={{ padding: '12px 16px 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
+    <div style={{ padding: '12px 0 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
       {groups.map((group, gi) => {
         const useSlide = SLIDESHOW_GROUPS.has(group.label) && !group.past
         return (
           <div key={group.label}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: gi > 0 ? 24 : 0 }}>
+            <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: gi > 0 ? 24 : 0 }}>
               <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: group.past ? '#9ca3af' : headingColor, whiteSpace: 'nowrap', fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
                 {group.label}
               </span>
@@ -312,13 +347,15 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
                 onDeleteEvent={onDeleteEvent}
               />
             ) : (
-              group.items.map(event => (
-                <EventCard key={event.id} event={event} accent={accent} faded={group.past}
-                  animIndex={cardIndex++}
-                  onTap={() => onEventTap(event)}
-                  onDelete={onDeleteEvent}
-                />
-              ))
+              <div style={{ padding: '0 16px' }}>
+                {group.items.map(event => (
+                  <EventCard key={event.id} event={event} accent={accent} faded={group.past}
+                    animIndex={cardIndex++}
+                    onTap={() => onEventTap(event)}
+                    onDelete={onDeleteEvent}
+                  />
+                ))}
+              </div>
             )}
           </div>
         )

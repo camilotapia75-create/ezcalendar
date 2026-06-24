@@ -23,21 +23,25 @@ function urlBase64ToUint8Array(base64String) {
 // Create (or refresh) the Web Push subscription and sync it to the server.
 // Safe to call on every load — pushManager.subscribe() returns the existing
 // subscription if one already matches, so this also self-heals rotated subs.
+// Throws on any failure so the caller can surface the error to the user.
 async function subscribePush(reg) {
   const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-  if (!vapidKey || !reg?.pushManager) return
+  if (!vapidKey) throw new Error('VAPID_KEY_MISSING')
+  if (!reg?.pushManager) throw new Error('PUSH_MANAGER_UNAVAILABLE')
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(vapidKey),
   })
-  // Send the user's timezone so the daily digest fires at their local morning,
-  // not a fixed UTC hour. Re-sent on every subscribe so it stays current if they travel.
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null
-  await fetch('/api/push-subscribe', {
+  const res = await fetch('/api/push-subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ subscription: sub, timezone }),
   })
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}))
+    throw new Error(d.error || `Server save failed (${res.status})`)
+  }
 }
 
 const THEMES = {
@@ -405,18 +409,25 @@ export default function CalendarClient() {
   }
 
   const sendTestNotification = async () => {
-    showToast('Sending test notification...')
+    showToast('Sending daily digest preview...')
     try {
       const res = await fetch('/api/push-test', { method: 'POST' })
       const data = await res.json()
       if (res.ok) {
-        showToast('Test sent — check your phone!')
-      } else if (res.status === 410 || data.error === 'expired') {
-        showToast('Subscription expired. Toggle notifications off then on to fix.')
+        const msg = data.todayCount > 0
+          ? `Sent: "${data.title}" — notifications working!`
+          : data.tomorrowCount > 0
+            ? `Sent tomorrow reminder — notifications working!`
+            : `Sent — no events today/tomorrow but pipeline works!`
+        showToast(msg)
+      } else if (data.error === 'no_subscription') {
+        showToast('No subscription saved — toggle notifications off then on again.')
+      } else if (res.status === 410) {
+        showToast('Subscription expired — toggle notifications off then on to re-register.')
       } else if (data.error === 'vapid_mismatch') {
-        showToast('Key mismatch — toggle notifications off then on.')
+        showToast('Server key mismatch — contact support or re-add VAPID keys to Vercel.')
       } else {
-        showToast(`Test failed: ${data.error || data.message || 'unknown error'}`)
+        showToast(`Test failed: ${data.message || data.error || 'unknown error'}`)
       }
     } catch {
       showToast('Test failed — check your connection.')
