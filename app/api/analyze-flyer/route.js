@@ -2,24 +2,37 @@ import { NextResponse } from 'next/server'
 
 function getPrompt() {
   const today = new Date().toISOString().split('T')[0]
-  return `Today is ${today}. Extract event details from this flyer image. Return ONLY valid JSON with these exact keys (null for anything not found):
+  return `Today is ${today}. Extract event details from this flyer image. If the flyer lists multiple events or dates, extract ONLY the FIRST one listed. Return ONLY valid JSON with these exact keys (null for anything not found):
 {
   "title": "event name or title",
-  "date": "YYYY-MM-DD start date — if the flyer shows a partial date like 'Jul 24' or 'July 24' with no year, infer the nearest future year (use the current year if that date hasn't passed yet, otherwise next year). If the flyer shows '05.18.26' or '26' treat as 2026. For multi-day events this is the first day.",
-  "end_date": "YYYY-MM-DD end date — only if the event explicitly spans multiple days (e.g. 'Jul 4-6', 'July 4 to July 6', 'Fri Aug 1 – Sun Aug 3', 'August 1-3'). Use same year inference rules as date. null if single-day.",
+  "date": "YYYY-MM-DD start date — when a day-of-week label (MON/TUE/WED/THU/FRI/SAT/SUN) appears with a day number and year but no explicit month name (e.g. 'MON 22, 2026' or 'MON ⚽ 22, 2026'), determine the correct month by finding which month in that year has that weekday on that day number. If the flyer shows a partial date like 'Jul 24' with no year, infer the nearest future year. For multi-day events this is the first day.",
+  "end_date": "YYYY-MM-DD end date — only if the event explicitly spans multiple days (e.g. 'Jul 4-6', 'July 4 to July 6'). null if single-day.",
   "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM' or '4-8PM')",
   "location": "venue name and/or city"
 }`
 }
 
-// Confirmed available models from /api/list-models
 const MODELS = [
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
-  'gemini-2.0-flash-lite',
-  'gemini-2.0-flash-001',
-  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
 ].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
+
+// Extract the first syntactically complete JSON object using brace-depth tracking.
+// The greedy /\{[\s\S]*\}/ regex fails when Gemini returns multiple objects
+// (one per event) because it captures everything from first { to last }.
+function extractFirstJson(text) {
+  const start = text.indexOf('{')
+  if (start === -1) return null
+  let depth = 0
+  for (let i = start; i < text.length; i++) {
+    const c = text[i]
+    if (c === '{') depth++
+    else if (c === '}') { depth--; if (depth === 0) return text.slice(start, i + 1) }
+  }
+  return null
+}
 
 export async function POST(request) {
   const apiKey = process.env.GOOGLE_AI_API_KEY
@@ -54,49 +67,46 @@ export async function POST(request) {
   let anyNonQuota = false
 
   for (const url of MODELS) {
-    const modelName = url.split('/models/')[1]
+    const modelName = url.split('/models/')[1].split(':')[0]
     try {
       const res = await fetch(`${url}?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: geminiBody,
+        signal: AbortSignal.timeout(30000),
       })
 
       const result = await res.json()
       const errMsg = result?.error?.message ?? ''
 
       if (res.status === 429) {
-        console.error(`[analyze-flyer] ${modelName} → 429: ${errMsg}`)
-        errors.push(`${modelName}: 429`)
+        errors.push(`${modelName}:429`)
         continue
       }
 
       anyNonQuota = true
 
       if (!res.ok) {
-        console.error(`[analyze-flyer] ${modelName} → ${res.status}: ${errMsg}`)
-        errors.push(`${modelName}: ${res.status}`)
+        errors.push(`${modelName}:${res.status}`)
         continue
       }
 
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
       if (!text) {
-        errors.push(`${modelName}: empty`)
+        errors.push(`${modelName}:empty`)
         continue
       }
 
-      const match = text.match(/\{[\s\S]*\}/)
-      const data = JSON.parse(match ? match[0] : text)
-      console.log(`[analyze-flyer] success: ${modelName}`)
+      const extracted = extractFirstJson(text) || text
+      const data = JSON.parse(extracted)
       return NextResponse.json(data)
     } catch (err) {
       anyNonQuota = true
-      errors.push(`${modelName}: ${err.message}`)
+      errors.push(`${modelName}:${(err.message || 'err').slice(0, 40)}`)
     }
   }
 
   const detail = errors.join(' | ')
-  console.error('[analyze-flyer] all models failed:', detail)
   if (!anyNonQuota) return NextResponse.json({ error: 'quota', detail }, { status: 429 })
   return NextResponse.json({ error: 'failed', detail }, { status: 500 })
 }
