@@ -18,6 +18,10 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #ddd6fe; border-radius: 2px; }
 
+/* Horizontal carousels — hide scrollbar while keeping scroll functionality */
+.hide-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.hide-scroll::-webkit-scrollbar { display: none; }
+
 input[type='date']::-webkit-calendar-picker-indicator {
   filter: invert(0.4);
   cursor: pointer;

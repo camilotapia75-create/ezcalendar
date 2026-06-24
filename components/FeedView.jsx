@@ -4,7 +4,6 @@ import React from 'react'
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 function parseLocalDate(str) {
   const [y, m, d] = str.split('-').map(Number)
@@ -20,17 +19,12 @@ function getGroups(events) {
   const tom = new Date(todayStart); tom.setDate(todayStart.getDate() + 1)
   const tomorrowKey = toKey(tom)
 
-  // A multi-day event isn't "past" until its LAST day passes, so key off the
-  // end date (falling back to start). This keeps events that span today in the
-  // upcoming feed instead of dropping them into Past.
   const endKey = e => e.end_date || e.date
   const future = [...events].filter(e => endKey(e) >= todayKey).sort((a,b) => a.date.localeCompare(b.date))
   const past   = [...events].filter(e => endKey(e) <  todayKey).sort((a,b) => a.date.localeCompare(b.date))
 
   const buckets = { Today: [], Tomorrow: [], 'This Week': [], 'Next Week': [], 'Coming Up': [] }
   future.forEach(e => {
-    // Happening today = started on/before today AND ends on/after today
-    // (covers single-day events today and multi-day events spanning today)
     if (e.date <= todayKey && endKey(e) >= todayKey) { buckets.Today.push(e); return }
     if (e.date === tomorrowKey) { buckets.Tomorrow.push(e); return }
     const diff = Math.floor((parseLocalDate(e.date) - todayStart) / 86400000)
@@ -153,12 +147,126 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0 }) {
   )
 }
 
+// Horizontal slideshow used for Today and This Week sections.
+// Auto-scrolls right slowly; pauses on touch or hover so the user can browse freely.
+function SlideShow({ items, accent, onEventTap, onDeleteEvent }) {
+  const scrollRef = React.useRef(null)
+  const paused = React.useRef(false)
+
+  React.useEffect(() => {
+    const el = scrollRef.current
+    if (!el || items.length <= 1) return
+
+    let raf
+    let lastTs
+    let acc = 0
+    const SPEED = 24 // px per second
+
+    const step = (ts) => {
+      if (!paused.current) {
+        if (lastTs !== undefined) {
+          acc += (SPEED * (ts - lastTs)) / 1000
+          if (acc >= 1) {
+            const px = Math.floor(acc)
+            acc -= px
+            if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 4) {
+              el.scrollLeft = 0
+              acc = 0
+            } else {
+              el.scrollLeft += px
+            }
+          }
+        }
+        lastTs = ts
+      } else {
+        lastTs = undefined
+      }
+      raf = requestAnimationFrame(step)
+    }
+
+    raf = requestAnimationFrame(step)
+
+    const pause  = () => { paused.current = true }
+    const resume = () => { paused.current = false }
+
+    el.addEventListener('touchstart',  pause,  { passive: true })
+    el.addEventListener('touchend',    resume, { passive: true })
+    el.addEventListener('touchcancel', resume, { passive: true })
+    el.addEventListener('mouseenter',  pause)
+    el.addEventListener('mouseleave',  resume)
+
+    return () => {
+      cancelAnimationFrame(raf)
+      el.removeEventListener('touchstart',  pause)
+      el.removeEventListener('touchend',    resume)
+      el.removeEventListener('touchcancel', resume)
+      el.removeEventListener('mouseenter',  pause)
+      el.removeEventListener('mouseleave',  resume)
+    }
+  }, [items.length])
+
+  const nudge = (dir) => {
+    const el = scrollRef.current
+    if (!el) return
+    const cardW = el.firstChild?.offsetWidth || 260
+    el.scrollBy({ left: dir * (cardW + 12), behavior: 'smooth' })
+  }
+
+  return (
+    <div style={{ position: 'relative', marginBottom: 4 }}>
+      {/* Left arrow (desktop only — hidden on narrow viewports) */}
+      <button
+        onClick={() => nudge(-1)}
+        aria-label="Scroll left"
+        style={{ position: 'absolute', left: -14, top: '38%', transform: 'translateY(-50%)', zIndex: 10, width: 28, height: 28, borderRadius: '50%', background: '#fff', border: '1.5px solid #e8ddd0', boxShadow: '0 2px 6px rgba(0,0,0,0.12)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#7c6a56' }}
+        className="hidden md:flex"
+      >‹</button>
+
+      <div
+        ref={scrollRef}
+        className="hide-scroll"
+        style={{ display: 'flex', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch', paddingBottom: 8 }}
+      >
+        {items.map((event, i) => (
+          <div key={event.id} style={{ flexShrink: 0, width: 'min(290px, 84vw)', scrollSnapAlign: 'start' }}>
+            <EventCard
+              event={event} accent={accent} faded={false} animIndex={i}
+              onTap={() => onEventTap(event)} onDelete={onDeleteEvent}
+            />
+          </div>
+        ))}
+        {/* Trailing spacer so the last card doesn't sit flush against the edge */}
+        <div style={{ flexShrink: 0, width: 4 }} />
+      </div>
+
+      {/* Right arrow (desktop only) */}
+      <button
+        onClick={() => nudge(1)}
+        aria-label="Scroll right"
+        style={{ position: 'absolute', right: -14, top: '38%', transform: 'translateY(-50%)', zIndex: 10, width: 28, height: 28, borderRadius: '50%', background: '#fff', border: '1.5px solid #e8ddd0', boxShadow: '0 2px 6px rgba(0,0,0,0.12)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#7c6a56' }}
+        className="hidden md:flex"
+      >›</button>
+
+      {/* Dot indicators */}
+      {items.length > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 2, marginBottom: 4 }}>
+          {items.map((_, i) => (
+            <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: accent, opacity: 0.35 }} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const SLIDESHOW_GROUPS = new Set(['Today', 'This Week'])
+
 export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading }) {
   const groups = getGroups(events)
 
-  const headingColor  = dark ? '#e2e8f0' : '#1a1a2e'
-  const dividerColor  = dark ? 'rgba(255,255,255,0.18)' : '#1a1a2e'
-  const dividerMuted  = dark ? 'rgba(255,255,255,0.08)' : '#e5e5e5'
+  const headingColor = dark ? '#e2e8f0' : '#1a1a2e'
+  const dividerColor = dark ? 'rgba(255,255,255,0.18)' : '#1a1a2e'
+  const dividerMuted = dark ? 'rgba(255,255,255,0.08)' : '#e5e5e5'
 
   if (loading) {
     return (
@@ -184,24 +292,37 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
 
   let cardIndex = 0
   return (
-    <div style={{ padding: '12px 12px 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
-      {groups.map((group, gi) => (
-        <div key={group.label}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: gi > 0 ? 24 : 0 }}>
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: group.past ? '#9ca3af' : headingColor, whiteSpace: 'nowrap', fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
-              {group.label}
-            </span>
-            <div style={{ height: 1.5, background: group.past ? dividerMuted : dividerColor, flex: 1 }} />
+    <div style={{ padding: '12px 16px 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
+      {groups.map((group, gi) => {
+        const useSlide = SLIDESHOW_GROUPS.has(group.label) && !group.past
+        return (
+          <div key={group.label}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: gi > 0 ? 24 : 0 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: group.past ? '#9ca3af' : headingColor, whiteSpace: 'nowrap', fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
+                {group.label}
+              </span>
+              <div style={{ height: 1.5, background: group.past ? dividerMuted : dividerColor, flex: 1 }} />
+            </div>
+
+            {useSlide ? (
+              <SlideShow
+                items={group.items}
+                accent={accent}
+                onEventTap={onEventTap}
+                onDeleteEvent={onDeleteEvent}
+              />
+            ) : (
+              group.items.map(event => (
+                <EventCard key={event.id} event={event} accent={accent} faded={group.past}
+                  animIndex={cardIndex++}
+                  onTap={() => onEventTap(event)}
+                  onDelete={onDeleteEvent}
+                />
+              ))
+            )}
           </div>
-          {group.items.map(event => (
-            <EventCard key={event.id} event={event} accent={accent} faded={group.past}
-              animIndex={cardIndex++}
-              onTap={() => onEventTap(event)}
-              onDelete={onDeleteEvent}
-            />
-          ))}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

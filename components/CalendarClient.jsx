@@ -404,11 +404,29 @@ export default function CalendarClient() {
     setNotes(prev => ({ ...prev, [dateStr]: (prev[dateStr] || []).filter(n => n.id !== noteId) }))
   }
 
+  const sendTestNotification = async () => {
+    showToast('Sending test notification...')
+    try {
+      const res = await fetch('/api/push-test', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        showToast('Test sent — check your phone!')
+      } else if (res.status === 410 || data.error === 'expired') {
+        showToast('Subscription expired. Toggle notifications off then on to fix.')
+      } else if (data.error === 'vapid_mismatch') {
+        showToast('Key mismatch — toggle notifications off then on.')
+      } else {
+        showToast(`Test failed: ${data.error || data.message || 'unknown error'}`)
+      }
+    } catch {
+      showToast('Test failed — check your connection.')
+    }
+  }
+
   const toggleNotifications = async () => {
     if (notifEnabled) {
       setNotifEnabled(false)
       localStorage.setItem('notificationsEnabled', 'false')
-      // Unsubscribe from push
       try {
         const reg = swRegRef.current || await navigator.serviceWorker.ready
         const sub = await reg.pushManager.getSubscription()
@@ -430,11 +448,20 @@ export default function CalendarClient() {
     }
     setNotifEnabled(true)
     localStorage.setItem('notificationsEnabled', 'true')
-    // Subscribe to Web Push so the daily digest arrives in the background (app closed)
     try {
       const reg = swRegRef.current || await navigator.serviceWorker.ready
       await subscribePush(reg)
-      showToast("Notifications on — you'll get a daily heads-up about your events.")
+      showToast("Notifications on — sending test to confirm...")
+      // Auto-test so the user immediately knows if the pipeline works end-to-end
+      setTimeout(async () => {
+        try {
+          const res = await fetch('/api/push-test', { method: 'POST' })
+          if (!res.ok) {
+            const d = await res.json()
+            showToast(`Notification setup issue: ${d.message || d.error || 'check Vercel env vars'}`)
+          }
+        } catch {}
+      }, 1500)
     } catch {
       showToast("Couldn't enable notifications — try again.")
     }
@@ -546,7 +573,7 @@ export default function CalendarClient() {
               <circle cx="8" cy="15" r="1.5" fill={navMuted} stroke="none"/>
             </svg>
           </button>
-          <button onClick={toggleNotifications} title={notifEnabled ? 'Notifications on' : 'Enable notifications'}
+          <button onClick={toggleNotifications} title={notifEnabled ? 'Tap to disable notifications' : 'Enable notifications'}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center', lineHeight: 1 }}>
             <svg width="19" height="19" viewBox="0 0 24 24"
               fill={notifEnabled ? `${theme.accent}22` : 'none'}
@@ -557,6 +584,12 @@ export default function CalendarClient() {
               {!notifEnabled && <line x1="3" y1="3" x2="21" y2="21" />}
             </svg>
           </button>
+          {notifEnabled && (
+            <button onClick={sendTestNotification} title="Send test notification"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', fontSize: 10, fontWeight: 700, color: theme.accent, opacity: 0.7, lineHeight: 1 }}>
+              test
+            </button>
+          )}
           <button onClick={handleSignOut}
             style={{ fontSize: 12, color: theme.accent, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}>
             sign out
