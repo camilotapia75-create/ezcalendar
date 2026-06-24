@@ -15,8 +15,8 @@ function getPrompt() {
 const MODELS = [
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
 ].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
 
 // Extract the first syntactically complete JSON object using brace-depth tracking.

@@ -30,8 +30,8 @@ function getVisionPrompt() {
 const MODELS = [
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
 ].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
 
 // Extract the first syntactically complete JSON object from a string.
@@ -114,25 +114,69 @@ async function tryInstagramEmbed(type, shortcode) {
     if (!res.ok) return { _err: `IG_EMBED_HTTP_${res.status}` }
     const html = await res.text()
 
-    let image =
-      html.match(/class=["']EmbeddedMediaImage["'][^>]*src=["']([^"']+)["']/i)?.[1] ||
-      html.match(/src=["']([^"']+)["'][^>]*class=["']EmbeddedMediaImage["']/i)?.[1] ||
-      null
+    // Image — multiple strategies since Instagram renames classes frequently
+    let image = null
+
+    // og:image meta tag is the most stable extraction point
+    const ogM =
+      html.match(/property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+      html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i)
+    if (ogM) image = decodeHtml(ogM[1])
+
+    // Legacy class name (may still appear in some responses)
     if (!image) {
-      const duMatch = html.match(/"display_url"\s*\\?:\s*\\?"((?:https?|\\\/\\\/)[^"]+?)\\?"/)
-      if (duMatch) image = duMatch[1]
+      image =
+        html.match(/class=["'][^"']*EmbeddedMediaImage[^"']*["'][^>]*src=["']([^"']+)["']/i)?.[1] ||
+        html.match(/src=["']([^"']+)["'][^>]*class=["'][^"']*EmbeddedMediaImage[^"']*["']/i)?.[1] ||
+        null
     }
+
+    // Any Instagram/Facebook CDN image URL in the markup
+    if (!image) {
+      const cdnM = html.match(/https?:\/\/[^\s"'<>]+(?:cdninstagram\.com|fbcdn\.net)[^\s"'<>]+\.(?:jpg|jpeg|png|webp)[^\s"'<>]*/i)
+      if (cdnM) image = cdnM[0]
+    }
+
+    // display_url embedded in script JSON data
+    if (!image) {
+      const duM = html.match(/"display_url"\s*:\s*"(https?:\/\/[^"\\]+(?:\\.[^"\\])*)"/)
+      if (duM) image = duM[1].replace(/\\\//g, '/').replace(/\\u0026/gi, '&')
+    }
+
     if (image) {
       image = image.replace(/\\u0026/gi, '&').replace(/\\\//g, '/').replace(/&amp;/g, '&')
     }
 
+    // Caption — multiple strategies since class names change
     let caption = ''
-    const capMatch = html.match(/<div[^>]*class=["'][^"']*Caption[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)
-    if (capMatch) {
-      caption = capMatch[1]
-        .replace(/<br[^>]*>/gi, '\n').replace(/<[^>]+>/g, ' ')
-        .replace(/&amp;/g, '&').replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"')
-        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/[ \t]+/g, ' ').trim()
+
+    const capPatterns = [
+      /<div[^>]*class=["'][^"']*Caption[^"']*["'][^>]*>([\s\S]{5,2000}?)<\/div>/i,
+      /<div[^>]*class=["'][^"']*caption[^"']*["'][^>]*>([\s\S]{5,2000}?)<\/div>/i,
+      /<div[^>]*class=["'][^"']*EmbedCaption[^"']*["'][^>]*>([\s\S]{5,2000}?)<\/div>/i,
+      /<span[^>]*class=["'][^"']*caption[^"']*["'][^>]*>([\s\S]{5,1000}?)<\/span>/i,
+    ]
+    for (const pat of capPatterns) {
+      const m = html.match(pat)
+      if (m) {
+        const c = m[1]
+          .replace(/<br[^>]*>/gi, '\n').replace(/<[^>]+>/g, ' ')
+          .replace(/&amp;/g, '&').replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"')
+          .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/[ \t]+/g, ' ').trim()
+        if (c.length > 5) { caption = c; break }
+      }
+    }
+
+    // JSON-embedded caption as fallback (edge_media_to_caption or accessibility_caption)
+    if (!caption) {
+      const capJsonM =
+        html.match(/"edge_media_to_caption"[\s\S]{0,200}?"text"\s*:\s*"((?:[^"\\]|\\.){5,})"/) ||
+        html.match(/"accessibility_caption"\s*:\s*"((?:[^"\\]|\\.){5,})"/)
+      if (capJsonM) {
+        caption = capJsonM[1]
+          .replace(/\\n/g, '\n').replace(/\\"/g, '"')
+          .replace(/\\u0026/g, '&').replace(/\\\//g, '/').slice(0, 1000)
+      }
     }
 
     if (!image && !caption) {
@@ -317,8 +361,8 @@ async function fetchViaJina(url, format = 'markdown') {
       'X-Return-Format': format,
       'X-Timeout': '20',
     }
-    // Facebook blocks most datacenter IPs — always route through Jina's proxy pool
-    if (/facebook\.com/i.test(url)) headers['X-Proxy'] = 'auto'
+    // Facebook and Instagram block datacenter IPs — route through Jina's proxy pool
+    if (/facebook\.com|instagram\.com/i.test(url)) headers['X-Proxy'] = 'auto'
     if (process.env.JINA_API_KEY) {
       headers['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`
     }
@@ -399,7 +443,7 @@ async function callGeminiVision(dataUrl, apiKey) {
 async function proxyImage(imageUrl, referer) {
   if (!imageUrl) return null
   // lookaside.fbsbx.com is what FB serves as og:image to alternate crawler UAs
-  const isFbCdn = /fbcdn\.net|scontent\.|fbsbx\.com/i.test(imageUrl)
+  const isFbCdn = /fbcdn\.net|scontent\.|fbsbx\.com|cdninstagram\.com/i.test(imageUrl)
 
   const attempt = async (ua, fetchUrl = imageUrl, timeout = 8000) => {
     try {
