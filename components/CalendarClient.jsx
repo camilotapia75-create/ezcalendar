@@ -349,20 +349,6 @@ export default function CalendarClient() {
           code = newInvite?.invite_code || ''
         }
         setInviteCode(code)
-
-        // Daily digest fallback: if the cron hasn't fired yet today, send the
-        // push on first app-open. Completely silent — no toast, no UI change.
-        // localStorage key prevents re-sending more than once per calendar day.
-        if (localStorage.getItem('notificationsEnabled') === 'true' &&
-            'Notification' in window && Notification.permission === 'granted') {
-          const today = new Date().toISOString().split('T')[0]
-          if (localStorage.getItem('digestSentDate') !== today) {
-            fetch('/api/push-today', { method: 'POST' })
-              .then(r => r.json())
-              .then(d => { if (d.sent) localStorage.setItem('digestSentDate', today) })
-              .catch(() => {})
-          }
-        }
       }).catch(() => setEventsLoading(false))
 
       supabase.from('day_notes').select('id, date, text_note, drawing_data').then(({ data }) => {
