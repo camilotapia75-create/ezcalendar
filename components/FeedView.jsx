@@ -78,7 +78,7 @@ function DateBadge({ dateStr, endDateStr, accent, faded }) {
 
 function NoFlyer({ accent }) {
   return (
-    <div style={{ width: '100%', height: 88, background: `linear-gradient(135deg, ${accent}14 0%, ${accent}28 100%)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, borderBottom: `1px solid ${accent}20` }}>
+    <div style={{ width: '100%', aspectRatio: '4/3', background: `linear-gradient(135deg, ${accent}14 0%, ${accent}28 100%)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, borderBottom: `1px solid ${accent}20` }}>
       <span style={{ fontSize: 28, lineHeight: 1, filter: 'grayscale(0.2)' }}>📌</span>
       <span style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>No flyer</span>
     </div>
@@ -148,67 +148,47 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0 }) {
 }
 
 // Horizontal slideshow for Today and This Week.
-// Uses setInterval + scrollBy(smooth) for auto-advance — compatible with CSS snap.
-// rAF pixel-by-pixel cannot be used: scroll-snap-mandatory cancels sub-card increments.
+// Transform-based carousel: CSS transition with controlled cubic-bezier gives a
+// smooth, consistent animation on all browsers. Touch swipes detect direction and
+// snap to the nearest card cleanly.
 function SlideShow({ items, accent, onEventTap, onDeleteEvent }) {
-  const scrollRef  = React.useRef(null)
-  const timerRef   = React.useRef(null)
-  const touching   = React.useRef(false)
-  const resumeRef  = React.useRef(null)
   const [activeIdx, setActiveIdx] = React.useState(0)
-
-  const cardWidth = () => {
-    const el = scrollRef.current
-    return el?.firstElementChild?.offsetWidth || 260
-  }
+  const timerRef    = React.useRef(null)
+  const touching    = React.useRef(false)
+  const resumeRef   = React.useRef(null)
+  const touchStartX = React.useRef(0)
+  const containerRef = React.useRef(null)
+  const n = items.length
 
   const goTo = React.useCallback((idx) => {
-    const el = scrollRef.current
-    if (!el) return
-    const w = cardWidth()
-    el.scrollTo({ left: idx * (w + 12), behavior: 'smooth' })
-  }, [])
+    setActiveIdx(Math.max(0, Math.min(idx, n - 1)))
+  }, [n])
 
   const startAuto = React.useCallback(() => {
-    if (items.length <= 1) return
-    if (timerRef.current) clearInterval(timerRef.current)
+    if (n <= 1) return
+    clearInterval(timerRef.current)
     timerRef.current = setInterval(() => {
       if (touching.current) return
-      const el = scrollRef.current
-      if (!el) return
-      const w = cardWidth()
-      const next = Math.round(el.scrollLeft / (w + 12)) + 1
-      if (next >= items.length) {
-        el.scrollTo({ left: 0, behavior: 'smooth' })
-      } else {
-        el.scrollBy({ left: w + 12, behavior: 'smooth' })
-      }
-    }, 3500)
-  }, [items.length])
-
-  const stopAuto = React.useCallback(() => {
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
-  }, [])
-
-  // Track active dot
-  const onScroll = React.useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const w = cardWidth()
-    setActiveIdx(Math.round(el.scrollLeft / (w + 12)))
-  }, [])
+      setActiveIdx(prev => (prev + 1) % n)
+    }, 4500)
+  }, [n])
 
   React.useEffect(() => {
-    const el = scrollRef.current
+    const el = containerRef.current
     if (!el) return
 
-    const onTouchStart = () => {
+    const onTouchStart = (e) => {
       touching.current = true
-      stopAuto()
-      if (resumeRef.current) clearTimeout(resumeRef.current)
+      touchStartX.current = e.touches[0].clientX
+      clearInterval(timerRef.current)
+      clearTimeout(resumeRef.current)
     }
-    const onTouchEnd = () => {
-      if (resumeRef.current) clearTimeout(resumeRef.current)
+    const onTouchEnd = (e) => {
+      const dx = touchStartX.current - (e.changedTouches[0]?.clientX ?? touchStartX.current)
+      if (Math.abs(dx) > 40) {
+        setActiveIdx(prev => dx > 0 ? Math.min(prev + 1, n - 1) : Math.max(prev - 1, 0))
+      }
+      clearTimeout(resumeRef.current)
       resumeRef.current = setTimeout(() => {
         touching.current = false
         startAuto()
@@ -218,46 +198,36 @@ function SlideShow({ items, accent, onEventTap, onDeleteEvent }) {
     el.addEventListener('touchstart',  onTouchStart, { passive: true })
     el.addEventListener('touchend',    onTouchEnd,   { passive: true })
     el.addEventListener('touchcancel', onTouchEnd,   { passive: true })
-    el.addEventListener('scroll',      onScroll,     { passive: true })
-
     startAuto()
 
     return () => {
-      stopAuto()
-      if (resumeRef.current) clearTimeout(resumeRef.current)
+      clearInterval(timerRef.current)
+      clearTimeout(resumeRef.current)
       el.removeEventListener('touchstart',  onTouchStart)
       el.removeEventListener('touchend',    onTouchEnd)
       el.removeEventListener('touchcancel', onTouchEnd)
-      el.removeEventListener('scroll',      onScroll)
     }
-  }, [startAuto, stopAuto, onScroll])
+  }, [startAuto, n])
+
+  // Each card is min(100vw - 72px, 360px) wide, with 12px gap between cards.
+  // Translate the track left by activeIdx × (cardWidth + gap).
+  const offset = `calc(${-activeIdx} * (min(calc(100vw - 72px), 360px) + 12px))`
 
   return (
-    <div style={{ position: 'relative', marginBottom: 8 }}>
+    <div ref={containerRef} style={{ position: 'relative', marginBottom: 8, overflow: 'hidden' }}>
       <div
-        ref={scrollRef}
-        className="hide-scroll"
         style={{
           display: 'flex',
           gap: 12,
-          overflowX: 'auto',
-          // 'proximity' snaps only when near a boundary — doesn't fight manual swipes
-          scrollSnapType: 'x proximity',
-          WebkitOverflowScrolling: 'touch',
-          paddingBottom: 4,
+          transform: `translateX(${offset})`,
+          transition: 'transform 0.65s cubic-bezier(0.4, 0, 0.2, 1)',
+          willChange: 'transform',
         }}
       >
         {items.map((event, i) => (
           <div
             key={event.id}
-            style={{
-              flexShrink: 0,
-              // Fixed width so every card is identical; 72px less than viewport leaves a
-              // visible peek of the next card on any phone size (phones ~360-430px wide)
-              width: 'calc(100vw - 72px)',
-              maxWidth: 360,
-              scrollSnapAlign: 'start',
-            }}
+            style={{ flexShrink: 0, width: 'calc(100vw - 72px)', maxWidth: 360 }}
           >
             <EventCard
               event={event} accent={accent} faded={false} animIndex={i}
@@ -265,11 +235,9 @@ function SlideShow({ items, accent, onEventTap, onDeleteEvent }) {
             />
           </div>
         ))}
-        <div style={{ flexShrink: 0, width: 8 }} />
       </div>
 
-      {/* Dot indicators — active dot is filled */}
-      {items.length > 1 && (
+      {n > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 8 }}>
           {items.map((_, i) => (
             <button

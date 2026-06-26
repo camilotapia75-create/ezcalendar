@@ -555,20 +555,23 @@ export async function POST(request) {
   }
 
   // —— Instagram posts / reels ——
-  const igMatch = url.match(/instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)/i)
+  // Match /p/, /reel/, /reels/ (plural from mobile share sheet), /tv/
+  const igMatch = url.match(/instagram\.com\/(p|reels?|tv)\/([A-Za-z0-9_-]+)/i)
   if (igMatch) {
     const errors = []
     let igText = ''
     let igImage = null
 
-    const embedUrl = `https://www.instagram.com/${igMatch[1]}/${igMatch[2]}/embed/captioned/`
+    // Normalise 'reels' → 'reel' — Instagram embed URLs use the singular form
+    const igType = igMatch[1].toLowerCase() === 'reels' ? 'reel' : igMatch[1]
+    const embedUrl = `https://www.instagram.com/${igType}/${igMatch[2]}/embed/captioned/`
 
     // Kick off all three sources at once, but only WAIT for Jina when the
     // direct embed didn't deliver — embed typically answers in ~2s while
     // Jina takes 10-20s, so this saves most of the wait on the happy path
     const jinaEmbedP = fetchViaJina(embedUrl)
     const jinaPostP = fetchViaJina(url)
-    const embed = await tryInstagramEmbed(igMatch[1], igMatch[2])
+    const embed = await tryInstagramEmbed(igType, igMatch[2])
 
     if (!embed._err) {
       igImage = embed.image || null

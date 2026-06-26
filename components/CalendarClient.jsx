@@ -286,13 +286,22 @@ export default function CalendarClient() {
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(reg => {
+      navigator.serviceWorker.register('/sw.js').then(async reg => {
         swRegRef.current = reg
-        // Self-heal: if the user already enabled notifications, make sure a valid
-        // push subscription exists on the server. Fixes users whose subscription
-        // was never created (earlier bug) or was rotated by the browser.
         if (localStorage.getItem('notificationsEnabled') === 'true' &&
             'Notification' in window && Notification.permission === 'granted') {
+          // Force-refresh the push subscription weekly.
+          // Push service endpoints expire; the cron gets a 410 and deletes the
+          // record. pushManager.subscribe() alone returns the same cached
+          // (expired) endpoint — unsubscribing first forces a brand-new endpoint
+          // that the push service will accept, breaking the expired-sub cycle.
+          const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+          const lastRefresh = parseInt(localStorage.getItem('pushSubRefreshedAt') || '0')
+          if (Date.now() - lastRefresh > WEEK_MS) {
+            const existing = await reg.pushManager.getSubscription().catch(() => null)
+            if (existing) await existing.unsubscribe().catch(() => {})
+            localStorage.setItem('pushSubRefreshedAt', String(Date.now()))
+          }
           subscribePush(reg).catch(() => {})
         }
       }).catch(() => {})

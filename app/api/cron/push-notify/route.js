@@ -3,6 +3,7 @@ import webpush from 'web-push'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30
 
 const DEFAULT_TZ  = 'America/New_York'
 const CONCURRENCY = 50
