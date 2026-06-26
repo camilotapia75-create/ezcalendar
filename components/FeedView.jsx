@@ -76,22 +76,27 @@ function DateBadge({ dateStr, endDateStr, accent, faded }) {
   )
 }
 
+// Padding-top trick: height = 75% of width, works in all browsers including old iOS.
+// Content is absolutely positioned inside so it fills the space.
 function NoFlyer({ accent }) {
   return (
-    <div style={{ width: '100%', aspectRatio: '4/3', background: `linear-gradient(135deg, ${accent}14 0%, ${accent}28 100%)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, borderBottom: `1px solid ${accent}20` }}>
-      <span style={{ fontSize: 28, lineHeight: 1, filter: 'grayscale(0.2)' }}>📌</span>
-      <span style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>No flyer</span>
+    <div style={{ width: '100%', position: 'relative', paddingTop: '75%', background: `linear-gradient(135deg, ${accent}14 0%, ${accent}28 100%)`, borderBottom: `1px solid ${accent}20` }}>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+        <span style={{ fontSize: 28, lineHeight: 1, filter: 'grayscale(0.2)' }}>📌</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>No flyer</span>
+      </div>
     </div>
   )
 }
 
-function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0 }) {
+function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0, inSlideshow }) {
   const [imgFailed, setImgFailed] = React.useState(false)
   const [imgLoaded, setImgLoaded] = React.useState(false)
   return (
-    <div onClick={onTap} className={faded ? undefined : 'anim-card'} style={{ animationDelay: `${Math.min(animIndex, 10) * 45}ms`, marginBottom: 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #e8ddd0', boxShadow: faded ? 'none' : '3px 3px 0 rgba(140,100,60,0.12)', background: '#fffdf8', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
+    <div onClick={onTap} className={faded ? undefined : 'anim-card'} style={{ animationDelay: `${Math.min(animIndex, 10) * 45}ms`, marginBottom: inSlideshow ? 0 : 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #e8ddd0', boxShadow: faded ? 'none' : '3px 3px 0 rgba(140,100,60,0.12)', background: '#fffdf8', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
       {event.image_url && !imgFailed ? (
-        <div style={{ position: 'relative', overflow: 'hidden', aspectRatio: '4/3' }}>
+        // Padding-top 75% = 4:3 ratio; works on all browsers including old iOS (unlike aspect-ratio CSS)
+        <div style={{ position: 'relative', overflow: 'hidden', paddingTop: '75%' }}>
           {!imgLoaded && (
             <div style={{
               position: 'absolute', inset: 0, zIndex: 1,
@@ -106,7 +111,8 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0 }) {
             onError={() => setImgFailed(true)}
             onLoad={() => setImgLoaded(true)}
             style={{
-              width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block',
+              position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+              objectFit: 'cover', objectPosition: 'top', display: 'block',
               opacity: imgLoaded ? 1 : 0,
               filter: imgLoaded ? 'none' : 'blur(12px)',
               transform: imgLoaded ? 'scale(1)' : 'scale(1.06)',
@@ -227,10 +233,14 @@ function SlideShow({ items, accent, onEventTap, onDeleteEvent }) {
         {items.map((event, i) => (
           <div
             key={event.id}
-            style={{ flexShrink: 0, width: 'calc(100vw - 72px)', maxWidth: 360 }}
+            style={{
+              flexShrink: 0,
+              width: 'calc(100vw - 72px)',
+              maxWidth: 360,
+            }}
           >
             <EventCard
-              event={event} accent={accent} faded={false} animIndex={i}
+              event={event} accent={accent} faded={false} animIndex={i} inSlideshow
               onTap={() => onEventTap(event)} onDelete={onDeleteEvent}
             />
           </div>

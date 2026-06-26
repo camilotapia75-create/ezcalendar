@@ -290,14 +290,13 @@ export default function CalendarClient() {
         swRegRef.current = reg
         if (localStorage.getItem('notificationsEnabled') === 'true' &&
             'Notification' in window && Notification.permission === 'granted') {
-          // Force-refresh the push subscription weekly.
-          // Push service endpoints expire; the cron gets a 410 and deletes the
-          // record. pushManager.subscribe() alone returns the same cached
-          // (expired) endpoint — unsubscribing first forces a brand-new endpoint
-          // that the push service will accept, breaking the expired-sub cycle.
-          const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+          // Silently refresh the push endpoint once per day — fully invisible to the user.
+          // Push service endpoints can expire; the cron gets 410 and removes the record.
+          // pushManager.subscribe() alone returns the same cached stale endpoint.
+          // Unsubscribing first forces a fresh endpoint the push service will accept.
+          const DAY_MS = 24 * 60 * 60 * 1000
           const lastRefresh = parseInt(localStorage.getItem('pushSubRefreshedAt') || '0')
-          if (Date.now() - lastRefresh > WEEK_MS) {
+          if (Date.now() - lastRefresh > DAY_MS) {
             const existing = await reg.pushManager.getSubscription().catch(() => null)
             if (existing) await existing.unsubscribe().catch(() => {})
             localStorage.setItem('pushSubRefreshedAt', String(Date.now()))

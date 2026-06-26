@@ -29,11 +29,17 @@ function localDateKey(tz, date) {
 }
 
 export async function GET(request) {
-  // Verify Vercel cron secret
+  // Auth: only enforce when CRON_SECRET is actually set.
+  // Vercel auto-generates this, but it may be absent in some deploy configs.
+  // Previously !process.env.CRON_SECRET would silently block ALL cron calls.
   const authHeader = request.headers.get('authorization')
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    console.error('[push-notify] Unauthorized — CRON_SECRET mismatch or not set')
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (process.env.CRON_SECRET) {
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      console.error('[push-notify] Unauthorized — authorization header does not match CRON_SECRET')
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  } else {
+    console.warn('[push-notify] CRON_SECRET not set — skipping auth check')
   }
 
   // Guard VAPID keys early — without these nothing can be sent
