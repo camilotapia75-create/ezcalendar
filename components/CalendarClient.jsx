@@ -286,21 +286,13 @@ export default function CalendarClient() {
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(async reg => {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
         swRegRef.current = reg
+        // Ensure a valid subscription exists on the server when the app opens.
+        // Subscription rotation is handled by the SW's pushsubscriptionchange handler
+        // which fires automatically without the app being open.
         if (localStorage.getItem('notificationsEnabled') === 'true' &&
             'Notification' in window && Notification.permission === 'granted') {
-          // Silently refresh the push endpoint once per day — fully invisible to the user.
-          // Push service endpoints can expire; the cron gets 410 and removes the record.
-          // pushManager.subscribe() alone returns the same cached stale endpoint.
-          // Unsubscribing first forces a fresh endpoint the push service will accept.
-          const DAY_MS = 24 * 60 * 60 * 1000
-          const lastRefresh = parseInt(localStorage.getItem('pushSubRefreshedAt') || '0')
-          if (Date.now() - lastRefresh > DAY_MS) {
-            const existing = await reg.pushManager.getSubscription().catch(() => null)
-            if (existing) await existing.unsubscribe().catch(() => {})
-            localStorage.setItem('pushSubRefreshedAt', String(Date.now()))
-          }
           subscribePush(reg).catch(() => {})
         }
       }).catch(() => {})
