@@ -13,7 +13,20 @@ function formatDate(str) {
   return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
 }
 
-export default function EventDetailModal({ event, accent = '#7c3aed', onClose, onDelete, reminderOn, onToggleReminder }) {
+// Icon rows use a small monospace uppercase label above the value
+function MetaRow({ icon, label, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <span style={{ fontSize: 17, flexShrink: 0, marginTop: 2, opacity: 0.9 }}>{icon}</span>
+      <div style={{ minWidth: 0 }}>
+        <div className="mono-label" style={{ fontSize: 9, color: 'var(--text-3)', letterSpacing: '0.12em', marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: 16, color: '#fff', fontWeight: 600, lineHeight: 1.35 }}>{children}</div>
+      </div>
+    </div>
+  )
+}
+
+export default function EventDetailModal({ event, accent = '#c6f24e', onClose, onDelete, reminderOn, onToggleReminder }) {
   if (!event) return null
 
   const isMulti = event.end_date && event.end_date !== event.date
@@ -23,95 +36,85 @@ export default function EventDetailModal({ event, accent = '#7c3aed', onClose, o
     onClose()
   }
 
+  const stripes = 'repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 2px, transparent 2px, transparent 14px)'
+
   return (
     <div
       onClick={onClose}
       className="anim-backdrop"
-      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
     >
       <div
         onClick={e => e.stopPropagation()}
         className="anim-modal"
-        style={{ width: '100%', maxWidth: 480, maxHeight: '88dvh', display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', background: '#fffaee', border: '2px solid #e9e0cc', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}
+        style={{ width: '100%', maxWidth: 460, maxHeight: '90dvh', display: 'flex', flexDirection: 'column', borderRadius: 24, overflow: 'hidden', background: '#111114', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}
       >
 
         {/* Scrollable body */}
         <div style={{ overflowY: 'auto', flex: 1, WebkitOverflowScrolling: 'touch' }}>
-          {/* Flyer image */}
-          {event.image_url ? (
-            <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', display: 'block', maxHeight: 420, objectFit: 'cover' }} />
-          ) : (
-            <div style={{ width: '100%', height: 200, background: `linear-gradient(135deg, ${accent}18, ${accent}38)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 24, fontWeight: 700, color: accent, textAlign: 'center', padding: '0 24px', lineHeight: 1.3 }}>{event.title || 'Event'}</span>
-            </div>
-          )}
+          {/* Hero — flyer image, or striped gradient with the title */}
+          <div style={{ position: 'relative' }}>
+            {event.image_url ? (
+              <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: '100%', height: 220, background: `linear-gradient(160deg, #2a1e4a, #120c22)`, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ position: 'absolute', inset: 0, background: stripes }} />
+                <span style={{ position: 'relative', fontFamily: 'var(--font-display)', fontSize: 42, fontWeight: 700, color: 'rgba(255,255,255,0.9)', textAlign: 'center', padding: '0 24px', lineHeight: 0.95, letterSpacing: '-0.02em', textTransform: 'uppercase' }}>{event.title || 'Event'}</span>
+              </div>
+            )}
+            {/* Close chip */}
+            <button onClick={onClose} title="Close"
+              style={{ position: 'absolute', top: 12, right: 12, width: 34, height: 34, borderRadius: 10, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              ✕
+            </button>
+          </div>
 
           {/* Details */}
-          <div style={{ padding: '18px 20px 4px', background: '#fffaee' }}>
+          <div style={{ padding: '20px 20px 6px' }}>
             {event.title && (
-              <h2 style={{ margin: '0 0 14px', fontSize: 24, fontWeight: 800, color: '#1a1a2e', lineHeight: 1.2, fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif' }}>
+              <h2 style={{ margin: '0 0 16px', fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
                 {event.title}
               </h2>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <span style={{ fontSize: 17, flexShrink: 0, marginTop: 1 }}>📅</span>
-                <div>
-                  <p style={{ margin: 0, fontSize: 15, color: '#1a1a2e', fontWeight: 600 }}>{formatDate(event.date)}</p>
-                  {isMulti && (
-                    <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>through {formatDate(event.end_date)}</p>
-                  )}
-                </div>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <MetaRow icon="📅" label="WHEN">
+                {formatDate(event.date)}
+                {isMulti && <span style={{ display: 'block', fontSize: 13, color: 'var(--text-3)', fontWeight: 500, marginTop: 2 }}>through {formatDate(event.end_date)}</span>}
+              </MetaRow>
 
-              {event.time_str && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 17, flexShrink: 0 }}>🕐</span>
-                  <p style={{ margin: 0, fontSize: 15, color: '#374151' }}>{event.time_str}</p>
-                </div>
-              )}
-
-              {event.location && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <span style={{ fontSize: 17, flexShrink: 0, marginTop: 1 }}>📍</span>
-                  <p style={{ margin: 0, fontSize: 15, color: '#374151', lineHeight: 1.4 }}>{event.location}</p>
-                </div>
-              )}
+              {event.time_str && <MetaRow icon="🕐" label="TIME">{event.time_str}</MetaRow>}
+              {event.location && <MetaRow icon="📍" label="WHERE">{event.location}</MetaRow>}
 
               {event.source_url && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 17, flexShrink: 0 }}>🔗</span>
+                <MetaRow icon="🔗" label="SOURCE">
                   <a href={event.source_url} target="_blank" rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
-                    style={{ fontSize: 14, color: accent, fontWeight: 700, textDecoration: 'none' }}>
-                    View original
+                    style={{ fontSize: 15, color: accent, fontWeight: 700, textDecoration: 'none' }}>
+                    View original ›
                   </a>
-                </div>
+                </MetaRow>
               )}
             </div>
           </div>
         </div>
 
         {/* Action row */}
-        <div style={{ flexShrink: 0, background: '#fffaee', borderTop: '1.5px solid #e9e0cc' }}>
+        <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', padding: '12px 16px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {onToggleReminder !== undefined && (
-            <div style={{ padding: '10px 16px 0' }}>
-              <button onClick={onToggleReminder}
-                style={{ width: '100%', padding: '10px', background: reminderOn ? 'rgba(234,179,8,0.15)' : 'rgba(0,0,0,0.04)', border: reminderOn ? '1.5px solid rgba(234,179,8,0.5)' : '1.5px solid rgba(0,0,0,0.08)', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', color: reminderOn ? '#92400e' : '#6b7280', fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                {reminderOn ? '🔔 Reminder on' : '🔕 Reminder off'}
-              </button>
-            </div>
+            <button onClick={onToggleReminder} className={reminderOn ? 'btn-lime' : 'btn-dark'}
+              style={{ width: '100%', padding: '14px', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {reminderOn ? '🔔 Reminder on' : '🔕 Reminder off'}
+            </button>
           )}
-          <div style={{ display: 'flex', gap: 10, padding: '10px 16px 14px' }}>
-            <button onClick={onClose}
-              style={{ flex: 1, padding: '12px', background: 'rgba(0,0,0,0.05)', border: '1.5px solid rgba(0,0,0,0.08)', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onClose} className="btn-dark" style={{ flex: 1, padding: '13px', fontSize: 15, fontWeight: 600 }}>
               Close
             </button>
             {onDelete && (
               <button onClick={handleDelete}
-                style={{ flex: 1, padding: '12px', background: 'rgba(239,68,68,0.07)', border: '1.5px solid rgba(239,68,68,0.25)', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#dc2626', fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif' }}>
-                Delete event
+                style={{ flex: 1, padding: '13px', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 16, fontSize: 15, fontWeight: 700, cursor: 'pointer', color: '#f87171', fontFamily: 'var(--font-display)' }}>
+                Delete
               </button>
             )}
           </div>

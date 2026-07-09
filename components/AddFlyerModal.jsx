@@ -377,9 +377,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         <div className="flex flex-col items-center gap-3 pb-16 pt-8">
           <button onClick={capturePhoto}
             className="w-[72px] h-[72px] rounded-full flex items-center justify-center active:scale-95 transition-transform"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', boxShadow: '0 0 32px rgba(124,58,237,0.5)' }}
+            style={{ background: '#c6f24e', boxShadow: '0 0 32px rgba(198,242,78,0.5)' }}
           >
-            <div className="w-12 h-12 rounded-full border-2 border-white/30" />
+            <div className="w-12 h-12 rounded-full border-2" style={{ borderColor: 'rgba(10,10,11,0.35)' }} />
           </button>
           <span className="text-xs text-white/30">Tap to capture</span>
         </div>
@@ -415,9 +415,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
             <div className="space-y-2">
               <button type="button" onClick={startCamera}
                 className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all active:scale-[0.98]"
-                style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}
+                style={{ background: 'rgba(198,242,78,0.10)', border: '1px solid rgba(198,242,78,0.25)' }}
               >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-violet-400 flex-shrink-0" style={{ background: 'rgba(124,58,237,0.15)' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(198,242,78,0.15)', color: '#c6f24e' }}>
                   <IconCamera />
                 </div>
                 <div>
@@ -471,7 +471,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                 <div className="relative rounded-2xl overflow-hidden" style={{ height: 180, background: '#0a0612' }}>
                   <div className="anim-scanline" />
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <p className="text-xs text-violet-300 font-medium tracking-wide animate-pulse -mt-6" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>Collecting data…</p>
+                    <p className="text-xs text-[#c6f24e] font-medium tracking-wide animate-pulse -mt-6" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>Collecting data…</p>
                   </div>
                   <ScanBot />
                 </div>
@@ -498,8 +498,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                   Back
                 </button>
                 <button type="button" onClick={scanLink} disabled={!linkUrl.trim() || linkScanning}
-                  className="flex-[2] py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-30"
-                  style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+                  className="flex-[2] py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-30"
+                  style={{ background: '#c6f24e', color: '#0a0a0b', fontFamily: 'var(--font-display)' }}
                 >
                   {linkScanning ? 'Reading…' : 'Scan link'}
                 </button>
@@ -524,7 +524,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                 {(analyzing || linkScanning) && (
                   <div className="absolute inset-0 overflow-hidden flex flex-col items-center justify-center" style={{ background: 'rgba(4,0,16,0.72)' }}>
                     <div className="anim-scanline" />
-                    <p className="text-xs text-violet-300 font-medium tracking-wide animate-pulse -mt-4" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>Collecting data…</p>
+                    <p className="text-xs text-[#c6f24e] font-medium tracking-wide animate-pulse -mt-4" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>Collecting data…</p>
                     <ScanBot />
                   </div>
                 )}
@@ -533,7 +533,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                     <div className="anim-scanline" />
                     <ScanBot raise={28} />
                     <div className="absolute bottom-0 inset-x-0 py-1.5 text-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
-                      <p className="text-[11px] text-violet-300 animate-pulse">Reading flyer for more details…</p>
+                      <p className="text-[11px] text-[#c6f24e] animate-pulse">Reading flyer for more details…</p>
                     </div>
                   </div>
                 )}
@@ -587,9 +587,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                     <div className="relative">
                       <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} required
                         className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80${glow.date ? ' anim-fieldglow' : ''}`}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${aiDetectedDate ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.08)'}` }}
+                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${aiDetectedDate ? 'rgba(198,242,78,0.55)' : 'rgba(255,255,255,0.08)'}` }}
                       />
-                      {aiDetectedDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 font-semibold tracking-widest">AI</span>}
+                      {aiDetectedDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[#c6f24e] font-semibold tracking-widest">AI</span>}
                     </div>
                     {showEndDate ? (
                       <div>
@@ -601,9 +601,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                         <div className="relative">
                           <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={eventDate || undefined}
                             className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80"
-                            style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${endDate ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.08)'}` }}
+                            style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${endDate ? 'rgba(198,242,78,0.55)' : 'rgba(255,255,255,0.08)'}` }}
                           />
-                          {endDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 font-semibold tracking-widest">{endDate === eventDate ? 'SAME' : 'END'}</span>}
+                          {endDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[#c6f24e] font-semibold tracking-widest">{endDate === eventDate ? 'SAME' : 'END'}</span>}
                         </div>
                       </div>
                     ) : (
@@ -614,22 +614,22 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                     )}
                     <input type="text" placeholder="Event title" value={title} onChange={e => setTitle(e.target.value)}
                       className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.title ? ' anim-fieldglow' : ''}`}
-                      style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${title ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
+                      style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${title ? 'rgba(198,242,78,0.5)' : 'rgba(255,255,255,0.08)'}` }}
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <input type="text" placeholder="Location" value={location} onChange={e => setLocation(e.target.value)}
                         className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.location ? ' anim-fieldglow' : ''}`}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${location ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
+                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${location ? 'rgba(198,242,78,0.5)' : 'rgba(255,255,255,0.08)'}` }}
                       />
                       <input type="text" placeholder="Time" value={timeStr} onChange={e => setTimeStr(e.target.value)}
                         className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.time ? ' anim-fieldglow' : ''}`}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${timeStr ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.08)'}` }}
+                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${timeStr ? 'rgba(198,242,78,0.5)' : 'rgba(255,255,255,0.08)'}` }}
                       />
                     </div>
                   </div>
                   <button type="submit" disabled={!canSubmit || uploading}
-                    className="w-full py-3.5 rounded-2xl text-sm font-semibold transition-all disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.98] text-white"
-                    style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+                    className="w-full py-3.5 rounded-2xl text-[15px] font-bold transition-all disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.98]"
+                    style={{ background: '#c6f24e', color: '#0a0a0b', fontFamily: 'var(--font-display)' }}
                   >
                     {uploading ? 'Saving…' : eventDate
                       ? (endDate && endDate !== eventDate
