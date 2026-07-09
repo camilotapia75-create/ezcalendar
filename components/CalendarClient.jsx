@@ -515,12 +515,13 @@ export default function CalendarClient() {
               {!notifEnabled && <line x1="3" y1="3" x2="21" y2="21" />}
             </svg>
           </button>
-          {notifEnabled && (
-            <button onClick={sendTestNotification} title="Send test notification" className="mono-label"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', fontSize: 10, color: theme.accent, opacity: 0.85, lineHeight: 1, letterSpacing: '0.1em' }}>
-              TEST
-            </button>
-          )}
+          <button onClick={() => setActiveTab('friends')} className="mono-label"
+            style={{ position: 'relative', fontSize: 10, letterSpacing: '0.1em', color: activeTab === 'friends' ? theme.accent : 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}>
+            FRIENDS
+            {connectedCount > 0 && (
+              <span style={{ position: 'absolute', top: -2, right: -2, background: theme.accent, color: theme.ink, borderRadius: '50%', minWidth: 13, height: 13, padding: '0 3px', fontSize: 8, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{connectedCount}</span>
+            )}
+          </button>
           <button onClick={handleSignOut} className="mono-label"
             style={{ fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}>
             SIGN OUT
@@ -589,12 +590,6 @@ export default function CalendarClient() {
           <span style={{ fontSize: 10, fontWeight: activeTab === 'feed' ? 700 : 400, fontFamily: 'var(--font-inter), Inter, system-ui' }}>Upcoming</span>
         </button>
 
-        <button onClick={() => setActiveTab('calendar')}
-          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'calendar' ? navActive : navMuted }}>
-          <CalIcon active={activeTab === 'calendar'} />
-          <span style={{ fontSize: 10, fontWeight: activeTab === 'calendar' ? 700 : 400, fontFamily: 'var(--font-inter), Inter, system-ui' }}>Calendar</span>
-        </button>
-
         {/* Center scan button — elevated */}
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', paddingBottom: 6 }}>
           <button onClick={() => setModal({ type: 'add', date: null })} title="Scan a flyer"
@@ -603,13 +598,10 @@ export default function CalendarClient() {
           </button>
         </div>
 
-        <button onClick={() => setActiveTab('friends')}
-          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'friends' ? navActive : navMuted, position: 'relative' }}>
-          <PeopleIcon active={activeTab === 'friends'} />
-          <span style={{ fontSize: 10, fontWeight: activeTab === 'friends' ? 700 : 400, fontFamily: 'var(--font-inter), Inter, system-ui' }}>Friends</span>
-          {connectedCount > 0 && (
-            <span style={{ position: 'absolute', top: 6, right: '50%', transform: 'translateX(12px)', background: theme.accent, color: theme.ink, borderRadius: '50%', width: 14, height: 14, fontSize: 8, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{connectedCount}</span>
-          )}
+        <button onClick={() => setActiveTab('calendar')}
+          style={{ flex: 1, paddingTop: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === 'calendar' ? navActive : navMuted }}>
+          <CalIcon active={activeTab === 'calendar'} />
+          <span style={{ fontSize: 10, fontWeight: activeTab === 'calendar' ? 700 : 400, fontFamily: 'var(--font-inter), Inter, system-ui' }}>Calendar</span>
         </button>
       </nav>
 
