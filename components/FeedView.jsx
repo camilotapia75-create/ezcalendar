@@ -80,9 +80,9 @@ function DateBadge({ dateStr, endDateStr, accent, faded }) {
 // look empty — and the title is NOT repeated in the details row below.
 function TitleHero({ title, accent }) {
   return (
-    <div style={{ width: '100%', position: 'relative', paddingTop: '75%', background: 'linear-gradient(150deg, rgba(198,242,78,0.55) 0%, rgba(198,242,78,0.28) 48%, rgba(198,242,78,0.10) 100%), var(--surface-2)' }}>
+    <div style={{ width: '100%', position: 'relative', paddingTop: '75%', background: 'linear-gradient(145deg, #d4f560 0%, #bcea47 42%, #8fbf2e 100%)' }}>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '16px 18px 20px' }}>
-        <p style={{ margin: 0, paddingBottom: 4, fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text)', lineHeight: 1.18, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <p style={{ margin: 0, paddingBottom: 4, fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: '#0a0a0b', lineHeight: 1.18, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {title || 'Event'}
         </p>
       </div>

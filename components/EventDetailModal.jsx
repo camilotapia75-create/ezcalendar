@@ -1,8 +1,9 @@
 'use client'
+import { useEffect, useRef } from 'react'
 
 // Shared "no flyer" fill — a lime gradient that fades into the surface. Used
 // everywhere an event lacks an image so the look is identical across the app.
-const NO_FLYER_BG = 'linear-gradient(150deg, rgba(198,242,78,0.55) 0%, rgba(198,242,78,0.28) 48%, rgba(198,242,78,0.10) 100%), var(--surface-2)'
+const NO_FLYER_BG = 'linear-gradient(145deg, #d4f560 0%, #bcea47 42%, #8fbf2e 100%)'
 
 const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -31,6 +32,12 @@ function MetaRow({ icon, label, children }) {
 }
 
 export default function EventDetailModal({ event, accent = '#c6f24e', onClose, onDelete, reminderOn, onToggleReminder }) {
+  const bodyRef = useRef(null)
+  // Open already scrolled to the details so time/location are visible without
+  // scrolling past the flyer. Re-run after the flyer loads (it changes height).
+  const scrollToDetails = () => { const el = bodyRef.current; if (el) el.scrollTop = el.scrollHeight }
+  useEffect(() => { scrollToDetails() }, [event?.id])
+
   if (!event) return null
 
   const isMulti = event.end_date && event.end_date !== event.date
@@ -53,14 +60,14 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
       >
 
         {/* Scrollable body */}
-        <div style={{ overflowY: 'auto', flex: 1, WebkitOverflowScrolling: 'touch' }}>
+        <div ref={bodyRef} style={{ overflowY: 'auto', flex: 1, WebkitOverflowScrolling: 'touch' }}>
           {/* Hero — flyer image, or striped gradient with the title */}
           <div style={{ position: 'relative' }}>
             {event.image_url ? (
-              <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover' }} />
+              <img src={event.image_url} alt={event.title || ''} onLoad={scrollToDetails} style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover' }} />
             ) : (
               <div style={{ width: '100%', height: 230, background: NO_FLYER_BG, position: 'relative', display: 'flex', alignItems: 'flex-end', padding: '22px 24px' }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 34, fontWeight: 700, color: 'var(--text)', lineHeight: 1.08, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', paddingBottom: 2 }}>{event.title || 'Event'}</span>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 34, fontWeight: 700, color: '#0a0a0b', lineHeight: 1.08, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', paddingBottom: 2 }}>{event.title || 'Event'}</span>
               </div>
             )}
             {/* Close chip */}
