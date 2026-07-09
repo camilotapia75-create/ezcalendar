@@ -1,11 +1,10 @@
 import DayCell from './DayCell'
 
-const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const MONTHS = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
 ]
-const ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
 
 export default function Calendar({ currentDate, setCurrentDate, events, onDayClick, onEventClick, theme, notes = {} }) {
   const year = currentDate.getFullYear()
@@ -39,120 +38,56 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
     return events.filter(e => e.end_date ? e.date <= key && e.end_date >= key : e.date === key)
   }
 
-  const accent = theme?.accent || '#7c3aed'
-  const dark = theme?.dark
-  const calBorder = dark ? '3px solid rgba(255,255,255,0.10)' : '3px solid #1a1a2e'
-  const calBg     = dark ? '#0f0f1a' : '#fffdf8'
+  // Count distinct events that fall inside this month
+  const monthEventCount = events.filter(e => {
+    const [y, m] = e.date.split('-').map(Number)
+    return y === year && m === month + 1
+  }).length
 
   return (
-    <div style={{
-      borderRadius: 6,
-      overflow: 'hidden',
-      border: calBorder,
-      boxShadow: dark ? '5px 5px 0 rgba(0,0,0,0.60)' : '5px 5px 0 rgba(140,100,60,0.22)',
-    }}>
-
-      {/* Big month header */}
-      <div style={{ background: calBg, borderBottom: calBorder, padding: '12px 14px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', lineHeight: 1 }}>
-          <div style={{
-            fontSize: 'clamp(48px, 13vw, 80px)',
-            fontWeight: 900,
-            letterSpacing: '-4px',
-            color: accent,
-            fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif',
-            lineHeight: 0.88,
-          }}>
-            {ABBR[month]}
-          </div>
-          <div style={{
-            fontSize: 'clamp(40px, 11vw, 68px)',
-            fontWeight: 900,
-            letterSpacing: '-3px',
-            color: `${accent}28`,
-            fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif',
-            lineHeight: 0.88,
-          }}>
-            {year}
-          </div>
+    <div>
+      {/* Month header */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '4px 4px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
+            className="mono-label" style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 0 }}>‹</button>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 700, letterSpacing: '-0.03em', color: '#fff', lineHeight: 1, margin: 0 }}>
+            {MONTHS[month]}
+          </h1>
+          <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
+            className="mono-label" style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 0 }}>›</button>
         </div>
-
-        {/* Nav row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0 12px' }}>
-          <button
-            onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-            style={{ background: 'none', border: `1.5px solid ${accent}66`, borderRadius: 5, cursor: 'pointer', color: accent, width: 30, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700 }}
-          >
-            ‹
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 15, color: dark ? '#9ca3af' : '#6b7280' }}>{MONTHS[month]} {year}</span>
-            <button
-              onClick={() => setCurrentDate(new Date())}
-              style={{ fontSize: 14, padding: '2px 10px', borderRadius: 20, background: 'none', border: `1.5px solid ${accent}55`, color: accent, cursor: 'pointer' }}
-            >
-              today
-            </button>
-          </div>
-          <button
-            onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-            style={{ background: 'none', border: `1.5px solid ${accent}66`, borderRadius: 5, cursor: 'pointer', color: accent, width: 30, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700 }}
-          >
-            ›
-          </button>
-        </div>
+        <span className="mono-label" style={{ fontSize: 11, color: 'var(--text-3)', letterSpacing: '0.12em', paddingBottom: 4 }}>
+          {year} · {monthEventCount} EVENT{monthEventCount === 1 ? '' : 'S'}
+        </span>
       </div>
 
-      {/* Day headers */}
-      <div className="grid grid-cols-7" style={{ background: accent, borderBottom: calBorder }}>
-        {DAYS.map((d, i) => (
-          <div
-            key={d}
-            className="py-2 text-center"
-            style={{
-              fontSize: 9,
-              fontWeight: 800,
-              letterSpacing: '0.1em',
-              color: i === 0 || i === 6 ? 'rgba(255,255,255,0.65)' : '#fff',
-              fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif',
-            }}
-          >
-            {d}
-          </div>
+      {/* Weekday headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 8, marginBottom: 8 }}>
+        {DOW.map((d, i) => (
+          <div key={i} className="mono-label" style={{ textAlign: 'center', fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.1em' }}>{d}</div>
         ))}
       </div>
 
-      {/* Grid — graph paper background */}
-      <div
-        className="grid grid-cols-7"
-        style={{
-          borderLeft: calBorder,
-          backgroundImage: dark ? [
-            'repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 24px)',
-            'repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 24px)',
-            `linear-gradient(${calBg}, ${calBg})`,
-          ].join(', ') : [
-            'repeating-linear-gradient(0deg, rgba(0,0,0,0.045) 0px, rgba(0,0,0,0.045) 1px, transparent 1px, transparent 24px)',
-            'repeating-linear-gradient(90deg, rgba(0,0,0,0.035) 0px, rgba(0,0,0,0.035) 1px, transparent 1px, transparent 24px)',
-            `linear-gradient(${calBg}, ${calBg})`,
-          ].join(', '),
-        }}
-      >
+      {/* Grid of rounded cells */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 8 }}>
         {cells.map((cell, i) => (
           <DayCell
             key={i}
             day={cell.day}
             currentMonth={cell.current}
             isToday={isToday(cell.date)}
-            isWeekend={cell.date.getDay() === 0 || cell.date.getDay() === 6}
             events={eventsForDate(cell.date)}
             hasNote={(notes[dateKey(cell.date)]?.length > 0)}
             onClick={() => cell.current && onDayClick(cell.date)}
-            onEventClick={() => cell.current && onEventClick(cell.date)}
             theme={theme}
           />
         ))}
       </div>
+
+      <p className="mono-label" style={{ textAlign: 'center', fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.14em', marginTop: 22 }}>
+        TAP ANY DAY TO SEE THE FLYER
+      </p>
     </div>
   )
 }

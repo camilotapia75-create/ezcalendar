@@ -42,10 +42,10 @@ function getGroups(events) {
 function DateBadge({ dateStr, endDateStr, accent, faded }) {
   const start = parseLocalDate(dateStr)
   const isMulti = endDateStr && endDateStr !== dateStr
-  const bg = faded ? '#e5e5e5' : accent
-  const fg = faded ? '#9ca3af' : '#fff'
-  const fgSoft = faded ? '#bbb' : 'rgba(255,255,255,0.82)'
-  const font = 'var(--font-inter), Inter, system-ui, sans-serif'
+  const bg = faded ? 'rgba(255,255,255,0.08)' : accent
+  const fg = faded ? 'var(--text-3)' : '#0a0a0b'
+  const fgSoft = faded ? 'var(--text-3)' : 'rgba(10,10,11,0.62)'
+  const font = 'var(--font-mono-stack)'
 
   if (isMulti) {
     const end = parseLocalDate(endDateStr)
@@ -93,7 +93,7 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0, inSli
   const [imgFailed, setImgFailed] = React.useState(false)
   const [imgLoaded, setImgLoaded] = React.useState(false)
   return (
-    <div onClick={onTap} className={faded ? undefined : 'anim-card'} style={{ animationDelay: `${Math.min(animIndex, 10) * 45}ms`, marginBottom: inSlideshow ? 0 : 12, borderRadius: 14, overflow: 'hidden', border: '1.5px solid #e8ddd0', boxShadow: faded ? 'none' : '3px 3px 0 rgba(140,100,60,0.12)', background: '#fffdf8', cursor: 'pointer', opacity: faded ? 0.58 : 1, transition: 'opacity 0.2s' }}>
+    <div onClick={onTap} className={faded ? undefined : 'anim-card'} style={{ animationDelay: `${Math.min(animIndex, 10) * 45}ms`, marginBottom: inSlideshow ? 0 : 12, borderRadius: 18, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: faded ? 'none' : '0 8px 24px rgba(0,0,0,0.35)', background: 'var(--surface)', cursor: 'pointer', opacity: faded ? 0.5 : 1, transition: 'opacity 0.2s' }}>
       {event.image_url && !imgFailed ? (
         // Padding-top 75% = 4:3 ratio; works on all browsers including old iOS (unlike aspect-ratio CSS)
         <div style={{ position: 'relative', overflow: 'hidden', paddingTop: '75%' }}>
@@ -127,25 +127,25 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0, inSli
         <DateBadge dateStr={event.date} endDateStr={event.end_date} accent={accent} faded={faded} />
         <div style={{ flex: 1, minWidth: 0 }}>
           {event.title && (
-            <p style={{ margin: '0 0 5px', fontSize: 17, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.25, paddingRight: 28, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ margin: '0 0 6px', fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: '#fff', lineHeight: 1.2, letterSpacing: '-0.01em', paddingRight: 28, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {event.title}
             </p>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
             {event.time_str && (
-              <span style={{ fontSize: 15, fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontSize: 13 }}>🕐</span> {event.time_str}
+              <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontSize: 12 }}>🕐</span> {event.time_str}
               </span>
             )}
             {event.location && (
-              <span style={{ fontSize: 14, fontWeight: 500, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                <span style={{ fontSize: 13 }}>📍</span> {event.location}
+              <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                <span style={{ fontSize: 12 }}>📍</span> {event.location}
               </span>
             )}
           </div>
         </div>
         <button onClick={e => { e.stopPropagation(); onDelete(event.id) }} title="Remove event"
-          style={{ position: 'absolute', top: 12, right: 12, width: 22, height: 22, borderRadius: '50%', background: 'rgba(26,26,46,0.10)', border: 'none', cursor: 'pointer', color: '#7c6a56', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          style={{ position: 'absolute', top: 12, right: 12, width: 22, height: 22, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           ✕
         </button>
       </div>
@@ -293,10 +293,10 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100dvh - 130px)', padding: 40, textAlign: 'center', gap: 16 }}>
         <div style={{ fontSize: 72, lineHeight: 1 }}>📸</div>
-        <h2 style={{ fontSize: 30, fontWeight: 700, color: headingColor, margin: 0 }}>Nothing pinned yet</h2>
-        <p style={{ fontSize: 17, color: dark ? '#9ca3af' : '#7c6a56', margin: 0, maxWidth: 260, lineHeight: 1.5 }}>See a flyer? Snap it and it shows up here.</p>
-        <button onClick={onScan}
-          style={{ marginTop: 8, padding: '12px 30px', background: dark ? '#e2e8f0' : '#1a1a2e', color: dark ? '#0d0d14' : '#fff', border: dark ? '2px solid rgba(255,255,255,0.15)' : '2px solid #1a1a2e', borderRadius: 6, boxShadow: `3px 3px 0 ${accent}`, fontSize: 20, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif' }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff', margin: 0 }}>Nothing pinned yet</h2>
+        <p style={{ fontSize: 17, color: 'var(--text-2)', margin: 0, maxWidth: 260, lineHeight: 1.5 }}>See a flyer? Snap it and it shows up here.</p>
+        <button onClick={onScan} className="btn-lime"
+          style={{ marginTop: 8, padding: '14px 30px', fontSize: 18, cursor: 'pointer' }}>
           📷 Scan a flyer
         </button>
       </div>
@@ -310,11 +310,11 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
         const useSlide = SLIDESHOW_GROUPS.has(group.label) && !group.past
         return (
           <div key={group.label}>
-            <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: gi > 0 ? 24 : 0 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: group.past ? '#9ca3af' : headingColor, whiteSpace: 'nowrap', fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>
+            <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, marginTop: gi > 0 ? 26 : 0 }}>
+              <span className="mono-label" style={{ fontSize: 11, letterSpacing: '0.16em', color: group.past ? 'var(--text-3)' : '#fff', whiteSpace: 'nowrap' }}>
                 {group.label}
               </span>
-              <div style={{ height: 1.5, background: group.past ? dividerMuted : dividerColor, flex: 1 }} />
+              <div style={{ height: 1, background: 'var(--border)', flex: 1 }} />
             </div>
 
             {useSlide ? (

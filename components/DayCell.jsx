@@ -1,115 +1,49 @@
-const Pin = () => (
-  <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none', width: 'clamp(17px, 4.4vw, 34px)', height: 'clamp(13px, 3.3vw, 16px)', background: 'rgba(253,224,71,0.82)', borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.18)' }} />
-)
+// One calendar day: a rounded square. Event days show the flyer as the cell
+// background with the day number overlaid; empty days are a dark surface.
+export default function DayCell({ day, currentMonth, isToday, events, hasNote, onClick, theme }) {
+  const accent = theme?.accent || '#c6f24e'
+  const ev = events[0]
+  const img = ev?.image_url
+  const extra = events.length - 1
 
-const getFanStyle = (idx, total) => {
-  if (total === 1) return { left: '6%', right: '6%', rotate: -1 }
-  if (total === 2) return idx === 0
-    ? { left: '-4%', right: '32%', rotate: -9 }
-    : { left: '32%', right: '-4%', rotate: 9 }
-  if (idx === 0) return { left: '-6%', right: '44%', rotate: -13 }
-  if (idx === 1) return { left: '17%', right: '17%', rotate: 1 }
-  return { left: '44%', right: '-6%', rotate: 13 }
-}
-
-export default function DayCell({ day, currentMonth, isToday, isWeekend, events, hasNote, onClick, onEventClick, theme }) {
-  const displayed = events.slice(0, 3)
-  const count = displayed.length
-  const accent = theme?.accent || '#7c3aed'
-  const dark = theme?.dark
-
-  const numColor = isToday ? '#fff'
-    : !currentMonth ? (dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)')
-    : isWeekend ? accent
-    : (dark ? '#d4d4d8' : '#1a1a2e')
+  const numColor = isToday ? accent : img ? '#fff' : currentMonth ? 'var(--text-2)' : 'var(--text-3)'
 
   return (
-    <div
+    <button
       onClick={onClick}
-      className={[
-        'relative flex flex-col',
-        'min-h-[88px] md:min-h-[112px]',
-        currentMonth ? 'cursor-pointer' : 'pointer-events-none',
-      ].join(' ')}
+      disabled={!currentMonth}
       style={{
-        borderRight: dark ? '2px solid rgba(255,255,255,0.08)' : '2px solid #1a1a2e',
-        borderBottom: dark ? '2px solid rgba(255,255,255,0.08)' : '2px solid #1a1a2e',
-        background: isToday && currentMonth
-          ? `${accent}1a`
-          : !currentMonth ? (dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)') : 'transparent',
-        boxShadow: isToday && currentMonth ? `inset 0 0 0 2.5px ${accent}` : undefined,
+        position: 'relative',
+        aspectRatio: '1 / 1',
+        borderRadius: 14,
+        overflow: 'hidden',
+        border: 'none',
+        padding: 0,
+        cursor: currentMonth ? 'pointer' : 'default',
+        background: img ? '#161619' : currentMonth ? 'var(--surface)' : 'rgba(255,255,255,0.02)',
+        opacity: currentMonth ? 1 : 0.4,
+        outline: isToday ? `2px solid ${accent}` : 'none',
+        outlineOffset: -2,
       }}
     >
-      <div style={{ padding: '5px 5px 3px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <span
-          style={{
-            display: 'inline-flex',
-            width: isToday ? 26 : 'auto',
-            height: isToday ? 26 : 'auto',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: isToday ? '50%' : undefined,
-            background: isToday ? accent : 'transparent',
-            color: numColor,
-            fontSize: 'clamp(14px, 2.8vw, 20px)',
-            fontWeight: isWeekend || isToday ? 800 : 600,
-            lineHeight: 1,
-            letterSpacing: '-0.5px',
-            fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif',
-          }}
-        >
-          {day}
-        </span>
-        {hasNote && currentMonth && (
-          <span style={{ fontSize: 7, lineHeight: 1, opacity: 0.7, fontWeight: 700, color: numColor }}>Notes</span>
-        )}
-      </div>
-
-      {count > 0 && (
-        <div className="flex-1 relative">
-          <button
-            onClick={(e) => { e.stopPropagation(); onEventClick() }}
-            className="absolute inset-0"
-            style={{ overflow: 'visible' }}
-          >
-            {displayed.map((event, idx) => {
-              const s = getFanStyle(idx, count)
-              return (
-                <div
-                  key={event.id}
-                  className="absolute"
-                  style={{ left: s.left, right: s.right, bottom: 10, height: 54, transform: `rotate(${s.rotate}deg)`, zIndex: idx + 1 }}
-                >
-                  <Pin />
-                  {event.image_url ? (
-                    <img
-                      src={event.image_url}
-                      alt={event.title || ''}
-                      className="w-full h-full object-cover rounded"
-                      style={{ border: '2.5px solid white', boxShadow: '0 3px 12px rgba(0,0,0,0.22)' }}
-                    />
-                  ) : (
-                    <div
-                      className="w-full h-full rounded flex items-center justify-center px-1"
-                      style={{ background: `linear-gradient(135deg, ${accent}22, ${accent}44)`, border: `1.5px solid ${accent}66`, boxShadow: `0 2px 8px ${accent}25` }}
-                    >
-                      <p className="text-[8px] font-semibold text-center" style={{ color: accent }}>{event.title}</p>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </button>
-          {events.length > 3 && (
-            <div
-              className="absolute top-0 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-              style={{ background: accent, zIndex: 20 }}
-            >
-              +{events.length - 3}
-            </div>
-          )}
-        </div>
+      {img && (
+        <>
+          <img src={img} alt={ev.title || ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 42%, transparent 68%, rgba(0,0,0,0.4) 100%)' }} />
+        </>
       )}
-    </div>
+      <span className="mono-label" style={{ position: 'absolute', top: 6, left: 8, fontSize: 13, fontWeight: 700, color: numColor, letterSpacing: 0, textShadow: img ? '0 1px 3px rgba(0,0,0,0.6)' : 'none' }}>
+        {day}
+      </span>
+      {isToday && <span style={{ position: 'absolute', top: 9, right: 8, width: 6, height: 6, borderRadius: '50%', background: accent }} />}
+      {hasNote && currentMonth && !img && (
+        <span style={{ position: 'absolute', bottom: 7, left: 8, width: 5, height: 5, borderRadius: '50%', background: 'var(--text-3)' }} />
+      )}
+      {extra > 0 && (
+        <span className="mono-label" style={{ position: 'absolute', bottom: 5, right: 7, fontSize: 9, fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>
+          +{extra}
+        </span>
+      )}
+    </button>
   )
 }
