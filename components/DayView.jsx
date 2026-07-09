@@ -6,7 +6,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 
 function Pin() {
   return (
-    <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none', width: 52, height: 20, background: 'rgba(253,224,71,0.82)', borderRadius: 3, boxShadow: '0 1px 4px rgba(0,0,0,0.20)' }} />
+    <div style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none', width: 16, height: 16, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #e8ff7a, #a7d43a)', boxShadow: '0 3px 6px rgba(0,0,0,0.5)' }} />
   )
 }
 
