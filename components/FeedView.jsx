@@ -76,14 +76,16 @@ function DateBadge({ dateStr, endDateStr, accent, faded }) {
   )
 }
 
-// Padding-top trick: height = 75% of width, works in all browsers including old iOS.
-// Content is absolutely positioned inside so it fills the space.
-function NoFlyer({ accent }) {
+// No image: the title fills the hero zone (gig-poster style) so the card doesn't
+// look empty — and the title is NOT repeated in the details row below.
+function TitleHero({ title, accent }) {
   return (
-    <div style={{ width: '100%', position: 'relative', paddingTop: '75%', background: `linear-gradient(135deg, ${accent}14 0%, ${accent}28 100%)`, borderBottom: `1px solid ${accent}20` }}>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-        <span style={{ fontSize: 28, lineHeight: 1, filter: 'grayscale(0.2)' }}>📌</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>No flyer</span>
+    <div style={{ width: '100%', position: 'relative', paddingTop: '75%', background: `linear-gradient(150deg, ${accent}26 0%, ${accent}0a 52%, transparent 100%), #131610` }}>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '16px 18px' }}>
+        <span style={{ fontSize: 22, lineHeight: 1 }}>📌</span>
+        <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: '#fff', lineHeight: 1.05, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {title || 'Event'}
+        </p>
       </div>
     </div>
   )
@@ -92,9 +94,10 @@ function NoFlyer({ accent }) {
 function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0, inSlideshow }) {
   const [imgFailed, setImgFailed] = React.useState(false)
   const [imgLoaded, setImgLoaded] = React.useState(false)
+  const hasImg = event.image_url && !imgFailed
   return (
     <div onClick={onTap} className={faded ? undefined : 'anim-card'} style={{ animationDelay: `${Math.min(animIndex, 10) * 45}ms`, marginBottom: inSlideshow ? 0 : 12, borderRadius: 18, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: faded ? 'none' : '0 8px 24px rgba(0,0,0,0.35)', background: 'var(--surface)', cursor: 'pointer', opacity: faded ? 0.5 : 1, transition: 'opacity 0.2s' }}>
-      {event.image_url && !imgFailed ? (
+      {hasImg ? (
         // Padding-top 75% = 4:3 ratio; works on all browsers including old iOS (unlike aspect-ratio CSS)
         <div style={{ position: 'relative', overflow: 'hidden', paddingTop: '75%' }}>
           {!imgLoaded && (
@@ -121,17 +124,18 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0, inSli
           />
         </div>
       ) : (
-        <NoFlyer accent={accent} />
+        <TitleHero title={event.title} accent={accent} />
       )}
       <div style={{ padding: '12px 14px 14px', position: 'relative', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <DateBadge dateStr={event.date} endDateStr={event.end_date} accent={accent} faded={faded} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          {event.title && (
+          {/* Title only shown here when the image is the hero — otherwise it lives in TitleHero */}
+          {hasImg && event.title && (
             <p style={{ margin: '0 0 6px', fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: '#fff', lineHeight: 1.2, letterSpacing: '-0.01em', paddingRight: 28, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {event.title}
             </p>
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: hasImg ? 2 : 0 }}>
             {event.time_str && (
               <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ fontSize: 12 }}>🕐</span> {event.time_str}
@@ -141,6 +145,9 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0, inSli
               <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                 <span style={{ fontSize: 12 }}>📍</span> {event.location}
               </span>
+            )}
+            {!hasImg && !event.time_str && !event.location && (
+              <span className="mono-label" style={{ fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.1em' }}>TAP TO EDIT DETAILS</span>
             )}
           </div>
         </div>
@@ -308,6 +315,7 @@ const SLIDESHOW_GROUPS = new Set(['Today', 'This Week'])
 
 export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading }) {
   const groups = getGroups(events)
+  const [showPast, setShowPast] = React.useState(false)
 
   const headingColor = dark ? '#e2e8f0' : '#1a1a2e'
   const dividerColor = dark ? 'rgba(255,255,255,0.18)' : '#1a1a2e'
@@ -340,16 +348,25 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
     <div style={{ padding: '12px 0 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
       {groups.map((group, gi) => {
         const useSlide = SLIDESHOW_GROUPS.has(group.label) && !group.past
+        const collapsed = group.past && !showPast
         return (
           <div key={group.label}>
-            <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, marginTop: gi > 0 ? 26 : 0 }}>
-              <span className="mono-label" style={{ fontSize: 11, letterSpacing: '0.16em', color: group.past ? 'var(--text-3)' : '#fff', whiteSpace: 'nowrap' }}>
-                {group.label}
-              </span>
+            <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: collapsed ? 0 : 14, marginTop: gi > 0 ? 26 : 0 }}>
+              {group.past ? (
+                <button onClick={() => setShowPast(s => !s)} className="mono-label"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-3)', fontSize: 11, letterSpacing: '0.16em', whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'inline-block', fontSize: 9, transition: 'transform 0.2s', transform: showPast ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                  PAST ({group.items.length})
+                </button>
+              ) : (
+                <span className="mono-label" style={{ fontSize: 11, letterSpacing: '0.16em', color: '#fff', whiteSpace: 'nowrap' }}>
+                  {group.label}
+                </span>
+              )}
               <div style={{ height: 1, background: 'var(--border)', flex: 1 }} />
             </div>
 
-            {useSlide ? (
+            {collapsed ? null : useSlide ? (
               <SlideShow
                 items={group.items}
                 accent={accent}
