@@ -247,4 +247,20 @@ input[type='date']::-webkit-calendar-picker-indicator {
   /* Universal press feedback (inline transforms win, so decorated
      buttons like the elevated scan button are unaffected) */
   button:active { transform: scale(0.965); }
+
+  /* Sign-in mascot: gentle hover bob + slow smooth blink */
+  .botly { animation: botlyHover 3.4s ease-in-out infinite; will-change: transform; }
+  @keyframes botlyHover {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-9px); }
+  }
+  .botly-eyes {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: botlyBlink 4.2s ease-in-out infinite;
+  }
+  @keyframes botlyBlink {
+    0%, 90%, 100% { transform: scaleY(1); }
+    95%           { transform: scaleY(0.1); }
+  }
 }

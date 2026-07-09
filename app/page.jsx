@@ -40,17 +40,19 @@ function Poster({ p }) {
 
 function Botly({ size = 92 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" style={{ filter: 'drop-shadow(0 0 22px rgba(198,242,78,0.55))' }}>
+    <svg className="botly" width={size} height={size} viewBox="0 0 100 100" fill="none" style={{ filter: 'drop-shadow(0 0 22px rgba(198,242,78,0.55))' }}>
       {/* antenna */}
       <line x1="50" y1="16" x2="50" y2="26" stroke="#8fbf2e" strokeWidth="3" />
       <circle cx="50" cy="13" r="5" fill="#c6f24e" />
       {/* head */}
       <rect x="24" y="26" width="52" height="44" rx="14" fill="url(#botHead)" />
-      {/* eyes */}
-      <circle cx="40" cy="46" r="9" fill="#fff" />
-      <circle cx="60" cy="46" r="9" fill="#fff" />
-      <circle cx="41" cy="47" r="4" fill="#101010" />
-      <circle cx="61" cy="47" r="4" fill="#101010" />
+      {/* eyes — grouped so they blink together */}
+      <g className="botly-eyes">
+        <circle cx="40" cy="46" r="9" fill="#fff" />
+        <circle cx="60" cy="46" r="9" fill="#fff" />
+        <circle cx="41" cy="47" r="4" fill="#101010" />
+        <circle cx="61" cy="47" r="4" fill="#101010" />
+      </g>
       {/* smile */}
       <path d="M42 58 Q50 64 58 58" stroke="#2a3d0a" strokeWidth="3" strokeLinecap="round" fill="none" />
       {/* body */}
@@ -77,12 +79,14 @@ export default async function Home({ searchParams }) {
 
   return (
     <div style={{ minHeight: '100dvh', background: 'radial-gradient(120% 60% at 50% 0%, #131610 0%, #0a0a0b 55%)', display: 'flex', flexDirection: 'column', padding: '0 24px 40px', maxWidth: 440, margin: '0 auto' }}>
-      {/* Hero: fanned posters + mascot */}
-      <div style={{ position: 'relative', height: 260, marginTop: 40 }}>
+      {/* Hero: fanned posters + mascot.
+          Top margin clears the status bar / notch so the pushpins aren't cut off.
+          Extra hero height drops the robot clear of the fanned posters. */}
+      <div style={{ position: 'relative', height: 306, marginTop: 'calc(env(safe-area-inset-top) + 44px)' }}>
         <div style={{ position: 'relative', height: 190 }}>
           {POSTERS.map(p => <Poster key={p.title} p={p} />)}
         </div>
-        <div style={{ position: 'absolute', right: 6, bottom: 0 }}><Botly /></div>
+        <div style={{ position: 'absolute', right: 8, bottom: 0 }}><Botly /></div>
       </div>
 
       {/* Wordmark */}
