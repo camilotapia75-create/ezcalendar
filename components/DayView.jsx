@@ -416,11 +416,11 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                   <Pin />
                   {event.image_url
                     ? <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }} />
-                    : <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, background: `linear-gradient(135deg, ${accent}14, ${accent}30)` }}><span style={{ fontSize: 26, lineHeight: 1 }}>📌</span><p style={{ fontSize: 11, fontWeight: 700, textAlign: 'center', color: accent, margin: 0, padding: '0 6px' }}>{event.title}</p></div>
+                    : <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'flex-end', padding: 12, background: 'linear-gradient(150deg, rgba(198,242,78,0.30) 0%, rgba(198,242,78,0.11) 52%, transparent 100%), var(--surface-2)' }}><p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.12, letterSpacing: '-0.01em', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{event.title}</p></div>
                   }
                   <div style={{ flexShrink: 0, padding: '5px 7px 7px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      {event.title && <p style={{ margin: '0 0 3px', fontSize: 11, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</p>}
+                      {event.title && event.image_url && <p style={{ margin: '0 0 3px', fontSize: 11, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</p>}
                       {event.time_str && <p style={{ margin: '0 0 1px', fontSize: 11, fontWeight: 600, color: '#374151', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>🕐 {event.time_str}</p>}
                       {event.location && <p style={{ margin: 0, fontSize: 10, fontWeight: 500, color: '#6b7280', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {event.location}</p>}
                     </div>

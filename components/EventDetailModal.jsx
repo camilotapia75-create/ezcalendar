@@ -1,5 +1,9 @@
 'use client'
 
+// Shared "no flyer" fill — a lime gradient that fades into the surface. Used
+// everywhere an event lacks an image so the look is identical across the app.
+const NO_FLYER_BG = 'linear-gradient(150deg, rgba(198,242,78,0.30) 0%, rgba(198,242,78,0.11) 52%, transparent 100%), var(--surface-2)'
+
 const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -36,8 +40,6 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
     onClose()
   }
 
-  const stripes = 'repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 2px, transparent 2px, transparent 14px)'
-
   return (
     <div
       onClick={onClose}
@@ -57,9 +59,8 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
             {event.image_url ? (
               <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover' }} />
             ) : (
-              <div style={{ width: '100%', height: 220, background: `linear-gradient(160deg, #2a1e4a, #120c22)`, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ position: 'absolute', inset: 0, background: stripes }} />
-                <span style={{ position: 'relative', fontFamily: 'var(--font-display)', fontSize: 42, fontWeight: 700, color: 'rgba(255,255,255,0.9)', textAlign: 'center', padding: '0 24px', lineHeight: 0.95, letterSpacing: '-0.02em', textTransform: 'uppercase' }}>{event.title || 'Event'}</span>
+              <div style={{ width: '100%', height: 230, background: NO_FLYER_BG, position: 'relative', display: 'flex', alignItems: 'flex-end', padding: '22px 24px' }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 34, fontWeight: 700, color: 'var(--text)', lineHeight: 1.08, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', paddingBottom: 2 }}>{event.title || 'Event'}</span>
               </div>
             )}
             {/* Close chip */}
@@ -71,7 +72,8 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
 
           {/* Details */}
           <div style={{ padding: '20px 20px 6px' }}>
-            {event.title && (
+            {/* Title lives in the hero when there's no flyer — don't repeat it here */}
+            {event.title && event.image_url && (
               <h2 style={{ margin: '0 0 16px', fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
                 {event.title}
               </h2>
