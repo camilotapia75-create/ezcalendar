@@ -81,9 +81,8 @@ function DateBadge({ dateStr, endDateStr, accent, faded }) {
 function TitleHero({ title, accent }) {
   return (
     <div style={{ width: '100%', position: 'relative', paddingTop: '75%', background: `linear-gradient(150deg, ${accent}30 0%, ${accent}12 52%, transparent 100%), var(--surface-2)` }}>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '16px 18px 20px' }}>
-        <span style={{ fontSize: 22, lineHeight: 1 }}>📌</span>
-        <p style={{ margin: 0, paddingBottom: 4, fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text)', lineHeight: 1.18, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '16px 18px 20px' }}>
+        <p style={{ margin: 0, paddingBottom: 4, fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text)', lineHeight: 1.18, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {title || 'Event'}
         </p>
       </div>
@@ -126,7 +125,7 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0, inSli
       ) : (
         <TitleHero title={event.title} accent={accent} />
       )}
-      <div style={{ padding: '12px 14px 14px', position: 'relative', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+      <div style={{ padding: '12px 14px 14px', position: 'relative', display: 'flex', gap: 12, alignItems: 'flex-start', minHeight: inSlideshow ? 96 : undefined }}>
         <DateBadge dateStr={event.date} endDateStr={event.end_date} accent={accent} faded={faded} />
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Title only shown here when the image is the hero — otherwise it lives in TitleHero */}
