@@ -81,9 +81,9 @@ function DateBadge({ dateStr, endDateStr, accent, faded }) {
 function TitleHero({ title, accent }) {
   return (
     <div style={{ width: '100%', position: 'relative', paddingTop: '75%', background: `linear-gradient(150deg, ${accent}30 0%, ${accent}12 52%, transparent 100%), var(--surface-2)` }}>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '16px 18px' }}>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '16px 18px 20px' }}>
         <span style={{ fontSize: 22, lineHeight: 1 }}>📌</span>
-        <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text)', lineHeight: 1.05, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <p style={{ margin: 0, paddingBottom: 4, fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text)', lineHeight: 1.18, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {title || 'Event'}
         </p>
       </div>
