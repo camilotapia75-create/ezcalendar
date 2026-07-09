@@ -18,9 +18,30 @@
   --text:      #ffffff;
   --text-2:    #b7b7be;   /* secondary text */
   --text-3:    #74747c;   /* muted labels */
+  --app-bg:    radial-gradient(120% 55% at 50% -5%, #14170e 0%, #0a0a0b 55%);
+  --card-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  --nav-bg:    rgba(10,10,18,0.92);
+  --overlay:   rgba(0,0,0,0.8);
   --font-display: var(--font-display), 'Space Grotesk', system-ui, sans-serif;
   --font-mono-stack: var(--font-mono), 'JetBrains Mono', ui-monospace, monospace;
   --font-body: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* Light theme — warm off-white surfaces, dark ink text, same acid-lime accent */
+:root[data-theme="light"] {
+  --bg:        #f4f4f0;
+  --surface:   #ffffff;
+  --surface-2: #ecebe5;
+  --border:    rgba(0,0,0,0.10);
+  --border-2:  rgba(0,0,0,0.17);
+  --ink:       #0a0a0b;
+  --text:      #17170f;
+  --text-2:    #55554c;
+  --text-3:    #8d8d82;
+  --app-bg:    radial-gradient(120% 55% at 50% -5%, #eef1e2 0%, #f4f4f0 55%);
+  --card-shadow: 0 6px 18px rgba(120,120,90,0.16);
+  --nav-bg:    rgba(250,250,246,0.92);
+  --overlay:   rgba(30,30,25,0.55);
 }
 
 @keyframes calLoadSpin { to { transform: rotate(360deg); } }

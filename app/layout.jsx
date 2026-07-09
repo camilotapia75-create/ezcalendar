@@ -44,9 +44,16 @@ export const metadata = {
   },
 }
 
+// Applies the saved color scheme before first paint so there's no flash of the
+// wrong theme. Defaults to dark when nothing is stored.
+const themeScript = `(function(){try{var t=localStorage.getItem('colorScheme')||'dark';document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='dark';}})();`
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${jakarta.variable} ${grotesk.variable} ${mono.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="antialiased">
         {children}
       </body>

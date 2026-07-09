@@ -20,7 +20,7 @@ function MetaRow({ icon, label, children }) {
       <span style={{ fontSize: 17, flexShrink: 0, marginTop: 2, opacity: 0.9 }}>{icon}</span>
       <div style={{ minWidth: 0 }}>
         <div className="mono-label" style={{ fontSize: 9, color: 'var(--text-3)', letterSpacing: '0.12em', marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: 16, color: '#fff', fontWeight: 600, lineHeight: 1.35 }}>{children}</div>
+        <div style={{ fontSize: 16, color: 'var(--text)', fontWeight: 600, lineHeight: 1.35 }}>{children}</div>
       </div>
     </div>
   )
@@ -42,12 +42,12 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
     <div
       onClick={onClose}
       className="anim-backdrop"
-      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'var(--overlay)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
     >
       <div
         onClick={e => e.stopPropagation()}
         className="anim-modal"
-        style={{ width: '100%', maxWidth: 460, maxHeight: '90dvh', display: 'flex', flexDirection: 'column', borderRadius: 24, overflow: 'hidden', background: '#111114', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}
+        style={{ width: '100%', maxWidth: 460, maxHeight: '90dvh', display: 'flex', flexDirection: 'column', borderRadius: 24, overflow: 'hidden', background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}
       >
 
         {/* Scrollable body */}
@@ -72,7 +72,7 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
           {/* Details */}
           <div style={{ padding: '20px 20px 6px' }}>
             {event.title && (
-              <h2 style={{ margin: '0 0 16px', fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+              <h2 style={{ margin: '0 0 16px', fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
                 {event.title}
               </h2>
             )}

@@ -51,7 +51,7 @@ export default function Calendar({ currentDate, setCurrentDate, events, onDayCli
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
             className="mono-label" style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 0 }}>‹</button>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 700, letterSpacing: '-0.03em', color: '#fff', lineHeight: 1, margin: 0 }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text)', lineHeight: 1, margin: 0 }}>
             {MONTHS[month]}
           </h1>
           <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))}

@@ -124,7 +124,7 @@ function NoteThumbnail({ data, highlighted }) {
     return <img src={data} alt="" style={{ width: W, height: H, objectFit: 'cover', borderRadius: 5, border, flexShrink: 0 }} />
   }
   return (
-    <canvas ref={elRef} style={{ width: W, height: H, borderRadius: 5, border, flexShrink: 0, background: '#0f0f12' }} />
+    <canvas ref={elRef} style={{ width: W, height: H, borderRadius: 5, border, flexShrink: 0, background: 'var(--surface-2)' }} />
   )
 }
 
@@ -320,12 +320,12 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
 
   return (
     <div className="fixed inset-0 z-50 anim-backdrop" style={{ background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)' }} onClick={writeMode ? undefined : onClose}>
-      <div onClick={e => e.stopPropagation()} className="anim-modal" style={{ position: 'absolute', top: '4%', left: '4%', right: '4%', bottom: '4%', background: '#0f0f12', border: '1px solid var(--border)', borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div onClick={e => e.stopPropagation()} className="anim-modal" style={{ position: 'absolute', top: '4%', left: '4%', right: '4%', bottom: '4%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header */}
         <div style={{ flexShrink: 0, padding: '16px 18px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', position: 'relative' }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 48, fontWeight: 700, lineHeight: 1, color: '#fff', letterSpacing: '-0.03em' }}>{dayNum}</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 48, fontWeight: 700, lineHeight: 1, color: 'var(--text)', letterSpacing: '-0.03em' }}>{dayNum}</div>
             <div className="mono-label" style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-3)', marginTop: 4 }}>{dayName} · {monthName} {year}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
@@ -355,7 +355,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                 Delete note
               </button>
               {showNoteManager && (
-                <div style={{ position: 'absolute', bottom: 34, right: 0, background: '#1c1c20', borderRadius: 14, padding: '10px 10px 8px', boxShadow: '0 12px 32px rgba(0,0,0,0.5)', border: '1px solid var(--border-2)', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 130 }}>
+                <div style={{ position: 'absolute', bottom: 34, right: 0, background: 'var(--surface-2)', borderRadius: 14, padding: '10px 10px 8px', boxShadow: '0 12px 32px rgba(0,0,0,0.5)', border: '1px solid var(--border-2)', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 130 }}>
                   <div className="mono-label" style={{ fontSize: 9, color: 'var(--text-3)', letterSpacing: '0.1em', marginBottom: 2 }}>Delete a note</div>
                   {notes.map(n => (
                     <div key={n.id}
@@ -447,7 +447,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
             <button onClick={onAdd} className="btn-lime" style={{ padding: '11px 24px', fontSize: 15 }}>+ Scan</button>
           </div>
         ) : (
-          <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', background: '#161619', padding: '8px 12px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', background: 'var(--surface-2)', padding: '8px 12px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
             <div style={{ display: 'flex', borderRadius: 20, overflow: 'hidden', border: '1px solid var(--border-2)', flexShrink: 0 }}>
               <button onClick={() => { setWriteTool('draw'); setPendingText(null) }}
                 style={{ padding: '5px 11px', fontSize: 12, border: 'none', cursor: 'pointer', background: writeTool === 'draw' ? '#c6f24e' : 'transparent', color: writeTool === 'draw' ? '#0a0a0b' : 'var(--text-2)', fontWeight: 700 }}>✏️ Draw</button>

@@ -14,8 +14,8 @@ export default function DayCell({ day, currentMonth, isToday, events, hasNote, o
   const background = img
     ? '#161619'
     : titleOnly
-      ? `linear-gradient(160deg, ${accent}24 0%, ${accent}0a 60%, transparent 100%), #14140f`
-      : currentMonth ? 'var(--surface)' : 'rgba(255,255,255,0.02)'
+      ? `linear-gradient(160deg, ${accent}30 0%, ${accent}10 60%, transparent 100%), var(--surface)`
+      : currentMonth ? 'var(--surface)' : 'var(--surface-2)'
 
   return (
     <button
@@ -47,7 +47,7 @@ export default function DayCell({ day, currentMonth, isToday, events, hasNote, o
       {/* No-flyer event: title fills the cell body */}
       {titleOnly && ev.title && (
         <span style={{ position: 'absolute', top: 22, left: 5, right: 5, bottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 10.5, fontWeight: 700, color: '#fff', lineHeight: 1.12, letterSpacing: '-0.01em', textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 10.5, fontWeight: 700, color: 'var(--text)', lineHeight: 1.12, letterSpacing: '-0.01em', textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
             {ev.title}
           </span>
         </span>
@@ -56,10 +56,14 @@ export default function DayCell({ day, currentMonth, isToday, events, hasNote, o
       {hasNote && currentMonth && !hasEvent && (
         <span style={{ position: 'absolute', bottom: 7, left: 8, width: 5, height: 5, borderRadius: '50%', background: 'var(--text-3)' }} />
       )}
+      {/* More than one event: folded lime "dog-ear" corner with the extra count */}
       {extra > 0 && (
-        <span className="mono-label" style={{ position: 'absolute', bottom: 5, right: 7, fontSize: 9, fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.7)', zIndex: 2 }}>
-          +{extra}
-        </span>
+        <>
+          <span style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, background: accent, clipPath: 'polygon(100% 0, 0 100%, 100% 100%)', zIndex: 2, boxShadow: '-1px -1px 3px rgba(0,0,0,0.35)' }} />
+          <span className="mono-label" style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 9, fontWeight: 800, color: '#0a0a0b', zIndex: 3, letterSpacing: 0 }}>
+            +{extra}
+          </span>
+        </>
       )}
     </button>
   )
