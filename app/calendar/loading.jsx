@@ -10,21 +10,18 @@ export default function CalendarLoading() {
         alignItems: 'center',
         justifyContent: 'center',
         gap: 18,
-        backgroundColor: '#fef9f2',
-        backgroundImage: [
-          'linear-gradient(160deg, #fef9f2 0%, #fff5e8 55%, #fef2f8 100%)',
-          'repeating-linear-gradient(transparent 0px, transparent 27px, rgba(180,140,100,0.07) 28px)',
-        ].join(', '),
+        backgroundColor: '#0a0a0b',
+        backgroundImage: 'radial-gradient(120% 55% at 50% -5%, #14170e 0%, #0a0a0b 55%)',
       }}
     >
-      <div style={{ fontSize: 40, fontWeight: 700, color: '#1a1a2e', letterSpacing: '-1px' }}>
+      <div style={{ fontFamily: 'var(--font-display), system-ui, sans-serif', fontSize: 30, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
         📌 ezcalendar
       </div>
       <div
         style={{
           width: 34, height: 34, borderRadius: '50%',
-          border: '3px solid rgba(124,58,237,0.18)',
-          borderTopColor: '#7c3aed',
+          border: '3px solid rgba(198,242,78,0.2)',
+          borderTopColor: '#c6f24e',
           animation: 'calLoadSpin 0.7s linear infinite',
         }}
       />

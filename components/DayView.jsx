@@ -10,7 +10,7 @@ function Pin() {
   )
 }
 
-const PEN_COLORS = ['#1a1a2e', '#7c3aed', '#dc2626', '#2563eb', '#f59e0b', '#16a34a', '#db2777', '#ffffff']
+const PEN_COLORS = ['#ffffff', '#c6f24e', '#dc2626', '#2563eb', '#f59e0b', '#16a34a', '#db2777', '#1a1a2e']
 const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
 
 // Replay vector ops onto a 2D context. Coordinates are fractions (0–1) of w/h.
@@ -118,22 +118,22 @@ function NoteThumbnail({ data, highlighted }) {
     ), W, H)
   }, [data])
 
-  const border = highlighted ? '2px solid #ca8a04' : '1px solid #e9e0cc'
+  const border = highlighted ? '2px solid #c6f24e' : '1px solid rgba(255,255,255,0.14)'
 
   if (data?.startsWith('data:')) {
     return <img src={data} alt="" style={{ width: W, height: H, objectFit: 'cover', borderRadius: 5, border, flexShrink: 0 }} />
   }
   return (
-    <canvas ref={elRef} style={{ width: W, height: H, borderRadius: 5, border, flexShrink: 0, background: '#fffaee' }} />
+    <canvas ref={elRef} style={{ width: W, height: H, borderRadius: 5, border, flexShrink: 0, background: '#0f0f12' }} />
   )
 }
 
-export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onSaveNote, onDeleteNote, accent = '#7c3aed', onEventTap }) {
+export default function DayView({ date, events, notes = [], onClose, onAdd, onDelete, onSaveNote, onDeleteNote, accent = '#c6f24e', onEventTap }) {
   const [showNoteManager, setShowNoteManager] = useState(false)
   const [hoveredNoteId, setHoveredNoteId] = useState(null)
   const [writeMode, setWriteMode] = useState(false)
   const [writeTool, setWriteTool] = useState('draw')
-  const [penColor, setPenColor] = useState('#1a1a2e')
+  const [penColor, setPenColor] = useState('#ffffff')
   const [penSize, setPenSize] = useState(3)
   const [erasing, setErasing] = useState(false)
   const [pendingText, setPendingText] = useState(null)
@@ -153,7 +153,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
   // Stable refs so event handlers never capture stale state
   const pendingTextRef = useRef(null)
   const pendingTextValRef = useRef('')
-  const penColorRef = useRef('#1a1a2e')
+  const penColorRef = useRef('#ffffff')
   const penSizeRef = useRef(3)
   const erasingRef = useRef(false)
 
@@ -320,21 +320,21 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
 
   return (
     <div className="fixed inset-0 z-50 anim-backdrop" style={{ background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)' }} onClick={writeMode ? undefined : onClose}>
-      <div onClick={e => e.stopPropagation()} className="anim-modal" style={{ position: 'absolute', top: '4%', left: '4%', right: '4%', bottom: '4%', background: '#fffaee', border: '5px solid #1a1a2e', borderRadius: 6, boxShadow: '10px 10px 0 rgba(0,0,0,0.40)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div onClick={e => e.stopPropagation()} className="anim-modal" style={{ position: 'absolute', top: '4%', left: '4%', right: '4%', bottom: '4%', background: '#0f0f12', border: '1px solid var(--border)', borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header */}
-        <div style={{ flexShrink: 0, padding: '14px 18px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '2px solid #e9e0cc', position: 'relative' }}>
+        <div style={{ flexShrink: 0, padding: '16px 18px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', position: 'relative' }}>
           <div>
-            <div style={{ fontSize: 52, fontWeight: 900, lineHeight: 1, color: '#1a1a2e', letterSpacing: '-2px' }}>{dayNum}</div>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#9ca3af', marginTop: 3 }}>{dayName} · {monthName} {year}</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 48, fontWeight: 700, lineHeight: 1, color: '#fff', letterSpacing: '-0.03em' }}>{dayNum}</div>
+            <div className="mono-label" style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-3)', marginTop: 4 }}>{dayName} · {monthName} {year}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
             <button onClick={() => writeMode ? exitWriteMode() : setWriteMode(true)} title={writeMode ? 'Done writing' : 'Add note'}
-              style={{ height: 32, padding: '0 12px', borderRadius: 16, background: writeMode ? '#7c3aed' : notes.length > 0 ? '#fef9c3' : '#e5e5e5', border: writeMode ? '2px solid #5b21b6' : notes.length > 0 ? '2px solid #ca8a04' : '2px solid transparent', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', color: writeMode ? '#fff' : '#374151', whiteSpace: 'nowrap' }}>
-              {writeMode ? '✓ Done' : 'Add note'}
+              style={{ height: 34, padding: '0 14px', borderRadius: 17, background: writeMode ? '#c6f24e' : 'rgba(255,255,255,0.06)', border: writeMode ? 'none' : '1px solid var(--border-2)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: writeMode ? '#0a0a0b' : 'var(--text-2)', whiteSpace: 'nowrap' }}>
+              {writeMode ? '✓ Done' : notes.length > 0 ? '✎ Note' : 'Add note'}
             </button>
             <button onClick={writeMode ? exitWriteMode : onClose}
-              style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e5e5', border: 'none', cursor: 'pointer', fontSize: 14, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✕</button>
+              style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✕</button>
           </div>
 
         </div>
@@ -351,12 +351,12 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           {notes.length > 0 && !writeMode && (
             <div style={{ position: 'absolute', bottom: 10, right: 10, zIndex: 35 }} onClick={e => e.stopPropagation()}>
               <button onClick={() => setShowNoteManager(p => !p)} title="Delete note"
-                style={{ height: 28, padding: '0 10px', borderRadius: 14, background: showNoteManager ? '#7c3aed' : 'rgba(0,0,0,0.32)', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', whiteSpace: 'nowrap' }}>
+                style={{ height: 28, padding: '0 10px', borderRadius: 14, background: showNoteManager ? '#c6f24e' : 'rgba(0,0,0,0.5)', border: 'none', color: showNoteManager ? '#0a0a0b' : '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', whiteSpace: 'nowrap' }}>
                 Delete note
               </button>
               {showNoteManager && (
-                <div style={{ position: 'absolute', bottom: 34, right: 0, background: '#fff', borderRadius: 12, padding: '10px 10px 8px', boxShadow: '0 6px 24px rgba(0,0,0,0.18)', border: '1.5px solid #e9e0cc', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 130 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>Delete a note</div>
+                <div style={{ position: 'absolute', bottom: 34, right: 0, background: '#1c1c20', borderRadius: 14, padding: '10px 10px 8px', boxShadow: '0 12px 32px rgba(0,0,0,0.5)', border: '1px solid var(--border-2)', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 130 }}>
+                  <div className="mono-label" style={{ fontSize: 9, color: 'var(--text-3)', letterSpacing: '0.1em', marginBottom: 2 }}>Delete a note</div>
                   {notes.map(n => (
                     <div key={n.id}
                       onMouseEnter={() => setHoveredNoteId(n.id)}
@@ -394,10 +394,10 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                   if (e.key === 'Escape') { setPendingText(null); setPendingTextVal('') }
                 }}
                 rows={1} placeholder="Type…"
-                style={{ background: 'transparent', border: 'none', outline: '1.5px dashed rgba(124,58,237,0.4)', resize: 'none', fontSize: penSize * 9, fontFamily: 'var(--font-jakarta), \'Plus Jakarta Sans\', system-ui, sans-serif', fontWeight: 700, color: penColor, minWidth: 100, lineHeight: 1.2, padding: '1px 4px', borderRadius: 3 }}
+                style={{ background: 'transparent', border: 'none', outline: '1.5px dashed rgba(198,242,78,0.5)', resize: 'none', fontSize: penSize * 9, fontFamily: 'var(--font-jakarta), \'Plus Jakarta Sans\', system-ui, sans-serif', fontWeight: 700, color: penColor, minWidth: 100, lineHeight: 1.2, padding: '1px 4px', borderRadius: 3 }}
               />
               <button onPointerDown={e => { e.preventDefault(); flushText() }}
-                style={{ width: 24, height: 24, borderRadius: '50%', background: '#7c3aed', border: 'none', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>✓</button>
+                style={{ width: 24, height: 24, borderRadius: '50%', background: '#c6f24e', border: 'none', color: '#0a0a0b', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>✓</button>
             </div>
           )}
 
@@ -405,8 +405,8 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           {shown.length === 0 && !writeMode ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 32 }}>
               <span style={{ fontSize: 52 }}>📌</span>
-              <p style={{ fontSize: 15, fontWeight: 600, color: '#9ca3af', margin: 0 }}>Nothing pinned yet</p>
-              <p style={{ fontSize: 13, color: '#d1d5db', margin: 0 }}>Tap Scan to add a flyer</p>
+              <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)', margin: 0 }}>Nothing pinned yet</p>
+              <p style={{ fontSize: 13, color: 'var(--text-3)', margin: 0 }}>Tap Scan to add a flyer</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: shown.length === 1 ? 'minmax(0, min(75%, 380px))' : shown.length === 2 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: shown.length === 1 ? 0 : '28px 16px', justifyContent: 'center', maxWidth: shown.length === 1 ? '100%' : shown.length === 2 ? 560 : 860, margin: '0 auto', width: '100%', padding: '44px 20px 24px', boxSizing: 'border-box' }}>
@@ -442,34 +442,34 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
 
         {/* Footer */}
         {!writeMode ? (
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px 14px', borderTop: '2px solid #e9e0cc' }}>
-            <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 12, background: '#f3f4f6', color: '#374151', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Close</button>
-            <button onClick={onAdd} style={{ padding: '9px 22px', borderRadius: 12, background: '#1a1a2e', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: `3px 3px 0 ${accent}` }}>+ Scan</button>
+          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)', borderTop: '1px solid var(--border)' }}>
+            <button onClick={onClose} className="btn-dark" style={{ padding: '11px 20px', fontSize: 14, fontWeight: 600 }}>Close</button>
+            <button onClick={onAdd} className="btn-lime" style={{ padding: '11px 24px', fontSize: 15 }}>+ Scan</button>
           </div>
         ) : (
-          <div style={{ flexShrink: 0, borderTop: '2px solid #e9e0cc', background: '#fff8e0', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', borderRadius: 20, overflow: 'hidden', border: '1.5px solid #e9e0cc', flexShrink: 0 }}>
+          <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', background: '#161619', padding: '8px 12px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', borderRadius: 20, overflow: 'hidden', border: '1px solid var(--border-2)', flexShrink: 0 }}>
               <button onClick={() => { setWriteTool('draw'); setPendingText(null) }}
-                style={{ padding: '4px 10px', fontSize: 12, border: 'none', cursor: 'pointer', background: writeTool === 'draw' ? '#7c3aed' : 'white', color: writeTool === 'draw' ? '#fff' : '#555', fontWeight: 700 }}>✏️ Draw</button>
+                style={{ padding: '5px 11px', fontSize: 12, border: 'none', cursor: 'pointer', background: writeTool === 'draw' ? '#c6f24e' : 'transparent', color: writeTool === 'draw' ? '#0a0a0b' : 'var(--text-2)', fontWeight: 700 }}>✏️ Draw</button>
               <button onClick={() => setWriteTool('text')}
-                style={{ padding: '4px 10px', fontSize: 12, border: 'none', cursor: 'pointer', background: writeTool === 'text' ? '#7c3aed' : 'white', color: writeTool === 'text' ? '#fff' : '#555', fontWeight: 700 }}>Aa Text</button>
+                style={{ padding: '5px 11px', fontSize: 12, border: 'none', cursor: 'pointer', background: writeTool === 'text' ? '#c6f24e' : 'transparent', color: writeTool === 'text' ? '#0a0a0b' : 'var(--text-2)', fontWeight: 700 }}>Aa Text</button>
             </div>
             {PEN_COLORS.map(c => (
               <button key={c} onClick={() => { setPenColor(c); setErasing(false) }}
-                style={{ width: penColor === c && !erasing ? 22 : 17, height: penColor === c && !erasing ? 22 : 17, borderRadius: '50%', background: c, border: penColor === c && !erasing ? '3px solid #1a1a1a' : '1.5px solid rgba(0,0,0,0.18)', cursor: 'pointer', flexShrink: 0, transition: 'all 0.1s', boxShadow: c === '#ffffff' ? 'inset 0 0 0 1px #ccc' : undefined }} />
+                style={{ width: penColor === c && !erasing ? 22 : 17, height: penColor === c && !erasing ? 22 : 17, borderRadius: '50%', background: c, border: penColor === c && !erasing ? '3px solid #fff' : '1.5px solid rgba(255,255,255,0.25)', cursor: 'pointer', flexShrink: 0, transition: 'all 0.1s', boxShadow: c === '#1a1a2e' ? 'inset 0 0 0 1px rgba(255,255,255,0.3)' : undefined }} />
             ))}
             {[2, 4, 8].map(s => (
               <button key={s} onClick={() => { setPenSize(s); setErasing(false) }}
-                style={{ width: 24, height: 24, borderRadius: 6, border: penSize === s && !erasing ? '2px solid #7c3aed' : '1.5px solid #e5e5e5', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <div style={{ width: s + 2, height: s + 2, borderRadius: '50%', background: erasing ? '#ccc' : penColor }} />
+                style={{ width: 24, height: 24, borderRadius: 6, border: penSize === s && !erasing ? '2px solid #c6f24e' : '1.5px solid var(--border-2)', background: 'rgba(255,255,255,0.04)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: s + 2, height: s + 2, borderRadius: '50%', background: erasing ? '#666' : (penColor === '#1a1a2e' ? '#fff' : penColor) }} />
               </button>
             ))}
             <button onClick={() => setErasing(e => !e)}
-              style={{ padding: '3px 8px', borderRadius: 20, border: erasing ? '2px solid #7c3aed' : '1.5px solid #e5e5e5', background: erasing ? '#ede9fe' : 'white', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: erasing ? '#7c3aed' : '#555', flexShrink: 0 }}>Erase</button>
+              style={{ padding: '4px 9px', borderRadius: 20, border: erasing ? '2px solid #c6f24e' : '1.5px solid var(--border-2)', background: erasing ? 'rgba(198,242,78,0.15)' : 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: erasing ? '#c6f24e' : 'var(--text-2)', flexShrink: 0 }}>Erase</button>
             <button onClick={clearCanvas}
-              style={{ padding: '3px 8px', borderRadius: 20, border: '1.5px solid #fca5a5', background: '#fff1f2', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#ef4444', flexShrink: 0 }}>Clear</button>
-            <button onClick={exitWriteMode}
-              style={{ padding: '5px 16px', borderRadius: 20, background: '#1a1a2e', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, flexShrink: 0, boxShadow: `2px 2px 0 ${accent}` }}>Done</button>
+              style={{ padding: '4px 9px', borderRadius: 20, border: '1.5px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.10)', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#f87171', flexShrink: 0 }}>Clear</button>
+            <button onClick={exitWriteMode} className="btn-lime"
+              style={{ padding: '6px 16px', fontSize: 13, flexShrink: 0 }}>Done</button>
           </div>
         )}
 
