@@ -3,28 +3,41 @@ import { NextResponse } from 'next/server'
 // Node.js runtime — fallback chains can take 30-60s; edge would hard-timeout
 export const maxDuration = 60
 
+// Shared instruction that teaches the model to CLASSIFY the schedule before
+// extracting, so it never blobs separate occurrences into one date range.
+const SCHEDULE_RULES = `
+IMPORTANT — first decide which kind of schedule this is, then fill the fields accordingly:
+1. SINGLE: one date. Set "date"; "end_date" null; "occurrences" null.
+2. CONTINUOUS RANGE: the SAME event runs across CONSECUTIVE days at the SAME place (a festival, an exhibition run, e.g. "July 4–6"). Set "date" = first day, "end_date" = last day; "occurrences" null.
+3. SEPARATE OCCURRENCES: the event happens on MULTIPLE distinct dates that are NOT one continuous run — non-consecutive dates, and/or each date has its own venue or time (e.g. "Jul 12 @ Venue A, Jul 17 @ Venue B"). This is NOT a range — DO NOT set end_date. Instead list every occurrence in "occurrences", each with its own date/time_str/location. Set the top-level "date"/"time_str"/"location" to the SOONEST upcoming occurrence.
+Never represent separate occurrences as a date range. When unsure between a range and separate occurrences, prefer separate occurrences.`
+
 function getScanPrompt() {
   const today = new Date().toISOString().split('T')[0]
   return `Today is ${today}. Extract event details from this content. Return ONLY valid JSON (null for anything not found):
 {
   "title": "event name",
   "date": "YYYY-MM-DD start date — parse from ISO datetimes like '2026-06-13T20:00:00', startDate fields, or any date text",
-  "end_date": "YYYY-MM-DD end date — ONLY if the event explicitly spans multiple days (e.g. 'Jun 14-15', 'July 4 to July 6', a multi-day festival). null for single-day events.",
+  "end_date": "YYYY-MM-DD end date — ONLY for a CONTINUOUS multi-day run at one place. null otherwise.",
   "time_str": "start time and end time if present — parse from ISO datetimes: T20:00:00=8:00 PM, T02:00:00=2:00 AM. Examples: '10:00 PM – 2:00 AM', '8:00 PM'",
-  "location": "wherever the event happens — venue name + city when both are known (e.g. 'Chase Center, San Francisco, CA'), but a city or neighborhood alone is fine too (e.g. 'Sacramento, CA'). Return ANY place mentioned; only null if no place at all."
-}`
+  "location": "wherever the event happens — venue name + city when both are known (e.g. 'Chase Center, San Francisco, CA'), but a city or neighborhood alone is fine too. Return ANY place mentioned; only null if no place at all.",
+  "occurrences": "null for single/continuous events. For SEPARATE occurrences, an array like [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\"}, ...] — one entry per distinct date, each with its OWN matching time and venue."
+}
+${SCHEDULE_RULES}`
 }
 
 function getVisionPrompt() {
   const today = new Date().toISOString().split('T')[0]
-  return `Today is ${today}. Extract event details from this flyer image. If the flyer lists multiple events or dates, extract ONLY the FIRST one listed. Return ONLY valid JSON (null for anything not found):
+  return `Today is ${today}. Extract event details from this flyer image. Return ONLY valid JSON (null for anything not found):
 {
   "title": "event name",
   "date": "YYYY-MM-DD — if partial date like 'Jul 24' with no year, use nearest future year",
-  "end_date": "YYYY-MM-DD end date — ONLY if event explicitly spans multiple days (e.g. 'Jun 14-15', 'July 4-6'). null for single-day.",
+  "end_date": "YYYY-MM-DD end date — ONLY for a CONTINUOUS multi-day run at one place. null otherwise.",
   "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM', '10 PM - 2 AM', '4-8PM')",
-  "location": "wherever the event happens, exactly as printed — venue + address + city if shown (e.g. 'Torch Oakland, 1822 Telegraph Ave, Oakland CA'), or just a city/neighborhood if that's all the flyer shows. Return ANY place mentioned; only null if none."
-}`
+  "location": "wherever the event happens, exactly as printed — venue + address + city if shown, or just a city/neighborhood if that's all the flyer shows. Return ANY place mentioned; only null if none.",
+  "occurrences": "null for single/continuous events. For SEPARATE occurrences (e.g. the same show on two different dates/venues), an array like [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\"}, ...]."
+}
+${SCHEDULE_RULES}`
 }
 
 const MODELS = [
@@ -641,6 +654,7 @@ export async function POST(request) {
       end_date: textData?.end_date || visionData?.end_date || null,
       time_str: textData?.time_str || visionData?.time_str || null,
       location: visionData?.location || textData?.location || null,
+      occurrences: textData?.occurrences || visionData?.occurrences || null,
     }
 
     if (merged.title || merged.date) {

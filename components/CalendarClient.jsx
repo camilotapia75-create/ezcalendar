@@ -426,7 +426,8 @@ export default function CalendarClient() {
     return visibleEvents.filter(e => e.end_date ? e.date <= key && e.end_date >= key : e.date === key)
   }
 
-  const addEvent = async (eventData) => {
+  // Insert one event, with graceful fallback when older DB schemas lack columns
+  const insertOne = async (eventData) => {
     let result = await supabase.from('events').insert({ ...eventData, user_id: user.id }).select().single()
     if (result.error?.message?.includes('source_url')) {
       const { source_url, ...rest } = eventData
@@ -437,9 +438,19 @@ export default function CalendarClient() {
       result = await supabase.from('events').insert({ ...rest, user_id: user.id }).select().single()
     }
     if (result.error) throw new Error(result.error.message)
-    setEvents(prev => [...prev, result.data])
-    if (eventData.date) {
-      const [year, month] = eventData.date.split('-').map(Number)
+    return result.data
+  }
+
+  // Accepts a single event object OR an array — a multi-date event (separate
+  // occurrences) is saved as one event per date so each keeps its own venue/time.
+  const addEvent = async (eventData) => {
+    const items = Array.isArray(eventData) ? eventData : [eventData]
+    const inserted = []
+    for (const item of items) inserted.push(await insertOne(item))
+    setEvents(prev => [...prev, ...inserted])
+    const firstDate = items[0]?.date
+    if (firstDate) {
+      const [year, month] = firstDate.split('-').map(Number)
       setCurrentDate(new Date(year, month - 1, 1))
     }
     setModal(null)

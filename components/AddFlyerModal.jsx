@@ -86,9 +86,19 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   const [scanDiag, setScanDiag] = useState(null)
   const [detailFilling, setDetailFilling] = useState(false)
   const [manualMode, setManualMode] = useState(false)
+  // Separate occurrences (same event on multiple distinct dates/venues)
+  const [occurrences, setOccurrences] = useState(null)
+  const [selectedOccs, setSelectedOccs] = useState({})
 
   const videoRef = useRef()
   const fileRef = useRef()
+
+  const applyOccurrences = (occ) => {
+    if (Array.isArray(occ) && occ.length > 1) {
+      setOccurrences(occ)
+      setSelectedOccs(Object.fromEntries(occ.map((_, i) => [i, true])))
+    }
+  }
 
   useEffect(() => {
     return () => { cameraStream?.getTracks().forEach(t => t.stop()) }
@@ -189,6 +199,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         setShowEndDate(true)
       }
       flashGlow(...[data.title && 'title', data.time_str && 'time', data.location && 'location', data.date && 'date'].filter(Boolean))
+      applyOccurrences(data.occurrences)
       if (!data.title && !data.date && !data.time_str && !data.location) setAiError('failed')
     } catch (err) {
       setAiError('failed'); setAiDetail(err.message)
@@ -233,6 +244,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         setShowEndDate(true)
       }
       flashGlow(...[data.title && 'title', data.time_str && 'time', data.location && 'location', data.date && 'date'].filter(Boolean))
+      applyOccurrences(data.occurrences)
       setOgImageUrl(data.og_image || null)
       if (data.warning) setLinkWarning(data.warning)
       setLinkScanned(true)
@@ -288,12 +300,17 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
     setLinkError(null); setLinkWarning(null); setOgImageUrl(null); setLinkScanned(false)
     setScanDiag(null); setDetailFilling(false)
     setManualMode(false)
+    setOccurrences(null); setSelectedOccs({})
     if (!date) setEventDate('')
   }
 
+  const multiOcc = occurrences && occurrences.length > 1
+  const chosenOccs = multiOcc ? occurrences.filter((_, i) => selectedOccs[i]) : []
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!eventDate) return
+    if (!eventDate && !multiOcc) return
+    if (multiOcc && chosenOccs.length === 0) return
     if (!linkMode && !manualMode && !imageForStorage) return
     setSaveError(null)
     setUploading(true)
@@ -336,15 +353,30 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
         image_url = uploadData.url
       }
-      await onAdd({
-        date: eventDate,
-        end_date: endDate || null,
-        title,
-        location,
-        time_str: timeStr,
-        image_url,
-        source_url: linkMode ? linkUrl.trim() : null,
-      })
+      const source_url = linkMode ? linkUrl.trim() : null
+      if (multiOcc) {
+        // Save one event per selected occurrence, each with its own date/venue/time
+        const events = chosenOccs.map(o => ({
+          date: o.date,
+          end_date: null,
+          title,
+          location: o.location || location,
+          time_str: o.time_str || timeStr,
+          image_url,
+          source_url,
+        }))
+        await onAdd(events)
+      } else {
+        await onAdd({
+          date: eventDate,
+          end_date: endDate || null,
+          title,
+          location,
+          time_str: timeStr,
+          image_url,
+          source_url,
+        })
+      }
     } catch (err) {
       setSaveError(err.message || 'Failed to save — try again')
     } finally {
@@ -353,7 +385,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   }
 
   const showForm = imagePreview || linkScanned || manualMode
-  const canSubmit = eventDate && (linkMode || manualMode ? true : !!imageForStorage)
+  const canSubmit = multiOcc
+    ? chosenOccs.length > 0
+    : eventDate && (linkMode || manualMode ? true : !!imageForStorage)
 
   if (cameraActive) {
     return (
@@ -400,6 +434,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
               ? (linkMode ? 'Paste a link' : 'Add a flyer')
               : manualMode ? 'New event'
               : analyzing || linkScanning ? 'Reading…'
+              : multiOcc ? `Found ${occurrences.length} dates`
               : aiDetectedDate ? `Placing on ${formatNice(eventDate)}`
               : 'Fill in details'}
           </span>
@@ -584,58 +619,90 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                         <span>Add photo (optional)</span>
                       </button>
                     )}
-                    <div className="relative">
-                      <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} required
-                        className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80${glow.date ? ' anim-fieldglow' : ''}`}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${aiDetectedDate ? 'rgba(198,242,78,0.55)' : 'rgba(255,255,255,0.08)'}` }}
-                      />
-                      {aiDetectedDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[#c6f24e] font-semibold tracking-widest">AI</span>}
-                    </div>
-                    {showEndDate ? (
-                      <div>
-                        <div className="flex items-center justify-between px-1 mb-1">
-                          <p className="text-[10px] text-white/25">End date</p>
-                          <button type="button" onClick={() => { setShowEndDate(false); setEndDate('') }}
-                            className="text-[10px] text-white/25 hover:text-white/50 transition-colors">remove</button>
-                        </div>
-                        <div className="relative">
-                          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={eventDate || undefined}
-                            className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80"
-                            style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${endDate ? 'rgba(198,242,78,0.55)' : 'rgba(255,255,255,0.08)'}` }}
-                          />
-                          {endDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[#c6f24e] font-semibold tracking-widest">{endDate === eventDate ? 'SAME' : 'END'}</span>}
-                        </div>
+                    {multiOcc ? (
+                      /* Same event on multiple separate dates — pick which to add */
+                      <div className="flex flex-col gap-1.5">
+                        <p className="mono-label" style={{ fontSize: 10, color: '#c6f24e', letterSpacing: '0.1em', marginBottom: 2 }}>
+                          HAPPENS ON {occurrences.length} DATES — PICK WHICH TO ADD
+                        </p>
+                        {occurrences.map((o, i) => (
+                          <button type="button" key={i} onClick={() => setSelectedOccs(s => ({ ...s, [i]: !s[i] }))}
+                            style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', padding: '10px 12px', borderRadius: 12, cursor: 'pointer',
+                              background: selectedOccs[i] ? 'rgba(198,242,78,0.10)' : 'rgba(255,255,255,0.04)',
+                              border: selectedOccs[i] ? '1px solid rgba(198,242,78,0.55)' : '1px solid rgba(255,255,255,0.08)' }}>
+                            <span style={{ width: 18, height: 18, borderRadius: 5, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              background: selectedOccs[i] ? '#c6f24e' : 'transparent', border: selectedOccs[i] ? 'none' : '1.5px solid rgba(255,255,255,0.3)', color: '#0a0a0b', fontSize: 11, fontWeight: 800 }}>
+                              {selectedOccs[i] ? '✓' : ''}
+                            </span>
+                            <span style={{ minWidth: 0, flex: 1 }}>
+                              <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#fff' }}>{o.date ? formatNice(o.date) : 'Date?'}</span>
+                              <span style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {[o.time_str, o.location].filter(Boolean).join(' · ') || '—'}
+                              </span>
+                            </span>
+                          </button>
+                        ))}
                       </div>
                     ) : (
-                      <button type="button" onClick={() => setShowEndDate(true)}
-                        className="text-[10px] text-white/25 hover:text-white/40 transition-colors px-1 text-left">
-                        + multi-day event?
-                      </button>
+                      <>
+                        <div className="relative">
+                          <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} required
+                            className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80${glow.date ? ' anim-fieldglow' : ''}`}
+                            style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${aiDetectedDate ? 'rgba(198,242,78,0.55)' : 'rgba(255,255,255,0.08)'}` }}
+                          />
+                          {aiDetectedDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[#c6f24e] font-semibold tracking-widest">AI</span>}
+                        </div>
+                        {showEndDate ? (
+                          <div>
+                            <div className="flex items-center justify-between px-1 mb-1">
+                              <p className="text-[10px] text-white/25">End date</p>
+                              <button type="button" onClick={() => { setShowEndDate(false); setEndDate('') }}
+                                className="text-[10px] text-white/25 hover:text-white/50 transition-colors">remove</button>
+                            </div>
+                            <div className="relative">
+                              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={eventDate || undefined}
+                                className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80"
+                                style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${endDate ? 'rgba(198,242,78,0.55)' : 'rgba(255,255,255,0.08)'}` }}
+                              />
+                              {endDate && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[#c6f24e] font-semibold tracking-widest">{endDate === eventDate ? 'SAME' : 'END'}</span>}
+                            </div>
+                          </div>
+                        ) : (
+                          <button type="button" onClick={() => setShowEndDate(true)}
+                            className="text-[10px] text-white/25 hover:text-white/40 transition-colors px-1 text-left">
+                            + multi-day event?
+                          </button>
+                        )}
+                      </>
                     )}
                     <input type="text" placeholder="Event title" value={title} onChange={e => setTitle(e.target.value)}
                       className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.title ? ' anim-fieldglow' : ''}`}
                       style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${title ? 'rgba(198,242,78,0.5)' : 'rgba(255,255,255,0.08)'}` }}
                     />
-                    <div className="grid grid-cols-2 gap-2">
-                      <input type="text" placeholder="Location" value={location} onChange={e => setLocation(e.target.value)}
-                        className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.location ? ' anim-fieldglow' : ''}`}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${location ? 'rgba(198,242,78,0.5)' : 'rgba(255,255,255,0.08)'}` }}
-                      />
-                      <input type="text" placeholder="Time" value={timeStr} onChange={e => setTimeStr(e.target.value)}
-                        className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.time ? ' anim-fieldglow' : ''}`}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${timeStr ? 'rgba(198,242,78,0.5)' : 'rgba(255,255,255,0.08)'}` }}
-                      />
-                    </div>
+                    {!multiOcc && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <input type="text" placeholder="Location" value={location} onChange={e => setLocation(e.target.value)}
+                          className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.location ? ' anim-fieldglow' : ''}`}
+                          style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${location ? 'rgba(198,242,78,0.5)' : 'rgba(255,255,255,0.08)'}` }}
+                        />
+                        <input type="text" placeholder="Time" value={timeStr} onChange={e => setTimeStr(e.target.value)}
+                          className={`w-full rounded-xl px-4 py-3 text-sm placeholder-white/20 focus:outline-none transition-all text-white${glow.time ? ' anim-fieldglow' : ''}`}
+                          style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${timeStr ? 'rgba(198,242,78,0.5)' : 'rgba(255,255,255,0.08)'}` }}
+                        />
+                      </div>
+                    )}
                   </div>
                   <button type="submit" disabled={!canSubmit || uploading}
                     className="w-full py-3.5 rounded-2xl text-[15px] font-bold transition-all disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.98]"
                     style={{ background: '#c6f24e', color: '#0a0a0b', fontFamily: 'var(--font-display)' }}
                   >
-                    {uploading ? 'Saving…' : eventDate
-                      ? (endDate && endDate !== eventDate
-                          ? `Pin ${formatNice(eventDate)} – ${formatNice(endDate)}`
-                          : `Pin to ${formatNice(eventDate)}`)
-                      : 'Pick a date above'}
+                    {uploading ? 'Saving…'
+                      : multiOcc ? `Pin ${chosenOccs.length} event${chosenOccs.length === 1 ? '' : 's'}`
+                      : eventDate
+                        ? (endDate && endDate !== eventDate
+                            ? `Pin ${formatNice(eventDate)} – ${formatNice(endDate)}`
+                            : `Pin to ${formatNice(eventDate)}`)
+                        : 'Pick a date above'}
                   </button>
                 </>
               )}

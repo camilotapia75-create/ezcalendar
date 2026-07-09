@@ -2,14 +2,22 @@ import { NextResponse } from 'next/server'
 
 function getPrompt() {
   const today = new Date().toISOString().split('T')[0]
-  return `Today is ${today}. Extract event details from this flyer image. If the flyer lists multiple events or dates, extract ONLY the FIRST one listed. Return ONLY valid JSON with these exact keys (null for anything not found):
+  return `Today is ${today}. Extract event details from this flyer image. Return ONLY valid JSON with these exact keys (null for anything not found):
 {
   "title": "event name or title",
-  "date": "YYYY-MM-DD start date — when a day-of-week label (MON/TUE/WED/THU/FRI/SAT/SUN) appears with a day number and year but no explicit month name (e.g. 'MON 22, 2026' or 'MON ⚽ 22, 2026'), determine the correct month by finding which month in that year has that weekday on that day number. If the flyer shows a partial date like 'Jul 24' with no year, infer the nearest future year. For multi-day events this is the first day.",
-  "end_date": "YYYY-MM-DD end date — only if the event explicitly spans multiple days (e.g. 'Jul 4-6', 'July 4 to July 6'). null if single-day.",
+  "date": "YYYY-MM-DD start date — when a day-of-week label (MON/TUE/WED/THU/FRI/SAT/SUN) appears with a day number and year but no explicit month name (e.g. 'MON 22, 2026' or 'MON ⚽ 22, 2026'), determine the correct month by finding which month in that year has that weekday on that day number. If the flyer shows a partial date like 'Jul 24' with no year, infer the nearest future year.",
+  "end_date": "YYYY-MM-DD end date — ONLY for a CONTINUOUS multi-day run at one place (e.g. 'Jul 4-6'). null otherwise.",
   "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM' or '4-8PM')",
-  "location": "venue name and/or city"
-}`
+  "location": "venue name and/or city",
+  "occurrences": "null for single/continuous events. For SEPARATE occurrences (same event on multiple distinct dates, e.g. Jul 12 at one venue and Jul 17 at another), an array like [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\"}, ...] — one per date with its OWN time and venue."
+}
+
+IMPORTANT — first decide the schedule type, then fill accordingly:
+1. SINGLE date → set "date"; "end_date" null; "occurrences" null.
+2. CONTINUOUS RANGE (same event, consecutive days, same place) → "date"=first, "end_date"=last; "occurrences" null.
+3. SEPARATE OCCURRENCES (multiple non-consecutive dates and/or different venues per date) → DO NOT set end_date; list each in "occurrences"; set top-level date/time/location to the soonest one. Never turn separate occurrences into a date range.
+
+If the flyer lists genuinely DIFFERENT events (not the same event on different dates), extract only the FIRST event.`
 }
 
 const MODELS = [
