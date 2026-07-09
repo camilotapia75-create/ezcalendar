@@ -34,9 +34,18 @@ function MetaRow({ icon, label, children }) {
 export default function EventDetailModal({ event, accent = '#c6f24e', onClose, onDelete, reminderOn, onToggleReminder }) {
   const bodyRef = useRef(null)
   // Open already scrolled to the details so time/location are visible without
-  // scrolling past the flyer. Re-run after the flyer loads (it changes height).
-  const scrollToDetails = () => { const el = bodyRef.current; if (el) el.scrollTop = el.scrollHeight }
-  useEffect(() => { scrollToDetails() }, [event?.id])
+  // scrolling past the flyer. The image loads asynchronously and changes the
+  // scroll height, so retry across a few frames until it settles.
+  const scrollToDetails = () => {
+    const el = bodyRef.current
+    if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight })
+  }
+  useEffect(() => {
+    scrollToDetails()
+    const timers = [80, 200, 400, 700].map(ms => setTimeout(scrollToDetails, ms))
+    return () => timers.forEach(clearTimeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.id])
 
   if (!event) return null
 
