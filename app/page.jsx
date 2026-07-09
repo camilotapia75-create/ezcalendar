@@ -2,6 +2,70 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AuthForm from '@/components/AuthForm'
 
+// Fanned poster thumbnails pinned at the top of the hero
+const POSTERS = [
+  { tag: 'STREET MARKET', title: 'TACO\nSUN-\nDAY', sub: 'SMORGASBURG', foot: 'SUN 14 · 12PM',
+    bg: 'linear-gradient(150deg,#f0913a,#e8dcc8)', ink: '#1a1206', rot: -13, x: -104, y: 16, z: 1 },
+  { tag: 'ART WALK', title: 'OPEN\nSTUD-\nIOS', sub: 'Bushwick Editions', foot: '6:00 PM',
+    bg: '#efeae0', ink: '#1a1a1a', rot: -1, x: 0, y: 0, z: 3, dot: true },
+  { tag: 'LIVE', title: 'NIGHT\nFORM', sub: '', foot: '9PM',
+    bg: 'linear-gradient(160deg,#0e0e0e,#161608)', ink: '#c6f24e', rot: 12, x: 104, y: 18, z: 2 },
+]
+
+function Poster({ p }) {
+  return (
+    <div style={{
+      position: 'absolute', left: '50%', top: 0,
+      transform: `translateX(-50%) translate(${p.x}px, ${p.y}px) rotate(${p.rot}deg)`,
+      width: 132, height: 176, borderRadius: 12, background: p.bg, zIndex: p.z,
+      boxShadow: '0 18px 40px rgba(0,0,0,0.55)', padding: '12px 12px 10px',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* pushpin */}
+      <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', width: 16, height: 16, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #e8ff7a, #a7d43a)', boxShadow: '0 3px 6px rgba(0,0,0,0.5)' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 6.5, letterSpacing: '0.1em', color: p.ink, opacity: 0.85, fontFamily: 'var(--font-mono-stack)' }}>
+        <span>{p.tag}</span><span>18+</span>
+      </div>
+      {p.dot && <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#e8532e', margin: '10px 0 6px' }} />}
+      <div style={{ marginTop: p.dot ? 0 : 'auto', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, lineHeight: 0.92, color: p.ink, whiteSpace: 'pre-line', letterSpacing: '-0.02em' }}>
+        {p.title}
+      </div>
+      <div style={{ marginTop: 'auto', fontSize: 6.5, letterSpacing: '0.06em', color: p.ink, opacity: 0.8, fontFamily: 'var(--font-mono-stack)' }}>
+        {p.sub && <div>{p.sub}</div>}
+        <div style={{ marginTop: 2 }}>{p.foot}</div>
+      </div>
+    </div>
+  )
+}
+
+function Botly({ size = 92 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" style={{ filter: 'drop-shadow(0 0 22px rgba(198,242,78,0.55))' }}>
+      {/* antenna */}
+      <line x1="50" y1="16" x2="50" y2="26" stroke="#8fbf2e" strokeWidth="3" />
+      <circle cx="50" cy="13" r="5" fill="#c6f24e" />
+      {/* head */}
+      <rect x="24" y="26" width="52" height="44" rx="14" fill="url(#botHead)" />
+      {/* eyes */}
+      <circle cx="40" cy="46" r="9" fill="#fff" />
+      <circle cx="60" cy="46" r="9" fill="#fff" />
+      <circle cx="41" cy="47" r="4" fill="#101010" />
+      <circle cx="61" cy="47" r="4" fill="#101010" />
+      {/* smile */}
+      <path d="M42 58 Q50 64 58 58" stroke="#2a3d0a" strokeWidth="3" strokeLinecap="round" fill="none" />
+      {/* body */}
+      <rect x="36" y="72" width="28" height="16" rx="7" fill="#9fd13a" />
+      <rect x="30" y="74" width="7" height="12" rx="3.5" fill="#8fbf2e" />
+      <rect x="63" y="74" width="7" height="12" rx="3.5" fill="#8fbf2e" />
+      <defs>
+        <linearGradient id="botHead" x1="24" y1="26" x2="76" y2="70" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#cdf25a" /><stop offset="1" stopColor="#8fbf2e" />
+        </linearGradient>
+      </defs>
+    </svg>
+  )
+}
+
 export default async function Home({ searchParams }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -12,64 +76,41 @@ export default async function Home({ searchParams }) {
   const isInvite = next?.startsWith('/join/')
 
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center p-6"
-      style={{
-        backgroundImage: [
-          'linear-gradient(160deg, #fef9f2 0%, #fff5e8 55%, #fef2f8 100%)',
-          'repeating-linear-gradient(transparent 0px, transparent 27px, rgba(180,140,100,0.07) 28px)',
-        ].join(', '),
-      }}
-    >
-      <div className="w-full max-w-xs">
-        <div className="text-center mb-8">
-          <div style={{ fontSize: 54, lineHeight: 1, color: '#1a1a2e', fontWeight: 700, marginBottom: 8, letterSpacing: '-1px' }}>
-            📌 ezcalendar
-          </div>
-          <p style={{ fontSize: 17, color: '#7c6a56' }}>
-            {isInvite ? 'A friend invited you to share their calendar.' : 'Snap a flyer. It lands on the right date.'}
-          </p>
+    <div style={{ minHeight: '100dvh', background: 'radial-gradient(120% 60% at 50% 0%, #131610 0%, #0a0a0b 55%)', display: 'flex', flexDirection: 'column', padding: '0 24px 40px', maxWidth: 440, margin: '0 auto' }}>
+      {/* Hero: fanned posters + mascot */}
+      <div style={{ position: 'relative', height: 260, marginTop: 40 }}>
+        <div style={{ position: 'relative', height: 190 }}>
+          {POSTERS.map(p => <Poster key={p.title} p={p} />)}
         </div>
+        <div style={{ position: 'absolute', right: 6, bottom: 0 }}><Botly /></div>
+      </div>
 
-        {isInvite && (
-          <div
-            className="mb-4 px-4 py-3 text-center"
-            style={{ background: 'rgba(124,58,237,0.07)', color: '#5b21b6', border: '1.5px solid rgba(124,58,237,0.18)', borderRadius: 4, fontSize: 16 }}
-          >
-            Create a free account to accept the invite and see their events.
-          </div>
-        )}
-        {authError && (
-          <div
-            className="mb-4 px-4 py-3 text-center"
-            style={{ background: 'rgba(239,68,68,0.06)', color: '#b91c1c', border: '1.5px solid rgba(239,68,68,0.18)', borderRadius: 4, fontSize: 16 }}
-          >
-            Link expired or already used — request a new one below.
-          </div>
-        )}
+      {/* Wordmark */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 4 }}>
+        <span style={{ fontSize: 20 }}>📌</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 24, color: '#fff', letterSpacing: '-0.02em' }}>ezcalendar</span>
+      </div>
 
-        <div style={{ position: 'relative', background: '#fffdf8', border: '1.5px solid #e0ccb4', borderRadius: 4, boxShadow: '4px 4px 0 rgba(140,100,60,0.15)', padding: '28px 24px 24px' }}>
-          <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', width: 44, height: 20, background: 'rgba(253,224,71,0.75)', borderRadius: 3, boxShadow: '0 1px 4px rgba(0,0,0,0.09)' }} />
-          <AuthForm next={next} isInvite={isInvite} />
+      {/* Headline */}
+      <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 52, lineHeight: 1.0, letterSpacing: '-0.03em', margin: '18px 0 0', color: '#fff' }}>
+        Shoot.<br />Pin.<br /><span style={{ color: 'var(--lime)' }}>Done.</span>
+      </h1>
+
+      {/* Tagline */}
+      <p style={{ fontSize: 17, lineHeight: 1.5, color: 'var(--text-2)', margin: '18px 0 0', maxWidth: 380 }}>
+        {isInvite
+          ? <>A friend invited you to share their calendar. <span style={{ color: '#fff', fontWeight: 700 }}>Create a free account to see their events.</span></>
+          : <>Just take a picture of any poster — the app reads the date, time and place and adds it to your calendar. <span style={{ color: '#fff', fontWeight: 700 }}>Cause typing is sooooo early 2000's.</span></>}
+      </p>
+
+      {authError && (
+        <div className="mono-label" style={{ marginTop: 20, padding: '12px 14px', background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.28)', borderRadius: 12, fontSize: 11, letterSpacing: '0.08em' }}>
+          Link expired or already used — request a new one below.
         </div>
+      )}
 
-        {/* Product preview — mini flyers pinned to dates */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 36 }}>
-          {[
-            { day: 'FRI 12', grad: 'linear-gradient(135deg,#c084fc,#7c3aed)', emoji: '🎶', rot: -5 },
-            { day: 'SAT 13', grad: 'linear-gradient(135deg,#f472b6,#db2777)', emoji: '🎨', rot: 2 },
-            { day: 'SUN 14', grad: 'linear-gradient(135deg,#fbbf24,#ea580c)', emoji: '🌮', rot: 6 },
-          ].map(f => (
-            <div key={f.day} style={{ position: 'relative', transform: `rotate(${f.rot}deg)`, background: '#fffdf8', border: '1.5px solid #e0ccb4', borderRadius: 3, padding: '4px 4px 5px', boxShadow: '2px 3px 8px rgba(140,100,60,0.18)', width: 62 }}>
-              <div style={{ position: 'absolute', top: -7, left: '50%', transform: 'translateX(-50%)', width: 10, height: 10, borderRadius: '50%', background: '#ef4444', boxShadow: 'inset -1px -2px 3px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.2)' }} />
-              <div style={{ width: '100%', height: 56, borderRadius: 2, background: f.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{f.emoji}</div>
-              <p style={{ margin: '4px 0 0', fontSize: 8, fontWeight: 800, letterSpacing: '0.08em', color: '#7c6a56', textAlign: 'center', fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}>{f.day}</p>
-            </div>
-          ))}
-        </div>
-        <p style={{ marginTop: 14, textAlign: 'center', fontSize: 13, color: '#a89888' }}>
-          Your flyers, pinned to the right dates — automatically.
-        </p>
+      <div style={{ marginTop: 26 }}>
+        <AuthForm next={next} isInvite={isInvite} />
       </div>
     </div>
   )

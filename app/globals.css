@@ -4,19 +4,72 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── ezcalendar gig-poster design system ────────────────────────────────────
+   Dark base, single acid-lime hero accent, monospace labels. */
+:root {
+  --bg:        #0a0a0b;   /* app background — near black */
+  --surface:   #161619;   /* cards, inputs */
+  --surface-2: #1f1f23;   /* raised / hover surfaces */
+  --border:    rgba(255,255,255,0.09);
+  --border-2:  rgba(255,255,255,0.16);
+  --lime:      #c6f24e;   /* the one hero accent */
+  --lime-dim:  #a7d43a;
+  --ink:       #0a0a0b;   /* text on lime */
+  --text:      #ffffff;
+  --text-2:    #b7b7be;   /* secondary text */
+  --text-3:    #74747c;   /* muted labels */
+  --font-display: var(--font-display), 'Space Grotesk', system-ui, sans-serif;
+  --font-mono-stack: var(--font-mono), 'JetBrains Mono', ui-monospace, monospace;
+  --font-body: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
 @keyframes calLoadSpin { to { transform: rotate(360deg); } }
 
 body {
-  font-family: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
-  background: #f5eef8;
-  color: #111;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
   font-size: 17px;
 }
 
+/* Uppercase letter-spaced monospace label — EVENT / WHEN / weekday headers */
+.mono-label {
+  font-family: var(--font-mono-stack);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+}
+
+/* Acid-lime primary button — black ink, heavy, pill-rounded */
+.btn-lime {
+  background: var(--lime);
+  color: var(--ink);
+  border: none;
+  border-radius: 16px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+}
+.btn-lime:hover { filter: brightness(1.06); }
+
+/* Dark secondary button — subtle border, white text */
+.btn-dark {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-2);
+  border-radius: 16px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-dark:hover { background: var(--surface-2); }
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #ddd6fe; border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 2px; }
 
 /* Horizontal carousels — hide scrollbar while keeping scroll functionality */
 .hide-scroll { scrollbar-width: none; -ms-overflow-style: none; }
