@@ -2,7 +2,7 @@
 
 // Shared "no flyer" fill — a lime gradient that fades into the surface. Used
 // everywhere an event lacks an image so the look is identical across the app.
-const NO_FLYER_BG = 'linear-gradient(150deg, rgba(198,242,78,0.30) 0%, rgba(198,242,78,0.11) 52%, transparent 100%), var(--surface-2)'
+const NO_FLYER_BG = 'linear-gradient(150deg, rgba(198,242,78,0.55) 0%, rgba(198,242,78,0.28) 48%, rgba(198,242,78,0.10) 100%), var(--surface-2)'
 
 const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']

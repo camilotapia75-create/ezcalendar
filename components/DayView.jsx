@@ -416,7 +416,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                   <Pin />
                   {event.image_url
                     ? <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }} />
-                    : <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'flex-end', padding: 12, background: 'linear-gradient(150deg, rgba(198,242,78,0.30) 0%, rgba(198,242,78,0.11) 52%, transparent 100%), var(--surface-2)' }}><p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.12, letterSpacing: '-0.01em', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{event.title}</p></div>
+                    : <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'linear-gradient(150deg, rgba(198,242,78,0.55) 0%, rgba(198,242,78,0.28) 48%, rgba(198,242,78,0.10) 100%), var(--surface-2)' }}><p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 23, fontWeight: 700, color: 'var(--text)', lineHeight: 1.12, letterSpacing: '-0.02em', textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{event.title}</p></div>
                   }
                   <div style={{ flexShrink: 0, padding: '5px 7px 7px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
