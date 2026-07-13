@@ -249,25 +249,31 @@ export default function CalendarClient() {
     else if (joinErr === 'self')     showToast("That's your own invite link!")
     else if (joinErr === 'notfound') showToast('Invite link not found — ask your friend for a new one.')
 
+    // Optimistic instant render: paint the app from cache WITHOUT waiting for
+    // getSession's (possibly cold) network token refresh. Auth is confirmed in
+    // the background below; RLS gates every query, so a stale id fetches nothing.
+    try {
+      const lastUid = localStorage.getItem('lastUserId')
+      if (lastUid) {
+        const cached = localStorage.getItem(`cachedEvents_${lastUid}`)
+        const arr = cached ? JSON.parse(cached) : null
+        if (Array.isArray(arr) && arr.length) {
+          setUser({ id: lastUid })
+          setEvents(arr)
+          setEventsLoading(false)
+        }
+      }
+    } catch {}
+
     // Resolve the signed-in user client-side, then load everything. Redirect to
     // the landing page if there's no session.
     let cancelled = false
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return
-      if (!session) { router.replace('/'); return }
+      if (!session) { setUser(null); router.replace('/'); return }
       const u = session.user
       setUser(u)
-
-      // Instant paint: show the last-known events from cache immediately while
-      // the fresh query runs in the background. Masks Supabase/serverless cold
-      // starts so the app feels loaded the moment the session resolves.
-      try {
-        const cached = localStorage.getItem(`cachedEvents_${u.id}`)
-        if (cached) {
-          const arr = JSON.parse(cached)
-          if (Array.isArray(arr) && arr.length) { setEvents(arr); setEventsLoading(false) }
-        }
-      } catch {}
+      try { localStorage.setItem('lastUserId', u.id) } catch {}
 
       if (scanUrl) {
         setModal({ type: 'add', date: null, scanUrl })
@@ -426,6 +432,7 @@ export default function CalendarClient() {
 
   const handleSignOut = async () => {
     if (user) { try { localStorage.removeItem(`cachedEvents_${user.id}`) } catch {} }
+    try { localStorage.removeItem('lastUserId') } catch {}
     await supabase.auth.signOut()
     router.push('/')
   }
