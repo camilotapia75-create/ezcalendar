@@ -3,10 +3,13 @@ export default function manifest() {
     name: 'ezcalendar',
     short_name: 'ezcalendar',
     description: 'Snap a flyer. It lands on the right date.',
-    start_url: '/',
+    // Open straight into the app — /calendar is static (instant from CDN) and
+    // resolves auth client-side, skipping the landing page's serverless
+    // getUser + redirect round-trip on every cold launch.
+    start_url: '/calendar',
     display: 'standalone',
-    background_color: '#0c0c0e',
-    theme_color: '#0c0c0e',
+    background_color: '#0a0a0b',
+    theme_color: '#0a0a0b',
     orientation: 'portrait-primary',
     // Lets users share links straight from Instagram/Facebook/etc. into the
     // app via the system share sheet (Android; iOS doesn't support this yet)

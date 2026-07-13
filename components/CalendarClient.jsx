@@ -258,6 +258,17 @@ export default function CalendarClient() {
       const u = session.user
       setUser(u)
 
+      // Instant paint: show the last-known events from cache immediately while
+      // the fresh query runs in the background. Masks Supabase/serverless cold
+      // starts so the app feels loaded the moment the session resolves.
+      try {
+        const cached = localStorage.getItem(`cachedEvents_${u.id}`)
+        if (cached) {
+          const arr = JSON.parse(cached)
+          if (Array.isArray(arr) && arr.length) { setEvents(arr); setEventsLoading(false) }
+        }
+      } catch {}
+
       if (scanUrl) {
         setModal({ type: 'add', date: null, scanUrl })
         window.history.replaceState(null, '', '/calendar')
@@ -406,7 +417,18 @@ export default function CalendarClient() {
     }
   }
 
-  const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/') }
+  // Keep the instant-paint cache in sync with the live events (add/delete/refresh)
+  useEffect(() => {
+    if (user && !eventsLoading) {
+      try { localStorage.setItem(`cachedEvents_${user.id}`, JSON.stringify(events)) } catch {}
+    }
+  }, [events, user, eventsLoading])
+
+  const handleSignOut = async () => {
+    if (user) { try { localStorage.removeItem(`cachedEvents_${user.id}`) } catch {} }
+    await supabase.auth.signOut()
+    router.push('/')
+  }
 
   // Light/dark toggle — the theme is applied via <html data-theme> (set pre-paint
   // in layout.jsx). Here we just flip it and persist the choice.
