@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getGeminiUrls } from '@/lib/geminiModels'
 
 // Node.js runtime — fallback chains can take 30-60s; edge would hard-timeout
 export const maxDuration = 60
@@ -39,13 +40,6 @@ function getVisionPrompt() {
 }
 ${SCHEDULE_RULES}`
 }
-
-const MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
 
 // Extract the first syntactically complete JSON object from a string.
 // Gemini sometimes returns multiple objects (one per event) when a flyer
@@ -405,6 +399,7 @@ async function callGemini(text, apiKey) {
     contents: [{ parts: [{ text: `${getScanPrompt()}\n\nContent:\n${text.slice(0, 8000)}` }] }],
   })
   const diags = []
+  const MODELS = await getGeminiUrls(apiKey)
   for (const modelUrl of MODELS) {
     const name = modelUrl.split('/models/')[1].split(':')[0].replace('gemini-', '')
     try {
@@ -435,6 +430,7 @@ async function callGeminiVision(dataUrl, apiKey) {
       { text: getVisionPrompt() },
     ]}],
   })
+  const MODELS = await getGeminiUrls(apiKey)
   for (const modelUrl of MODELS) {
     try {
       const res = await fetch(`${modelUrl}?key=${apiKey}`, {

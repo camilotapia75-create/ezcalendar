@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getGeminiUrls } from '@/lib/geminiModels'
 
 function getPrompt() {
   const today = new Date().toISOString().split('T')[0]
@@ -19,13 +20,6 @@ IMPORTANT — first decide the schedule type, then fill accordingly:
 
 If the flyer lists genuinely DIFFERENT events (not the same event on different dates), extract only the FIRST event.`
 }
-
-const MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-].map(m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`)
 
 // Extract the first syntactically complete JSON object using brace-depth tracking.
 // The greedy /\{[\s\S]*\}/ regex fails when Gemini returns multiple objects
@@ -74,6 +68,7 @@ export async function POST(request) {
   const errors = []
   let anyNonQuota = false
 
+  const MODELS = await getGeminiUrls(apiKey)
   for (const url of MODELS) {
     const modelName = url.split('/models/')[1].split(':')[0]
     try {
