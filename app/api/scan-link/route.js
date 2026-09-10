@@ -8,10 +8,11 @@ export const maxDuration = 60
 // extracting, so it never blobs separate occurrences into one date range.
 const SCHEDULE_RULES = `
 IMPORTANT — first decide which kind of schedule this is, then fill the fields accordingly:
-1. SINGLE: one date. Set "date"; "end_date" null; "occurrences" null.
-2. CONTINUOUS RANGE: the SAME event runs across CONSECUTIVE days at the SAME place (a festival, an exhibition run, e.g. "July 4–6"). Set "date" = first day, "end_date" = last day; "occurrences" null.
-3. SEPARATE OCCURRENCES: the event happens on MULTIPLE distinct dates that are NOT one continuous run — non-consecutive dates, and/or each date has its own venue or time (e.g. "Jul 12 @ Venue A, Jul 17 @ Venue B"). This is NOT a range — DO NOT set end_date. Instead list every occurrence in "occurrences", each with its own date/time_str/location. Set the top-level "date"/"time_str"/"location" to the SOONEST upcoming occurrence.
-Never represent separate occurrences as a date range. When unsure between a range and separate occurrences, prefer separate occurrences.`
+1. SINGLE: one date. Set "date"; "end_date" null; "occurrences" null; "recurrence" null.
+2. CONTINUOUS RANGE: the SAME event runs across CONSECUTIVE days at the SAME place (a festival, an exhibition run, e.g. "July 4–6"). Set "date" = first day, "end_date" = last day; "occurrences" null; "recurrence" null.
+3. SEPARATE OCCURRENCES: the event happens on MULTIPLE distinct dates that are NOT one continuous run — non-consecutive dates, and/or each date has its own venue or time (e.g. "Jul 12 @ Venue A, Jul 17 @ Venue B"). This is NOT a range — DO NOT set end_date. Instead list every occurrence in "occurrences", each with its own date/time_str/location. Set the top-level "date"/"time_str"/"location" to the SOONEST upcoming occurrence. "recurrence" null.
+4. RECURRING: the event REPEATS on a weekly schedule (e.g. "every Thursday", "Thursdays", "weekly on Fridays", "every Sat & Sun"). Set "recurrence" to {"frequency":"weekly","weekdays":["thursday"]} — lowercase full weekday names, include EVERY weekday it repeats on. Set "date" to the SOONEST upcoming matching date, "end_date" null, "occurrences" null.
+Never represent separate occurrences or a recurring schedule as a date range. When unsure between a range and separate occurrences, prefer separate occurrences.`
 
 function getScanPrompt() {
   const today = new Date().toISOString().split('T')[0]
@@ -22,7 +23,8 @@ function getScanPrompt() {
   "end_date": "YYYY-MM-DD end date — ONLY for a CONTINUOUS multi-day run at one place. null otherwise.",
   "time_str": "start time and end time if present — parse from ISO datetimes: T20:00:00=8:00 PM, T02:00:00=2:00 AM. Examples: '10:00 PM – 2:00 AM', '8:00 PM'",
   "location": "wherever the event happens — venue name + city when both are known (e.g. 'Chase Center, San Francisco, CA'), but a city or neighborhood alone is fine too. Return ANY place mentioned; only null if no place at all.",
-  "occurrences": "null for single/continuous events. For SEPARATE occurrences, an array like [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\"}, ...] — one entry per distinct date, each with its OWN matching time and venue."
+  "occurrences": "null for single/continuous events. For SEPARATE occurrences, an array like [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\"}, ...] — one entry per distinct date, each with its OWN matching time and venue.",
+  "recurrence": "null unless the event REPEATS weekly. If it does, {\\"frequency\\":\\"weekly\\",\\"weekdays\\":[\\"thursday\\"]} — lowercase full weekday names; include every weekday it repeats on."
 }
 ${SCHEDULE_RULES}`
 }
@@ -36,7 +38,8 @@ function getVisionPrompt() {
   "end_date": "YYYY-MM-DD end date — ONLY for a CONTINUOUS multi-day run at one place. null otherwise.",
   "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM', '10 PM - 2 AM', '4-8PM')",
   "location": "wherever the event happens, exactly as printed — venue + address + city if shown, or just a city/neighborhood if that's all the flyer shows. Return ANY place mentioned; only null if none.",
-  "occurrences": "null for single/continuous events. For SEPARATE occurrences (e.g. the same show on two different dates/venues), an array like [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\"}, ...]."
+  "occurrences": "null for single/continuous events. For SEPARATE occurrences (e.g. the same show on two different dates/venues), an array like [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\"}, ...].",
+  "recurrence": "null unless the event REPEATS weekly (e.g. 'every Thursday'). If it does, {\\"frequency\\":\\"weekly\\",\\"weekdays\\":[\\"thursday\\"]} — lowercase full weekday names."
 }
 ${SCHEDULE_RULES}`
 }
@@ -651,6 +654,7 @@ export async function POST(request) {
       time_str: textData?.time_str || visionData?.time_str || null,
       location: visionData?.location || textData?.location || null,
       occurrences: textData?.occurrences || visionData?.occurrences || null,
+      recurrence: textData?.recurrence || visionData?.recurrence || null,
     }
 
     if (merged.title || merged.date) {

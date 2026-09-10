@@ -18,6 +18,32 @@ function formatNice(dateStr) {
   })
 }
 
+const WEEKDAY_IDX = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }
+const WEEKDAY_NAME = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+// ~6 months of weekly occurrences for the given weekday indexes, starting from
+// the later of today and the (optional) start date.
+const RECUR_HORIZON_DAYS = 182
+function weeklyDates(weekdayIdxs, startKey) {
+  const set = new Set(weekdayIdxs)
+  const today = new Date(); today.setHours(12, 0, 0, 0)
+  const start = startKey ? new Date(startKey + 'T12:00:00') : today
+  let d = new Date(Math.max(start.getTime(), today.getTime())); d.setHours(12, 0, 0, 0)
+  const out = []
+  for (let i = 0; i < RECUR_HORIZON_DAYS; i++) {
+    if (set.has(d.getDay())) out.push(toDateKey(d))
+    d = new Date(d.getTime() + 86400000)
+  }
+  return out
+}
+
+// "every Thursday" / "every Thu & Sun"
+function recurrenceLabel(weekdayIdxs) {
+  const names = weekdayIdxs.map(i => WEEKDAY_NAME[i])
+  if (names.length === 1) return `every ${names[0]}`
+  return 'every ' + names.map(n => n.slice(0, 3)).join(' & ')
+}
+
 async function resizeImage(dataUrl, maxWidth, quality) {
   return new Promise((resolve) => {
     const img = new Image()
@@ -89,6 +115,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   // Separate occurrences (same event on multiple distinct dates/venues)
   const [occurrences, setOccurrences] = useState(null)
   const [selectedOccs, setSelectedOccs] = useState({})
+  // Recurring weekly event (e.g. "every Thursday") — { weekdays: [4] }
+  const [recurrence, setRecurrence] = useState(null)
 
   const videoRef = useRef()
   const fileRef = useRef()
@@ -97,6 +125,13 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
     if (Array.isArray(occ) && occ.length > 1) {
       setOccurrences(occ)
       setSelectedOccs(Object.fromEntries(occ.map((_, i) => [i, true])))
+    }
+  }
+
+  const applyRecurrence = (rec) => {
+    if (rec?.frequency === 'weekly' && Array.isArray(rec.weekdays)) {
+      const idxs = rec.weekdays.map(w => WEEKDAY_IDX[String(w).toLowerCase()]).filter(n => n !== undefined)
+      if (idxs.length) setRecurrence({ weekdays: [...new Set(idxs)].sort() })
     }
   }
 
@@ -199,7 +234,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         setShowEndDate(true)
       }
       flashGlow(...[data.title && 'title', data.time_str && 'time', data.location && 'location', data.date && 'date'].filter(Boolean))
-      applyOccurrences(data.occurrences)
+      applyOccurrences(data.occurrences); applyRecurrence(data.recurrence)
       if (!data.title && !data.date && !data.time_str && !data.location) setAiError('failed')
     } catch (err) {
       setAiError('failed'); setAiDetail(err.message)
@@ -244,7 +279,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         setShowEndDate(true)
       }
       flashGlow(...[data.title && 'title', data.time_str && 'time', data.location && 'location', data.date && 'date'].filter(Boolean))
-      applyOccurrences(data.occurrences)
+      applyOccurrences(data.occurrences); applyRecurrence(data.recurrence)
       setOgImageUrl(data.og_image || null)
       if (data.warning) setLinkWarning(data.warning)
       setLinkScanned(true)
@@ -300,16 +335,17 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
     setLinkError(null); setLinkWarning(null); setOgImageUrl(null); setLinkScanned(false)
     setScanDiag(null); setDetailFilling(false)
     setManualMode(false)
-    setOccurrences(null); setSelectedOccs({})
+    setOccurrences(null); setSelectedOccs({}); setRecurrence(null)
     if (!date) setEventDate('')
   }
 
-  const multiOcc = occurrences && occurrences.length > 1
+  const recurring = !!recurrence
+  const multiOcc = !recurring && occurrences && occurrences.length > 1
   const chosenOccs = multiOcc ? occurrences.filter((_, i) => selectedOccs[i]) : []
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!eventDate && !multiOcc) return
+    if (!eventDate && !multiOcc && !recurring) return
     if (multiOcc && chosenOccs.length === 0) return
     if (!linkMode && !manualMode && !imageForStorage) return
     setSaveError(null)
@@ -354,7 +390,19 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         image_url = uploadData.url
       }
       const source_url = linkMode ? linkUrl.trim() : null
-      if (multiOcc) {
+      if (recurring) {
+        // Materialise ~6 months of weekly occurrences sharing one series_id, so
+        // removing any one removes them all.
+        const dates = weeklyDates(recurrence.weekdays, eventDate || null)
+        if (!dates.length) throw new Error('No upcoming dates for that schedule')
+        const seriesId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID() : `s_${Date.now()}_${Math.random().toString(36).slice(2)}`
+        const events = dates.map(dk => ({
+          date: dk, end_date: null, title, location, time_str: timeStr,
+          image_url, source_url, series_id: seriesId,
+        }))
+        await onAdd(events)
+      } else if (multiOcc) {
         // Save one event per selected occurrence, each with its own date/venue/time
         const events = chosenOccs.map(o => ({
           date: o.date,
@@ -385,9 +433,11 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   }
 
   const showForm = imagePreview || linkScanned || manualMode
-  const canSubmit = multiOcc
-    ? chosenOccs.length > 0
-    : eventDate && (linkMode || manualMode ? true : !!imageForStorage)
+  const canSubmit = recurring
+    ? (linkMode || manualMode ? true : !!imageForStorage)
+    : multiOcc
+      ? chosenOccs.length > 0
+      : eventDate && (linkMode || manualMode ? true : !!imageForStorage)
 
   if (cameraActive) {
     return (
@@ -434,6 +484,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
               ? (linkMode ? 'Paste a link' : 'Add a flyer')
               : manualMode ? 'New event'
               : analyzing || linkScanning ? 'Reading…'
+              : recurring ? 'Repeats weekly'
               : multiOcc ? `Found ${occurrences.length} dates`
               : aiDetectedDate ? `Placing on ${formatNice(eventDate)}`
               : 'Fill in details'}
@@ -619,7 +670,21 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                         <span>Add photo (optional)</span>
                       </button>
                     )}
-                    {multiOcc ? (
+                    {recurring ? (
+                      /* Weekly recurring event — materialised as a series on save */
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 12, background: 'rgba(198,242,78,0.10)', border: '1px solid rgba(198,242,78,0.4)' }}>
+                        <p className="mono-label" style={{ fontSize: 10, color: '#c6f24e', letterSpacing: '0.1em', margin: 0 }}>
+                          🔁 REPEATS {recurrenceLabel(recurrence.weekdays).toUpperCase()}
+                        </p>
+                        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: 0, lineHeight: 1.4 }}>
+                          Adds the next ~6 months — {weeklyDates(recurrence.weekdays, eventDate || null).length} dates. Remove any one later and they all go.
+                        </p>
+                        <button type="button" onClick={() => setRecurrence(null)} className="mono-label"
+                          style={{ alignSelf: 'flex-start', fontSize: 10, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                          NOT RECURRING? MAKE IT ONE-TIME
+                        </button>
+                      </div>
+                    ) : multiOcc ? (
                       /* Same event on multiple separate dates — pick which to add */
                       <div className="flex flex-col gap-1.5">
                         <p className="mono-label" style={{ fontSize: 10, color: '#c6f24e', letterSpacing: '0.1em', marginBottom: 2 }}>
@@ -697,6 +762,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                     style={{ background: '#c6f24e', color: '#0a0a0b', fontFamily: 'var(--font-display)' }}
                   >
                     {uploading ? 'Saving…'
+                      : recurring ? `Pin ${recurrenceLabel(recurrence.weekdays)}`
                       : multiOcc ? `Pin ${chosenOccs.length} event${chosenOccs.length === 1 ? '' : 's'}`
                       : eventDate
                         ? (endDate && endDate !== eventDate

@@ -10,13 +10,15 @@ function getPrompt() {
   "end_date": "YYYY-MM-DD end date — ONLY for a CONTINUOUS multi-day run at one place (e.g. 'Jul 4-6'). null otherwise.",
   "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM' or '4-8PM')",
   "location": "venue name and/or city",
-  "occurrences": "null for single/continuous events. For SEPARATE occurrences (same event on multiple distinct dates, e.g. Jul 12 at one venue and Jul 17 at another), an array like [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\"}, ...] — one per date with its OWN time and venue."
+  "occurrences": "null for single/continuous events. For SEPARATE occurrences (same event on multiple distinct dates, e.g. Jul 12 at one venue and Jul 17 at another), an array like [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\"}, ...] — one per date with its OWN time and venue.",
+  "recurrence": "null unless the event REPEATS weekly (e.g. 'every Thursday', 'Thursdays'). If it does, {\\"frequency\\":\\"weekly\\",\\"weekdays\\":[\\"thursday\\"]} — lowercase full weekday names, include every weekday it repeats on."
 }
 
 IMPORTANT — first decide the schedule type, then fill accordingly:
-1. SINGLE date → set "date"; "end_date" null; "occurrences" null.
-2. CONTINUOUS RANGE (same event, consecutive days, same place) → "date"=first, "end_date"=last; "occurrences" null.
+1. SINGLE date → set "date"; "end_date" null; "occurrences" null; "recurrence" null.
+2. CONTINUOUS RANGE (same event, consecutive days, same place) → "date"=first, "end_date"=last; "occurrences" null; "recurrence" null.
 3. SEPARATE OCCURRENCES (multiple non-consecutive dates and/or different venues per date) → DO NOT set end_date; list each in "occurrences"; set top-level date/time/location to the soonest one. Never turn separate occurrences into a date range.
+4. RECURRING (repeats weekly, e.g. "every Thursday") → set "recurrence" {"frequency":"weekly","weekdays":["thursday"]}; "date" = soonest upcoming matching date; "end_date" null; "occurrences" null.
 
 If the flyer lists genuinely DIFFERENT events (not the same event on different dates), extract only the FIRST event.`
 }

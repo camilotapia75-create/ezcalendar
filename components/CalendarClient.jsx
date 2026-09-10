@@ -455,23 +455,25 @@ export default function CalendarClient() {
     return visibleEvents.filter(e => e.end_date ? e.date <= key && e.end_date >= key : e.date === key)
   }
 
-  // Insert one event, with graceful fallback when older DB schemas lack columns
+  // Insert one event, with graceful fallback when older DB schemas lack optional
+  // columns (series_id / source_url / end_date) — progressively drop and retry.
   const insertOne = async (eventData) => {
-    let result = await supabase.from('events').insert({ ...eventData, user_id: user.id }).select().single()
-    if (result.error?.message?.includes('source_url')) {
-      const { source_url, ...rest } = eventData
-      result = await supabase.from('events').insert({ ...rest, user_id: user.id }).select().single()
-    }
-    if (result.error?.message?.includes('end_date')) {
-      const { end_date, source_url, ...rest } = eventData
-      result = await supabase.from('events').insert({ ...rest, user_id: user.id }).select().single()
+    const attempt = (data) => supabase.from('events').insert({ ...data, user_id: user.id }).select().single()
+    let data = { ...eventData }
+    let result = await attempt(data)
+    for (const col of ['series_id', 'source_url', 'end_date']) {
+      if (!result.error) break
+      if (result.error.message?.includes(col)) {
+        delete data[col]
+        result = await attempt(data)
+      }
     }
     if (result.error) throw new Error(result.error.message)
     return result.data
   }
 
   // Accepts a single event object OR an array — a multi-date event (separate
-  // occurrences) is saved as one event per date so each keeps its own venue/time.
+  // occurrences) or a recurring series is saved as one event per date.
   const addEvent = async (eventData) => {
     const items = Array.isArray(eventData) ? eventData : [eventData]
     const inserted = []
@@ -485,7 +487,22 @@ export default function CalendarClient() {
     setModal(null)
   }
 
+  // Delete. Recurring events (a shared series_id) remove the WHOLE series, so
+  // removing one "every Thursday" clears them all. Falls back to single-row
+  // delete for one-off events (and when the series_id column doesn't exist yet).
   const deleteEvent = async (id) => {
+    const seriesId = events.find(e => e.id === id)?.series_id
+    if (seriesId) {
+      await supabase.from('events').delete().eq('series_id', seriesId)
+      setEvents(prev => prev.filter(e => e.series_id !== seriesId))
+    } else {
+      await supabase.from('events').delete().eq('id', id)
+      setEvents(prev => prev.filter(e => e.id !== id))
+    }
+  }
+
+  // Remove just one occurrence of a recurring series, leaving the rest.
+  const deleteOccurrence = async (id) => {
     await supabase.from('events').delete().eq('id', id)
     setEvents(prev => prev.filter(e => e.id !== id))
   }
@@ -695,6 +712,7 @@ export default function CalendarClient() {
           accent={theme.accent}
           onClose={() => setModal(null)}
           onDelete={deleteEvent}
+          onDeleteOccurrence={deleteOccurrence}
           reminderOn={isEventOn(modal.event.id)}
           onToggleReminder={() => toggleEventNotif(modal.event.id)}
         />

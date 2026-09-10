@@ -31,7 +31,7 @@ function MetaRow({ icon, label, children }) {
   )
 }
 
-export default function EventDetailModal({ event, accent = '#c6f24e', onClose, onDelete, reminderOn, onToggleReminder }) {
+export default function EventDetailModal({ event, accent = '#c6f24e', onClose, onDelete, onDeleteOccurrence, reminderOn, onToggleReminder }) {
   const bodyRef = useRef(null)
   // Open already scrolled to the details so time/location are visible without
   // scrolling past the flyer. The image loads asynchronously and changes the
@@ -50,9 +50,14 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
   if (!event) return null
 
   const isMulti = event.end_date && event.end_date !== event.date
+  const isSeries = !!event.series_id
 
-  const handleDelete = () => {
+  const handleDelete = () => {          // whole series when recurring
     onDelete?.(event.id)
+    onClose()
+  }
+  const handleDeleteOne = () => {       // just this occurrence
+    onDeleteOccurrence?.(event.id)
     onClose()
   }
 
@@ -99,6 +104,7 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
               <MetaRow icon="📅" label="WHEN">
                 {formatDate(event.date)}
                 {isMulti && <span style={{ display: 'block', fontSize: 13, color: 'var(--text-3)', fontWeight: 500, marginTop: 2 }}>through {formatDate(event.end_date)}</span>}
+                {isSeries && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 12, fontWeight: 700, color: accent, background: 'rgba(198,242,78,0.12)', border: '1px solid rgba(198,242,78,0.35)', borderRadius: 999, padding: '3px 10px' }}>🔁 Repeats weekly</span>}
               </MetaRow>
 
               {event.time_str && <MetaRow icon="🕐" label="TIME">{event.time_str}</MetaRow>}
@@ -125,6 +131,12 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
               {reminderOn ? '🔔 Reminder on' : '🔕 Reminder off'}
             </button>
           )}
+          {/* Recurring: offer removing just this date or the whole series */}
+          {isSeries && onDeleteOccurrence && (
+            <button onClick={handleDeleteOne} className="btn-dark" style={{ width: '100%', padding: '12px', fontSize: 14, fontWeight: 600 }}>
+              Remove just this date
+            </button>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} className="btn-dark" style={{ flex: 1, padding: '13px', fontSize: 15, fontWeight: 600 }}>
               Close
@@ -132,7 +144,7 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
             {onDelete && (
               <button onClick={handleDelete}
                 style={{ flex: 1, padding: '13px', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 16, fontSize: 15, fontWeight: 700, cursor: 'pointer', color: '#f87171', fontFamily: 'var(--font-display)' }}>
-                Delete
+                {isSeries ? 'Delete all' : 'Delete'}
               </button>
             )}
           </div>
