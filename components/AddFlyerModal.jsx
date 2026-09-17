@@ -219,7 +219,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
     setCameraActive(false)
   }
 
-  const startCamera = async () => {
+  const startCamera = async ({ fallbackToFile = true } = {}) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
@@ -228,9 +228,22 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
       setCameraStream(stream)
       setCameraActive(true)
     } catch {
-      fileRef.current.click()
+      // On explicit taps, fall back to the file picker; on the auto-open at
+      // launch, just leave the option menu visible instead.
+      if (fallbackToFile) fileRef.current?.click()
     }
   }
+
+  // Camera-first: open straight into the viewfinder when the modal launches
+  // (unless it was opened to scan a shared link). If the camera can't start,
+  // the option menu shows instead.
+  useEffect(() => {
+    if (initialUrl) return
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      startCamera({ fallbackToFile: false })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const capturePhoto = () => {
     const video = videoRef.current
@@ -485,7 +498,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col">
         <div className="flex items-center justify-between px-5 pt-14 pb-4">
-          <button onClick={stopCamera} className="text-sm text-white/50 hover:text-white transition-colors">Cancel</button>
+          <button onClick={() => { stopCamera(); onClose() }} className="text-sm text-white/50 hover:text-white transition-colors">Cancel</button>
           <span className="text-xs font-medium text-white/25 tracking-widest uppercase">Scan flyer</span>
           <div className="w-12" />
         </div>
@@ -500,7 +513,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
             </div>
           </div>
         </div>
-        <div className="flex flex-col items-center gap-3 pb-16 pt-8">
+        <div className="flex flex-col items-center gap-4 pb-12 pt-6">
           <button onClick={capturePhoto}
             className="w-[72px] h-[72px] rounded-full flex items-center justify-center active:scale-95 transition-transform"
             style={{ background: '#c6f24e', boxShadow: '0 0 32px rgba(198,242,78,0.5)' }}
@@ -508,6 +521,24 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
             <div className="w-12 h-12 rounded-full border-2" style={{ borderColor: 'rgba(10,10,11,0.35)' }} />
           </button>
           <span className="text-xs text-white/30">Tap to capture</span>
+          {/* Alternate inputs — camera is the default, these stay one tap away */}
+          <div className="flex items-center gap-2 mt-1">
+            <button type="button" onClick={() => { stopCamera(); fileRef.current?.click() }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-white/70"
+              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)' }}>
+              <IconUpload /> Upload
+            </button>
+            <button type="button" onClick={() => { stopCamera(); setLinkMode(true) }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-white/70"
+              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)' }}>
+              <IconLink /> Link
+            </button>
+            <button type="button" onClick={() => { stopCamera(); setManualMode(true) }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-white/70"
+              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)' }}>
+              ⌨ Type
+            </button>
+          </div>
         </div>
       </div>
     )
