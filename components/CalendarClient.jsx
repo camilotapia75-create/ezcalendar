@@ -213,6 +213,7 @@ export default function CalendarClient() {
   const [eventsLoading, setEventsLoading] = useState(true)
   const [inviteCode, setInviteCode]   = useState('')
   const [feedToken, setFeedToken]     = useState('')
+  const [suggestions, setSuggestions] = useState([])
   const [connectedCount, setConnectedCount] = useState(0)
   const [connectedFriends, setConnectedFriends] = useState([])
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -550,6 +551,41 @@ export default function CalendarClient() {
     await supabase.from('events').delete().in('id', ids)
   }
 
+  // Suggested events — real local events (Ticketmaster + popular community pins)
+  // ranked by taste. Cached ~12h per user so we don't recompute on every open.
+  useEffect(() => {
+    if (!user) return
+    const cacheKey = `suggestedCache_${user.id}`
+    try {
+      const c = JSON.parse(localStorage.getItem(cacheKey) || 'null')
+      if (c && Date.now() - c.ts < 12 * 3600 * 1000) { setSuggestions(c.data || []); return }
+    } catch {}
+    fetch('/api/suggested').then(async r => {
+      if (!r.ok) return
+      const d = await r.json()
+      const s = d.suggestions || []
+      setSuggestions(s)
+      try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: s })) } catch {}
+    }).catch(() => {})
+  }, [user])
+
+  const pinSuggestion = async (s) => {
+    setSuggestions(prev => {
+      const next = prev.filter(x => !(x.title === s.title && x.date === s.date))
+      if (user) { try { localStorage.setItem(`suggestedCache_${user.id}`, JSON.stringify({ ts: Date.now(), data: next })) } catch {} }
+      return next
+    })
+    await addEvent({
+      date: s.date,
+      end_date: null,
+      title: s.title,
+      time_str: s.time_str || '',
+      location: [s.venue, s.city].filter(Boolean).join(', '),
+      image_url: s.image || null,
+      source_url: s.url || null,
+    })
+  }
+
   // Delete. Recurring events (a shared series_id) remove the WHOLE series, so
   // removing one "every Thursday" clears them all. Falls back to single-row
   // delete for one-off events (and when the series_id column doesn't exist yet).
@@ -713,7 +749,7 @@ export default function CalendarClient() {
           </div>
         )}
         {activeTab === 'feed' && (
-          <FeedView events={visibleEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} />
+          <FeedView events={visibleEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} suggestions={calFilter === 'mine' ? suggestions : []} onPinSuggested={pinSuggestion} />
         )}
         {activeTab === 'calendar' && (
           <div style={{ padding: '16px 12px 8px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
