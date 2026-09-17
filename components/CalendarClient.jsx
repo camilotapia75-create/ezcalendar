@@ -247,6 +247,27 @@ export default function CalendarClient() {
     router.refresh()
   }
 
+  // Native (Capacitor) deep link: the iOS/Android Share Extension opens the app
+  // at ezcalendar://scan?url=<post link> — turn that into a scan. No-op on web
+  // (window.Capacitor is undefined in the PWA).
+  useEffect(() => {
+    const Cap = typeof window !== 'undefined' && window.Capacitor
+    const App = Cap?.Plugins?.App
+    if (!App?.addListener) return
+    let handle
+    const openScan = (url) => {
+      try {
+        const q = new URL(url).searchParams.get('url')
+        if (q) setModal({ type: 'add', date: null, scanUrl: q })
+      } catch {}
+    }
+    const p = App.addListener('appUrlOpen', ({ url }) => openScan(url))
+    Promise.resolve(p).then(h => { handle = h }).catch(() => {})
+    // Cold start: app launched directly from the share
+    App.getLaunchUrl?.().then?.(res => { if (res?.url) openScan(res.url) }).catch?.(() => {})
+    return () => { try { handle?.remove?.() } catch {} }
+  }, [])
+
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(reg => {
