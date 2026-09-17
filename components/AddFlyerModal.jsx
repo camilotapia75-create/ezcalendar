@@ -135,6 +135,44 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
     }
   }
 
+  const uploadStorage = async (imageData) => {
+    try {
+      const res = await fetch('/api/upload-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageData, userId }),
+      })
+      const d = await res.json()
+      return res.ok ? d.url : null
+    } catch { return null }
+  }
+
+  // Capture magic: when a scan is confident (clear title + date, single one-off
+  // event), save it immediately and close — no review step. Uncertain scans
+  // (missing date, recurring, multi-date, manual mode) fall through to the form.
+  const tryAutoSave = async (data, { imageData = null, remoteImage = null, sourceUrl = null }) => {
+    if (manualMode) return false
+    const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(data.date || '')
+    const day = dateOk ? data.date : (eventDate || '')
+    const isMulti = Array.isArray(data.occurrences) && data.occurrences.length > 1
+    const isRecur = data?.recurrence?.frequency === 'weekly'
+    if (!data.title || !day || isMulti || isRecur) return false
+    setUploading(true)
+    let image_url = null
+    if (imageData) image_url = await uploadStorage(imageData)
+    else if (remoteImage?.startsWith('data:')) image_url = await uploadStorage(remoteImage)
+    else if (remoteImage) image_url = remoteImage
+    await onAdd({
+      date: day,
+      end_date: /^\d{4}-\d{2}-\d{2}$/.test(data.end_date || '') ? data.end_date : null,
+      title: data.title,
+      location: data.location || '',
+      time_str: data.time_str || '',
+      image_url,
+      source_url: sourceUrl,
+    }, { auto: true })
+    return true
+  }
+
   useEffect(() => {
     return () => { cameraStream?.getTracks().forEach(t => t.stop()) }
   }, [cameraStream])
@@ -222,6 +260,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
       const data = await res.json()
       if (res.status === 429) { setAiError('quota'); setAiDetail(data.detail); return }
       if (!res.ok) { setAiError('failed'); setAiDetail(data.detail); return }
+      // Confident single event → save instantly, skip the review form
+      if (await tryAutoSave(data, { imageData: forStorage })) return
       if (data.title) typeIn(setTitle, data.title)
       if (data.time_str) typeIn(setTimeStr, data.time_str)
       if (data.location) typeIn(setLocation, data.location)
@@ -267,6 +307,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to read link')
       if (data._diag) { console.log('[scan-link]', data._diag); setScanDiag(data._diag) }
+      // Confident single event → save instantly, skip the review form
+      if (await tryAutoSave(data, { remoteImage: data.og_image || null, sourceUrl: target })) return
       if (data.title) typeIn(setTitle, data.title)
       if (data.time_str) typeIn(setTimeStr, data.time_str)
       if (data.location) typeIn(setLocation, data.location)

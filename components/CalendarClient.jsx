@@ -200,6 +200,8 @@ export default function CalendarClient() {
   const [modal, setModal]           = useState(null)
   const [notifEnabled, setNotifEnabled] = useState(false)
   const [notifToast, setNotifToast]     = useState(null)
+  const [undoData, setUndoData]         = useState(null)  // { ids, label } after an auto-save
+  const undoTimer = useRef(null)
   const [notes, setNotes]               = useState({})
   const [activeTab, setActiveTab]       = useState('feed')
   const [colorScheme, setColorScheme]   = useState('dark')
@@ -474,7 +476,8 @@ export default function CalendarClient() {
 
   // Accepts a single event object OR an array — a multi-date event (separate
   // occurrences) or a recurring series is saved as one event per date.
-  const addEvent = async (eventData) => {
+  // opts.auto = saved automatically from a confident scan → show an Undo toast.
+  const addEvent = async (eventData, opts = {}) => {
     const items = Array.isArray(eventData) ? eventData : [eventData]
     const inserted = []
     for (const item of items) inserted.push(await insertOne(item))
@@ -485,6 +488,21 @@ export default function CalendarClient() {
       setCurrentDate(new Date(year, month - 1, 1))
     }
     setModal(null)
+    if (opts.auto && inserted.length) {
+      setUndoData({ ids: inserted.map(e => e.id), label: inserted[0]?.title || 'Event' })
+      clearTimeout(undoTimer.current)
+      undoTimer.current = setTimeout(() => setUndoData(null), 7000)
+    }
+  }
+
+  // Undo an auto-save (delete the just-created event/series)
+  const undoAdd = async () => {
+    if (!undoData) return
+    const ids = undoData.ids
+    setUndoData(null)
+    clearTimeout(undoTimer.current)
+    setEvents(prev => prev.filter(e => !ids.includes(e.id)))
+    await supabase.from('events').delete().in('id', ids)
   }
 
   // Delete. Recurring events (a shared series_id) remove the WHOLE series, so
@@ -610,6 +628,18 @@ export default function CalendarClient() {
       {notifToast && (
         <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 88px)', left: '50%', transform: 'translateX(-50%)', background: 'rgba(30,30,40,0.96)', color: 'white', padding: '12px 18px', borderRadius: 14, fontSize: 13, maxWidth: 'calc(100vw - 40px)', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.3)', zIndex: 9999, backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)' }}>
           {notifToast}
+        </div>
+      )}
+
+      {/* ── Auto-save "Added ✓ · Undo" toast ── */}
+      {undoData && (
+        <div className="anim-tab" style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 88px)', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(20,22,16,0.97)', color: '#fff', padding: '12px 12px 12px 18px', borderRadius: 16, fontSize: 14, maxWidth: 'calc(100vw - 32px)', boxShadow: '0 8px 32px rgba(0,0,0,0.45)', zIndex: 9999, backdropFilter: 'blur(10px)', border: '1px solid rgba(198,242,78,0.4)' }}>
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ color: theme.accent, fontWeight: 700 }}>✓ Added</span>{' '}{undoData.label}
+          </span>
+          <button onClick={undoAdd} className="btn-lime" style={{ flexShrink: 0, padding: '8px 16px', fontSize: 13, borderRadius: 11 }}>
+            Undo
+          </button>
         </div>
       )}
 
