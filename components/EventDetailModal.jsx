@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { googleCalUrl, icsHref } from '@/lib/calendarExport'
 
 // Shared "no flyer" fill — a lime gradient that fades into the surface. Used
 // everywhere an event lacks an image so the look is identical across the app.
@@ -33,6 +34,7 @@ function MetaRow({ icon, label, children }) {
 
 export default function EventDetailModal({ event, accent = '#c6f24e', onClose, onDelete, onDeleteOccurrence, reminderOn, onToggleReminder }) {
   const bodyRef = useRef(null)
+  const [showCal, setShowCal] = useState(false)
   // Open already scrolled to the details so time/location are visible without
   // scrolling past the flyer. The image loads asynchronously and changes the
   // scroll height, so retry across a few frames until it settles.
@@ -125,6 +127,24 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
 
         {/* Action row */}
         <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', padding: '12px 16px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Add to Calendar (Google / Apple) — expands to two choices */}
+          {!showCal ? (
+            <button onClick={() => setShowCal(true)} className="btn-dark"
+              style={{ width: '100%', padding: '14px', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              📆 Add to Calendar
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <a href={googleCalUrl(event)} target="_blank" rel="noopener noreferrer" onClick={() => setShowCal(false)}
+                className="btn-dark" style={{ flex: 1, padding: '13px', fontSize: 14, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                Google
+              </a>
+              <a href={icsHref(event)} download={`${(event.title || 'event').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`} onClick={() => setShowCal(false)}
+                className="btn-dark" style={{ flex: 1, padding: '13px', fontSize: 14, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                Apple / .ics
+              </a>
+            </div>
+          )}
           {onToggleReminder !== undefined && (
             <button onClick={onToggleReminder} className={reminderOn ? 'btn-lime' : 'btn-dark'}
               style={{ width: '100%', padding: '14px', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
