@@ -87,23 +87,29 @@ const CamIcon = () => (
 )
 
 // ── Friends tab ────────────────────────────────────────────────────────────
-function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent, dark, onDisconnect }) {
+function FriendsTab({ inviteCode, feedToken, connectedCount, connectedFriends = [], accent, dark, onDisconnect }) {
   const [inviteUrl, setInviteUrl] = useState('')
+  const [origin, setOrigin]       = useState('')
   const [copied, setCopied]     = useState(false)
+  const [feedCopied, setFeedCopied] = useState(false)
   const [confirmId, setConfirmId] = useState(null)
   const [leaving, setLeaving] = useState(null)
 
-  useEffect(() => { setInviteUrl(`${window.location.origin}/join/${inviteCode}`) }, [inviteCode])
+  useEffect(() => { setInviteUrl(`${window.location.origin}/join/${inviteCode}`); setOrigin(window.location.origin) }, [inviteCode])
 
-  const copyLink = async () => {
-    try { await navigator.clipboard.writeText(inviteUrl) } catch {
+  const feedHttps = feedToken ? `${origin}/api/calendar/${feedToken}.ics` : ''
+  const feedWebcal = feedToken ? feedHttps.replace(/^https?:/, 'webcal:') : ''
+
+  const copyText = async (text, setter) => {
+    try { await navigator.clipboard.writeText(text) } catch {
       const el = document.createElement('textarea')
-      el.value = inviteUrl; el.style.cssText = 'position:fixed;opacity:0'
+      el.value = text; el.style.cssText = 'position:fixed;opacity:0'
       document.body.appendChild(el); el.focus(); el.select()
       document.execCommand('copy'); document.body.removeChild(el)
     }
-    setCopied(true); setTimeout(() => setCopied(false), 2500)
+    setter(true); setTimeout(() => setter(false), 2500)
   }
+  const copyLink = () => copyText(inviteUrl, setCopied)
 
   const displayName = (f) => f.name || f.email || 'Friend'
   const initials    = (f) => {
@@ -177,6 +183,22 @@ function FriendsTab({ inviteCode, connectedCount, connectedFriends = [], accent,
       <p style={{ marginTop: 20, fontSize: 15, color: 'var(--text-3)', lineHeight: 1.6, textAlign: 'center' }}>
         Send this link to a friend. When they sign in, you'll both see each other's pinned events.
       </p>
+
+      {/* Sync to phone calendar — subscribe once, everything you pin flows in */}
+      {feedToken && (
+        <div style={{ marginTop: 26, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '22px 20px 20px' }}>
+          <p className="mono-label" style={{ margin: '0 0 8px', fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.12em' }}>Sync to your calendar</p>
+          <p style={{ margin: '0 0 16px', fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5 }}>
+            Subscribe once and every event you pin shows up in your phone's calendar automatically.
+          </p>
+          <a href={feedWebcal} className="btn-lime" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px', fontSize: 16, textDecoration: 'none', marginBottom: 8 }}>
+            📆 Add to Apple Calendar
+          </a>
+          <button onClick={() => copyText(feedHttps, setFeedCopied)} className="btn-dark" style={{ width: '100%', padding: '13px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+            {feedCopied ? '✓ Copied — paste in Google Calendar → “From URL”' : '📋 Copy link for Google Calendar'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -190,6 +212,7 @@ export default function CalendarClient() {
   const [events, setEvents]         = useState([])
   const [eventsLoading, setEventsLoading] = useState(true)
   const [inviteCode, setInviteCode]   = useState('')
+  const [feedToken, setFeedToken]     = useState('')
   const [connectedCount, setConnectedCount] = useState(0)
   const [connectedFriends, setConnectedFriends] = useState([])
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -286,7 +309,7 @@ export default function CalendarClient() {
         supabase.from('events').select('*').order('date', { ascending: true }),
         supabase.from('calendar_connections').select('user_a_id, user_b_id')
           .or(`user_a_id.eq.${u.id},user_b_id.eq.${u.id}`),
-        supabase.from('calendar_invites').select('invite_code').eq('owner_id', u.id).single(),
+        supabase.from('calendar_invites').select('*').eq('owner_id', u.id).single(),
       ]).then(async ([eventsRes, connectionsRes, inviteRes]) => {
         setEvents(eventsRes.data || [])
         setEventsLoading(false)
@@ -297,13 +320,14 @@ export default function CalendarClient() {
             if (friends?.length) setConnectedFriends(friends)
           }).catch(() => {})
         }
-        let code = inviteRes.data?.invite_code || ''
-        if (!code) {
+        let row = inviteRes.data
+        if (!row?.invite_code) {
           const { data: newInvite } = await supabase.from('calendar_invites')
-            .insert({ owner_id: u.id }).select('invite_code').single()
-          code = newInvite?.invite_code || ''
+            .insert({ owner_id: u.id }).select('*').single()
+          row = newInvite
         }
-        setInviteCode(code)
+        setInviteCode(row?.invite_code || '')
+        setFeedToken(row?.feed_token || '')
       }).catch(() => setEventsLoading(false))
 
       supabase.from('day_notes').select('id, date, text_note, drawing_data').then(({ data }) => {
@@ -684,7 +708,7 @@ export default function CalendarClient() {
           </div>
         )}
         {activeTab === 'friends' && (
-          <FriendsTab inviteCode={inviteCode} connectedCount={connectedCount} connectedFriends={connectedFriends} accent={theme.accent} dark={theme.dark} onDisconnect={disconnectFriend} />
+          <FriendsTab inviteCode={inviteCode} feedToken={feedToken} connectedCount={connectedCount} connectedFriends={connectedFriends} accent={theme.accent} dark={theme.dark} onDisconnect={disconnectFriend} />
         )}
         </div>
       </main>
