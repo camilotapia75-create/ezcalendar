@@ -298,6 +298,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
 
   const handleFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return
+    stopCamera()   // picked a photo — no need for the live camera anymore
     const reader = new FileReader()
     reader.onload = (e) => analyzeImage(e.target.result)
     reader.readAsDataURL(file)
@@ -523,7 +524,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
           <span className="text-xs text-white/30">Tap to capture</span>
           {/* Alternate inputs — camera is the default, these stay one tap away */}
           <div className="flex items-center gap-2 mt-1">
-            <button type="button" onClick={() => { stopCamera(); fileRef.current?.click() }}
+            <button type="button" onClick={() => fileRef.current?.click()}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-white/70"
               style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)' }}>
               <IconUpload /> Upload
@@ -540,6 +541,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
             </button>
           </div>
         </div>
+        {/* Mounted here too so the Upload pill can open the picker while the
+            camera view is showing (the main input isn't rendered in this branch) */}
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { handleFile(e.target.files[0]); e.target.value = '' }} />
       </div>
     )
   }
