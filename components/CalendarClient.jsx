@@ -558,14 +558,16 @@ export default function CalendarClient() {
     const cacheKey = `suggestedCache_${user.id}`
     try {
       const c = JSON.parse(localStorage.getItem(cacheKey) || 'null')
-      if (c && Date.now() - c.ts < 12 * 3600 * 1000) { setSuggestions(c.data || []); return }
+      // Only trust a cached result that actually had suggestions — an empty cache
+      // keeps refetching (so newly-added sources like a TM key show up next open).
+      if (c && c.data?.length && Date.now() - c.ts < 12 * 3600 * 1000) { setSuggestions(c.data); return }
     } catch {}
     fetch('/api/suggested').then(async r => {
       if (!r.ok) return
       const d = await r.json()
       const s = d.suggestions || []
       setSuggestions(s)
-      try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: s })) } catch {}
+      if (s.length) { try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: s })) } catch {} }
     }).catch(() => {})
   }, [user])
 
