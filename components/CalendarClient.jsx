@@ -571,6 +571,22 @@ export default function CalendarClient() {
     }).catch(() => {})
   }, [user])
 
+  // Open a suggestion in the same detail popup as a pinned event (details, link,
+  // Add to Calendar) — with a "Pin to my calendar" action instead of delete.
+  const openSuggestion = (s) => setModal({
+    type: 'suggestion',
+    raw: s,
+    event: {
+      title: s.title,
+      date: s.date,
+      end_date: null,
+      time_str: s.time_str || '',
+      location: [s.venue, s.city].filter(Boolean).join(', '),
+      image_url: s.image || null,
+      source_url: s.url || null,
+    },
+  })
+
   const pinSuggestion = async (s) => {
     setSuggestions(prev => {
       const next = prev.filter(x => !(x.title === s.title && x.date === s.date))
@@ -751,7 +767,7 @@ export default function CalendarClient() {
           </div>
         )}
         {activeTab === 'feed' && (
-          <FeedView events={visibleEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} suggestions={calFilter === 'mine' ? suggestions : []} onPinSuggested={pinSuggestion} />
+          <FeedView events={visibleEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} suggestions={calFilter === 'mine' ? suggestions : []} onPinSuggested={pinSuggestion} onSuggestionTap={openSuggestion} />
         )}
         {activeTab === 'calendar' && (
           <div style={{ padding: '16px 12px 8px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
@@ -828,6 +844,15 @@ export default function CalendarClient() {
           onDeleteOccurrence={deleteOccurrence}
           reminderOn={isEventOn(modal.event.id)}
           onToggleReminder={() => toggleEventNotif(modal.event.id)}
+        />
+      )}
+      {modal?.type === 'suggestion' && (
+        <EventDetailModal
+          event={modal.event}
+          accent={theme.accent}
+          onClose={() => setModal(null)}
+          suggestion
+          onPin={() => pinSuggestion(modal.raw)}
         />
       )}
     </div>

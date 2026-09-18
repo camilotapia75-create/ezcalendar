@@ -314,7 +314,7 @@ const SLIDESHOW_GROUPS = new Set(['Today', 'This Week'])
 
 // "Suggested for you" — real local events (Ticketmaster + popular community pins)
 // ranked by taste. A horizontal row above the feed with a one-tap Pin.
-function SuggestedRow({ items, accent, onPin }) {
+function SuggestedRow({ items, accent, onPin, onOpen }) {
   const [pinning, setPinning] = React.useState(null)
   const [dt] = React.useState(() => (dateStr) => {
     try { return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) } catch { return dateStr }
@@ -328,7 +328,7 @@ function SuggestedRow({ items, accent, onPin }) {
       </div>
       <div className="hide-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 4px' }}>
         {items.map((s, i) => (
-          <div key={i} style={{ flexShrink: 0, width: 220, borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column' }}>
+          <div key={i} onClick={() => onOpen?.(s)} style={{ flexShrink: 0, width: 220, borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
             <div style={{ position: 'relative', paddingTop: '66%', background: s.image ? '#000' : 'linear-gradient(150deg, #d4f560, #8fbf2e)' }}>
               {s.image && <img src={s.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
               {s.community && (
@@ -339,7 +339,7 @@ function SuggestedRow({ items, accent, onPin }) {
               <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{s.title}</p>
               <p className="mono-label" style={{ margin: 0, fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.05em' }}>{dt(s.date)}{s.venue ? ` · ${s.venue}` : ''}</p>
               {s.reason && <p style={{ margin: '2px 0 0', fontSize: 12, color: accent, fontWeight: 600, lineHeight: 1.3 }}>{s.reason}</p>}
-              <button onClick={() => { setPinning(i); Promise.resolve(onPin(s)).catch(() => setPinning(null)) }} disabled={pinning === i}
+              <button onClick={(e) => { e.stopPropagation(); setPinning(i); Promise.resolve(onPin(s)).catch(() => setPinning(null)) }} disabled={pinning === i}
                 className="btn-lime" style={{ marginTop: 'auto', padding: '9px', fontSize: 13, borderRadius: 11, opacity: pinning === i ? 0.6 : 1 }}>
                 {pinning === i ? 'Pinning…' : '📌 Pin it'}
               </button>
@@ -351,7 +351,7 @@ function SuggestedRow({ items, accent, onPin }) {
   )
 }
 
-export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading, suggestions = [], onPinSuggested }) {
+export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading, suggestions = [], onPinSuggested, onSuggestionTap }) {
   const groups = getGroups(events)
   const [showPast, setShowPast] = React.useState(false)
 
@@ -384,7 +384,7 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
   let cardIndex = 0
   return (
     <div style={{ padding: '12px 0 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
-      {onPinSuggested && <SuggestedRow items={suggestions} accent={accent} onPin={onPinSuggested} />}
+      {onPinSuggested && <SuggestedRow items={suggestions} accent={accent} onPin={onPinSuggested} onOpen={onSuggestionTap} />}
       {groups.map((group, gi) => {
         const useSlide = SLIDESHOW_GROUPS.has(group.label) && !group.past
         const collapsed = group.past && !showPast

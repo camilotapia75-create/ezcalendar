@@ -32,7 +32,7 @@ function MetaRow({ icon, label, children }) {
   )
 }
 
-export default function EventDetailModal({ event, accent = '#c6f24e', onClose, onDelete, onDeleteOccurrence, reminderOn, onToggleReminder }) {
+export default function EventDetailModal({ event, accent = '#c6f24e', onClose, onDelete, onDeleteOccurrence, reminderOn, onToggleReminder, suggestion = false, onPin }) {
   const bodyRef = useRef(null)
   const [showCal, setShowCal] = useState(false)
   // Open already scrolled to the details so time/location are visible without
@@ -144,6 +144,13 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
                 Apple / .ics
               </a>
             </div>
+          )}
+          {/* Suggested (not yet pinned) — primary action is to pin it */}
+          {suggestion && onPin && (
+            <button onClick={() => { onPin(); onClose() }} className="btn-lime"
+              style={{ width: '100%', padding: '14px', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              📌 Pin to my calendar
+            </button>
           )}
           {onToggleReminder !== undefined && (
             <button onClick={onToggleReminder} className={reminderOn ? 'btn-lime' : 'btn-dark'}
