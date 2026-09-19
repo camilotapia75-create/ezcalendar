@@ -214,6 +214,7 @@ export default function CalendarClient() {
   const [inviteCode, setInviteCode]   = useState('')
   const [feedToken, setFeedToken]     = useState('')
   const [suggestions, setSuggestions] = useState([])
+  const [suggestMeta, setSuggestMeta] = useState(null)  // { reason, city } for diagnostics/empty-state
   const [connectedCount, setConnectedCount] = useState(0)
   const [connectedFriends, setConnectedFriends] = useState([])
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -563,12 +564,13 @@ export default function CalendarClient() {
       if (c && c.data?.length && Date.now() - c.ts < 12 * 3600 * 1000) { setSuggestions(c.data); return }
     } catch {}
     fetch('/api/suggested').then(async r => {
-      if (!r.ok) return
+      if (!r.ok) { setSuggestMeta({ reason: `http_${r.status}` }); return }
       const d = await r.json()
       const s = d.suggestions || []
       setSuggestions(s)
+      setSuggestMeta({ reason: d.reason || (s.length ? 'ok' : 'empty'), city: d.city || null })
       if (s.length) { try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: s })) } catch {} }
-    }).catch(() => {})
+    }).catch(() => setSuggestMeta({ reason: 'fetch_error' }))
   }, [user])
 
   // Open a suggestion in the same detail popup as a pinned event (details, link,
@@ -767,7 +769,7 @@ export default function CalendarClient() {
           </div>
         )}
         {activeTab === 'feed' && (
-          <FeedView events={visibleEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} suggestions={calFilter === 'mine' ? suggestions : []} onPinSuggested={pinSuggestion} onSuggestionTap={openSuggestion} />
+          <FeedView events={visibleEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} suggestions={calFilter === 'mine' ? suggestions : []} onPinSuggested={pinSuggestion} onSuggestionTap={openSuggestion} suggestMeta={suggestMeta} />
         )}
         {activeTab === 'calendar' && (
           <div style={{ padding: '16px 12px 8px', maxWidth: 900, margin: '0 auto', width: '100%' }}>

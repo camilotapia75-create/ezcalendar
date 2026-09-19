@@ -351,7 +351,7 @@ function SuggestedRow({ items, accent, onPin, onOpen }) {
   )
 }
 
-export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading, suggestions = [], onPinSuggested, onSuggestionTap }) {
+export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading, suggestions = [], onPinSuggested, onSuggestionTap, suggestMeta }) {
   const groups = getGroups(events)
   const [showPast, setShowPast] = React.useState(false)
 
@@ -384,7 +384,26 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
   let cardIndex = 0
   return (
     <div style={{ padding: '12px 0 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
-      {onPinSuggested && <SuggestedRow items={suggestions} accent={accent} onPin={onPinSuggested} onOpen={onSuggestionTap} />}
+      {onPinSuggested && suggestions.length > 0 && (
+        <SuggestedRow items={suggestions} accent={accent} onPin={onPinSuggested} onOpen={onSuggestionTap} />
+      )}
+      {onPinSuggested && suggestions.length === 0 && suggestMeta && suggestMeta.reason !== 'no_pins' && (
+        <div style={{ margin: '0 16px 26px', padding: '14px 16px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="mono-label" style={{ margin: '0 0 6px', fontSize: 11, letterSpacing: '0.16em', color: accent }}>✨ SUGGESTED FOR YOU</p>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
+            {suggestMeta.reason === 'no_city'
+              ? "Pin an event with a city in its location (like “Oakland, CA”) and we'll suggest local events."
+              : suggestMeta.reason === 'no_source'
+                ? 'Suggestions source isn\'t configured yet.'
+                : suggestMeta.city
+                  ? `No listings near ${suggestMeta.city} right now — check back soon.`
+                  : "Nothing to suggest yet — pin a few events and we'll learn your taste."}
+          </p>
+          <p className="mono-label" style={{ margin: '8px 0 0', fontSize: 9, letterSpacing: '0.06em', color: 'var(--text-3)' }}>
+            {suggestMeta.reason || '—'}{suggestMeta.city ? ` · ${suggestMeta.city}` : ''}
+          </p>
+        </div>
+      )}
       {groups.map((group, gi) => {
         const useSlide = SLIDESHOW_GROUPS.has(group.label) && !group.past
         const collapsed = group.past && !showPast
