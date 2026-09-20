@@ -12,13 +12,23 @@ const US_STATES = new Set([
   'al','ak','az','ar','ca','co','ct','de','fl','ga','hi','id','il','in','ia','ks','ky','la','me','md','ma','mi','mn','ms','mo','mt','ne','nv','nh','nj','nm','ny','nc','nd','oh','ok','or','pa','ri','sc','sd','tn','tx','ut','vt','va','wa','wv','wi','wy',
   'california','new york','texas','oregon','washington','nevada','arizona','illinois','florida','georgia',
 ])
+// Segments that are street addresses / venues, not cities ("100 2nd St", "1822 Telegraph Ave")
+const STREET_SUFFIX = /\b(st|street|ave|avenue|blvd|boulevard|rd|road|dr|drive|ln|lane|way|ct|court|pl|place|sq|square|hwy|highway|pkwy|parkway|ste|suite|fl|floor|unit|apt|rm|room)\.?$/i
+const looksLikeAddress = (s) => /\d/.test(s) || STREET_SUFFIX.test(String(s).trim())
+
 function cityFrom(loc) {
   const parts = String(loc || '').split(',').map(s => s.trim()).filter(Boolean)
   if (!parts.length) return null
-  let idx = parts.length - 1
-  const last = parts[idx].toLowerCase().replace(/\b\d{5}(-\d{4})?\b/, '').trim()
-  if ((US_STATES.has(last) || /^\d{5}/.test(parts[idx])) && parts.length >= 2) idx = parts.length - 2
-  return parts[idx] || null
+  const lastRaw = parts[parts.length - 1]
+  const last = lastRaw.toLowerCase().replace(/\b\d{5}(-\d{4})?\b/, '').trim()
+  // "…, City, ST" → the token before the state is the city
+  if ((US_STATES.has(last) || /^\d{5}/.test(lastRaw)) && parts.length >= 2) {
+    const c = parts[parts.length - 2]
+    return looksLikeAddress(c) ? null : c
+  }
+  // No state — the last token is the best city guess, unless it's a street/venue
+  const c = parts[parts.length - 1]
+  return looksLikeAddress(c) ? null : c
 }
 
 function fmtTime(t) {
@@ -77,9 +87,14 @@ export async function GET() {
     .from('events').select('title, location').eq('user_id', user.id)
   if (!events?.length) return NextResponse.json({ suggestions: [], reason: 'no_pins' })
 
-  // Infer the user's city from where they actually pin events
+  // Infer the user's city from where they actually pin events — count each
+  // distinct location once so a recurring series doesn't dominate the vote.
   const tally = {}
+  const seenLoc = new Set()
   for (const e of events) {
+    const locNorm = String(e.location || '').trim().toLowerCase()
+    if (!locNorm || seenLoc.has(locNorm)) continue
+    seenLoc.add(locNorm)
     const c = cityFrom(e.location)
     if (c) tally[c] = (tally[c] || 0) + 1
   }
