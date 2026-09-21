@@ -404,9 +404,6 @@ export default function CalendarClient() {
   useEffect(() => {
     let baseline = null
     let lastCheck = 0
-    const alreadyReloaded = () => {
-      try { return sessionStorage.getItem('ezcal_update_reloaded') === '1' } catch { return false }
-    }
     const check = async () => {
       if (Date.now() - lastCheck < 60000) return
       lastCheck = Date.now()
@@ -415,10 +412,17 @@ export default function CalendarClient() {
         const { v } = await res.json()
         if (!v || v === 'dev') return
         if (baseline === null) { baseline = v; return }
-        if (v !== baseline && !alreadyReloaded()) {
-          try { sessionStorage.setItem('ezcal_update_reloaded', '1') } catch {}
-          window.location.reload()
-        }
+        if (v === baseline) return
+        // A new deploy — reload once to pick it up. Two hard guards against a
+        // loop: never reload for the SAME target version twice, and never reload
+        // more than once every 2 minutes (covers the post-deploy window where
+        // Vercel's edge briefly flip-flops the SHA between instances).
+        let last = null
+        try { last = JSON.parse(localStorage.getItem('ezcal_last_reload') || 'null') } catch {}
+        const now = Date.now()
+        if (last && (last.v === v || now - last.t < 120000)) return
+        try { localStorage.setItem('ezcal_last_reload', JSON.stringify({ v, t: now })) } catch {}
+        window.location.reload()
       } catch {}
     }
     check()
