@@ -236,6 +236,9 @@ export default function CalendarClient() {
   const [calFilter, setCalFilter]       = useState('mine')
   const [samplesDismissed, setSamplesDismissed] = useState(false)
   const swRegRef = useRef(null)
+  // True once the user has added events this session. Guards against a slow
+  // initial load resolving AFTER an add and overwriting the new rows.
+  const addedThisSession = useRef(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -351,7 +354,15 @@ export default function CalendarClient() {
           .or(`user_a_id.eq.${u.id},user_b_id.eq.${u.id}`),
         supabase.from('calendar_invites').select('*').eq('owner_id', u.id).single(),
       ]).then(async ([eventsRes, connectionsRes, inviteRes]) => {
-        setEvents(eventsRes.data || [])
+        // If the user already added something while this (cold) load was in
+        // flight, its query predates the insert — re-fetch so we don't clobber
+        // the new rows. Otherwise use the result we already have.
+        if (addedThisSession.current) {
+          const { data: fresh } = await supabase.from('events').select('*').order('date', { ascending: true })
+          setEvents(fresh || eventsRes.data || [])
+        } else {
+          setEvents(eventsRes.data || [])
+        }
         setEventsLoading(false)
         const count = connectionsRes.data?.length || 0
         setConnectedCount(count)
@@ -545,17 +556,28 @@ export default function CalendarClient() {
     const items = Array.isArray(eventData) ? eventData : [eventData]
     const inserted = []
     for (const item of items) inserted.push(await insertOne(item))
+    addedThisSession.current = true
     setEvents(prev => [...prev, ...inserted])
+    // Point the month grid at the first new event so it's there if the user
+    // switches to the grid…
     const firstDate = items[0]?.date
     if (firstDate) {
       const [year, month] = firstDate.split('-').map(Number)
       setCurrentDate(new Date(year, month - 1, 1))
     }
     setModal(null)
+    // …but LAND them on the feed, where every event shows in one list regardless
+    // of month. Jumping the grid to a far-future month (e.g. a 2027 festival) made
+    // it look like everything else had vanished.
+    setActiveTab('feed')
     if (opts.auto && inserted.length) {
       setUndoData({ ids: inserted.map(e => e.id), label: inserted[0]?.title || 'Event' })
       clearTimeout(undoTimer.current)
       undoTimer.current = setTimeout(() => setUndoData(null), 7000)
+    } else if (inserted.length > 1) {
+      showToast(`✅ Added ${inserted.length} dates — they're all here in your feed`)
+    } else if (inserted.length === 1) {
+      showToast('✅ Added to your calendar')
     }
   }
 
