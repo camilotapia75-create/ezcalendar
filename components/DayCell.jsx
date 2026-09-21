@@ -1,3 +1,5 @@
+import { thumb, thumbFallback } from '@/lib/img'
+
 // One calendar day: a rounded square. Event days with a flyer show it as the cell
 // background; event days without a flyer fill the cell with the event title;
 // empty days are a plain dark surface.
@@ -37,7 +39,7 @@ export default function DayCell({ day, currentMonth, isToday, events, hasNote, o
     >
       {img && (
         <>
-          <img src={img} alt={ev.title || ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={thumb(img, 220)} onError={thumbFallback(img)} decoding="async" loading="lazy" alt={ev.title || ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 42%, transparent 68%, rgba(0,0,0,0.4) 100%)' }} />
         </>
       )}

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { googleCalUrl, icsHref } from '@/lib/calendarExport'
+import { thumb, thumbFallback } from '@/lib/img'
 
 // Shared "no flyer" fill — a lime gradient that fades into the surface. Used
 // everywhere an event lacks an image so the look is identical across the app.
@@ -80,7 +81,7 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
           {/* Hero — flyer image, or striped gradient with the title */}
           <div style={{ position: 'relative' }}>
             {event.image_url ? (
-              <img src={event.image_url} alt={event.title || ''} onLoad={scrollToDetails} style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover' }} />
+              <img src={thumb(event.image_url, 900)} onError={thumbFallback(event.image_url)} decoding="async" alt={event.title || ''} onLoad={scrollToDetails} style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover' }} />
             ) : (
               <div style={{ width: '100%', height: 230, background: NO_FLYER_BG, position: 'relative', display: 'flex', alignItems: 'flex-end', padding: '22px 24px' }}>
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: 34, fontWeight: 700, color: '#0a0a0b', lineHeight: 1.08, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', paddingBottom: 2 }}>{event.title || 'Event'}</span>

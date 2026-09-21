@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { thumb, thumbFallback } from '@/lib/img'
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -129,9 +130,11 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0, inSli
             }} />
           )}
           <img
-            src={event.image_url}
+            src={thumb(event.image_url, 700)}
             alt={event.title || ''}
-            onError={() => setImgFailed(true)}
+            decoding="async"
+            loading="lazy"
+            onError={(e) => { const raw = event.image_url; if (e.currentTarget.src !== raw && !e.currentTarget.dataset.rawTried) { e.currentTarget.dataset.rawTried = '1'; e.currentTarget.src = raw } else setImgFailed(true) }}
             onLoad={() => setImgLoaded(true)}
             style={{
               position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
@@ -356,7 +359,7 @@ function SuggestedRow({ items, accent, onPin, onOpen }) {
         {items.map((s, i) => (
           <div key={i} onClick={() => onOpen?.(s)} style={{ flexShrink: 0, width: 148, borderRadius: 13, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
             <div style={{ position: 'relative', paddingTop: '66%', background: s.image ? '#000' : 'linear-gradient(150deg, #d4f560, #8fbf2e)' }}>
-              {s.image && <img src={s.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+              {s.image && <img src={thumb(s.image, 340)} onError={thumbFallback(s.image)} decoding="async" loading="lazy" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
               {s.community && (
                 <span className="mono-label" style={{ position: 'absolute', top: 6, left: 6, fontSize: 8, letterSpacing: '0.04em', color: '#0a0a0b', background: accent, borderRadius: 999, padding: '2px 6px', fontWeight: 800 }}>🔥 {s.count}</span>
               )}

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { thumb, thumbFallback } from '@/lib/img'
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -431,7 +432,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                   style={{ position: 'relative', display: 'flex', flexDirection: 'column', background: '#fff', border: '3px solid #fff', boxShadow: '0 6px 24px rgba(0,0,0,0.22)', transform: shown.length === 1 ? `rotate(${rots[idx]}deg)` : 'none', transformOrigin: 'top center', cursor: writeMode ? 'default' : 'pointer', userSelect: 'none', WebkitTapHighlightColor: 'transparent', zIndex: writeMode ? 'auto' : 28 }}>
                   <Pin />
                   {event.image_url
-                    ? <img src={event.image_url} alt={event.title || ''} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }} />
+                    ? <img src={thumb(event.image_url, 500)} onError={thumbFallback(event.image_url)} decoding="async" loading="lazy" alt={event.title || ''} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block' }} />
                     : <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'linear-gradient(145deg, #d4f560 0%, #bcea47 42%, #8fbf2e 100%)' }}><p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 23, fontWeight: 700, color: '#0a0a0b', lineHeight: 1.12, letterSpacing: '-0.02em', textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{event.title}</p></div>
                   }
                   <div style={{ flexShrink: 0, padding: '5px 7px 7px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
