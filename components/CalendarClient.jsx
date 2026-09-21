@@ -10,6 +10,7 @@ import FeedView from './FeedView'
 import EventDetailModal from './EventDetailModal'
 import Portal from './Portal'
 import Wordmark from './Wordmark'
+import ErrorBoundary from './ErrorBoundary'
 
 // The Push API requires applicationServerKey as a Uint8Array, NOT a base64 string.
 // Without this conversion pushManager.subscribe() throws and background push never works.
@@ -417,12 +418,15 @@ export default function CalendarClient() {
         // loop: never reload for the SAME target version twice, and never reload
         // more than once every 2 minutes (covers the post-deploy window where
         // Vercel's edge briefly flip-flops the SHA between instances).
-        let last = null
-        try { last = JSON.parse(localStorage.getItem('ezcal_last_reload') || 'null') } catch {}
-        const now = Date.now()
-        if (last && (last.v === v || now - last.t < 120000)) return
-        try { localStorage.setItem('ezcal_last_reload', JSON.stringify({ v, t: now })) } catch {}
-        window.location.reload()
+        // TEMPORARILY DISABLED while diagnosing the tab-toggle glitch: do NOT
+        // auto-reload, so we can tell whether the glitch is the reload or a
+        // render error (surfaced by the ErrorBoundary). Re-enable once fixed.
+        // let last = null
+        // try { last = JSON.parse(localStorage.getItem('ezcal_last_reload') || 'null') } catch {}
+        // const now = Date.now()
+        // if (last && (last.v === v || now - last.t < 120000)) return
+        // try { localStorage.setItem('ezcal_last_reload', JSON.stringify({ v, t: now })) } catch {}
+        // window.location.reload()
       } catch {}
     }
     check()
@@ -799,7 +803,8 @@ export default function CalendarClient() {
 
       {/* ── Content ── */}
       <main style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}>
-        <div key={activeTab} className="anim-tab">
+        <ErrorBoundary key={activeTab}>
+        <div className="anim-tab">
         {/* Calendar filter — only meaningful once friends are connected */}
         {connectedFriends.length > 0 && (activeTab === 'feed' || activeTab === 'calendar') && (
           <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -841,6 +846,7 @@ export default function CalendarClient() {
           <FriendsTab inviteCode={inviteCode} feedToken={feedToken} connectedCount={connectedCount} connectedFriends={connectedFriends} accent={theme.accent} dark={theme.dark} onDisconnect={disconnectFriend} />
         )}
         </div>
+        </ErrorBoundary>
       </main>
 
       {/* ── Bottom Nav ── */}
