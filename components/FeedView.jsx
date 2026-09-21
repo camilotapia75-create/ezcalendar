@@ -10,46 +10,21 @@ function parseLocalDate(str) {
   return new Date(y, m - 1, d)
 }
 
-// A self-contained flyer for the first-run sample card — no network fetch, so it
-// always renders and the app never looks "unfinished" on a brand-new account.
-const SAMPLE_FLYER =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#12140c"/><stop offset="1" stop-color="#1e2410"/></linearGradient></defs><rect width="800" height="600" fill="url(#g)"/><circle cx="640" cy="140" r="150" fill="#bcea47" opacity="0.18"/><circle cx="150" cy="500" r="120" fill="#bcea47" opacity="0.10"/><text x="60" y="150" font-family="Georgia,serif" font-size="30" fill="#bcea47" letter-spacing="8">LIVE • ROOFTOP</text><text x="60" y="250" font-family="Georgia,serif" font-weight="bold" font-size="76" fill="#f4f7ec">Sunset</text><text x="60" y="330" font-family="Georgia,serif" font-weight="bold" font-size="76" fill="#f4f7ec">Session</text><rect x="60" y="380" width="220" height="4" fill="#bcea47"/><text x="60" y="450" font-family="Helvetica,Arial,sans-serif" font-size="30" fill="#cdd3c2">7:30 PM · The Lookout</text><text x="60" y="500" font-family="Helvetica,Arial,sans-serif" font-size="26" fill="#9aa38b">Downtown</text></svg>`)
-
-// The single first-run sample event. Placed a few days out so it lands in an
-// upcoming bucket. id is a sentinel and it is NEVER written to Supabase.
-function makeSampleEvent() {
-  const d = new Date(); d.setDate(d.getDate() + 3)
-  const pad = n => String(n).padStart(2, '0')
-  return {
-    id: '__sample__',
-    sample: true,
-    title: 'Rooftop Live: Sunset Session',
-    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-    time_str: '7:30 PM',
-    location: 'The Lookout, Downtown',
-    image_url: SAMPLE_FLYER,
-  }
-}
-
-function SampleExplainer({ accent, onScan, onClose }) {
+// First-run demo banner — explains that the populated feed is sample content and
+// offers to clear it. Shown only while the client-side samples are on screen.
+function DemoBanner({ accent, onScan, onDismiss }) {
   return (
-    <div onClick={onClose} className="anim-backdrop"
-      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'var(--overlay)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} className="anim-modal"
-        style={{ width: '100%', maxWidth: 380, borderRadius: 24, background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)', padding: '26px 22px', textAlign: 'center' }}>
-        <div style={{ fontSize: 46, lineHeight: 1 }}>👋</div>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', margin: '12px 0 8px' }}>This one&apos;s just a sample</h2>
-        <p style={{ fontSize: 15, color: 'var(--text-2)', lineHeight: 1.55, margin: '0 0 18px' }}>
-          Your real events will look just like it. Snap a flyer — a poster, a screenshot, an Instagram post — and ezcalendar reads the date, time, and place automatically and pins it here. Tap any event to add it to Google or Apple Calendar.
-        </p>
-        <button onClick={() => { onClose(); onScan?.() }} className="btn-lime"
-          style={{ width: '100%', padding: '14px', fontSize: 17, cursor: 'pointer' }}>
-          📷 Scan your first flyer
+    <div style={{ margin: '4px 16px 20px', padding: '14px 16px', borderRadius: 16, background: 'var(--surface)', border: `1px solid ${accent}44` }}>
+      <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>👋 These are sample events</p>
+      <p style={{ margin: '0 0 12px', fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.5 }}>
+        So your calendar isn&apos;t empty. Tap one to see how it works — then snap your own flyer to replace them.
+      </p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={onScan} className="btn-lime" style={{ flex: 1, padding: '11px', fontSize: 14, cursor: 'pointer' }}>
+          📷 Scan a flyer
         </button>
-        <button onClick={onClose} className="btn-dark"
-          style={{ width: '100%', padding: '12px', fontSize: 14, fontWeight: 600, marginTop: 8, cursor: 'pointer' }}>
-          Got it
+        <button onClick={onDismiss} className="btn-dark" style={{ padding: '11px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          Clear samples
         </button>
       </div>
     </div>
@@ -377,22 +352,22 @@ function SuggestedRow({ items, accent, onPin, onOpen }) {
         <span className="mono-label" style={{ fontSize: 11, letterSpacing: '0.16em', color: accent, whiteSpace: 'nowrap' }}>✨ SUGGESTED FOR YOU</span>
         <div style={{ height: 1, background: 'var(--border)', flex: 1 }} />
       </div>
-      <div className="hide-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 4px' }}>
+      <div className="hide-scroll" style={{ display: 'flex', gap: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 4px' }}>
         {items.map((s, i) => (
-          <div key={i} onClick={() => onOpen?.(s)} style={{ flexShrink: 0, width: 220, borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
+          <div key={i} onClick={() => onOpen?.(s)} style={{ flexShrink: 0, width: 148, borderRadius: 13, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
             <div style={{ position: 'relative', paddingTop: '66%', background: s.image ? '#000' : 'linear-gradient(150deg, #d4f560, #8fbf2e)' }}>
               {s.image && <img src={s.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
               {s.community && (
-                <span className="mono-label" style={{ position: 'absolute', top: 8, left: 8, fontSize: 9, letterSpacing: '0.06em', color: '#0a0a0b', background: accent, borderRadius: 999, padding: '3px 8px', fontWeight: 800 }}>🔥 {s.count} PINNED</span>
+                <span className="mono-label" style={{ position: 'absolute', top: 6, left: 6, fontSize: 8, letterSpacing: '0.04em', color: '#0a0a0b', background: accent, borderRadius: 999, padding: '2px 6px', fontWeight: 800 }}>🔥 {s.count}</span>
               )}
             </div>
-            <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
-              <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{s.title}</p>
-              <p className="mono-label" style={{ margin: 0, fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.05em' }}>{dt(s.date)}{s.venue ? ` · ${s.venue}` : ''}</p>
-              {s.reason && <p style={{ margin: '2px 0 0', fontSize: 12, color: accent, fontWeight: 600, lineHeight: 1.3 }}>{s.reason}</p>}
+            <div style={{ padding: '8px 9px 9px', display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
+              <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.18, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{s.title}</p>
+              <p className="mono-label" style={{ margin: 0, fontSize: 9, color: 'var(--text-3)', letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dt(s.date)}{s.venue ? ` · ${s.venue}` : ''}</p>
+              {s.reason && <p style={{ margin: '1px 0 0', fontSize: 10.5, color: accent, fontWeight: 600, lineHeight: 1.25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{s.reason}</p>}
               <button onClick={(e) => { e.stopPropagation(); setPinning(i); Promise.resolve(onPin(s)).catch(() => setPinning(null)) }} disabled={pinning === i}
-                className="btn-lime" style={{ marginTop: 'auto', padding: '9px', fontSize: 13, borderRadius: 11, opacity: pinning === i ? 0.6 : 1 }}>
-                {pinning === i ? 'Pinning…' : '📌 Pin it'}
+                className="btn-lime" style={{ marginTop: 'auto', padding: '7px', fontSize: 11.5, borderRadius: 9, opacity: pinning === i ? 0.6 : 1 }}>
+                {pinning === i ? 'Pinning…' : '📌 Pin'}
               </button>
             </div>
           </div>
@@ -402,11 +377,9 @@ function SuggestedRow({ items, accent, onPin, onOpen }) {
   )
 }
 
-export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading, suggestions = [], onPinSuggested, onSuggestionTap, suggestMeta }) {
+export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading, suggestions = [], onPinSuggested, onSuggestionTap, suggestMeta, demo = false, onDismissDemo }) {
   const groups = getGroups(events)
   const [showPast, setShowPast] = React.useState(false)
-  const [sampleOpen, setSampleOpen] = React.useState(false)
-  const [sampleGone, setSampleGone] = React.useState(false)
 
   const headingColor = dark ? '#e2e8f0' : '#1a1a2e'
   const dividerColor = dark ? 'rgba(255,255,255,0.18)' : '#1a1a2e'
@@ -421,47 +394,15 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
   }
 
   if (events.length === 0) {
-    // Brand-new account. Rather than a bare screen, show a welcome with ONE
-    // clearly-badged sample card so the app looks alive and teaches the flow.
-    // The sample is client-only and disappears the moment a real event exists.
-    if (sampleGone) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100dvh - 130px)', padding: 40, textAlign: 'center', gap: 16 }}>
-          <div style={{ fontSize: 72, lineHeight: 1 }}>📸</div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', margin: 0 }}>Nothing pinned yet</h2>
-          <p style={{ fontSize: 17, color: 'var(--text-2)', margin: 0, maxWidth: 260, lineHeight: 1.5 }}>See a flyer? Snap it and it shows up here.</p>
-          <button onClick={onScan} className="btn-lime"
-            style={{ marginTop: 8, padding: '14px 30px', fontSize: 18, cursor: 'pointer' }}>
-            📷 Scan a flyer
-          </button>
-        </div>
-      )
-    }
-    const sample = makeSampleEvent()
     return (
-      <div style={{ padding: '20px 0 24px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
-        <div style={{ padding: '0 20px 4px', textAlign: 'center' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', margin: '4px 0 6px' }}>Welcome 👋</h2>
-          <p style={{ fontSize: 16, color: 'var(--text-2)', margin: '0 auto 4px', maxWidth: 320, lineHeight: 1.5 }}>
-            Here&apos;s what a pinned event looks like. Tap it to see how it works — then snap your own.
-          </p>
-        </div>
-        <div className="mono-label" style={{ padding: '14px 16px 6px', fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ whiteSpace: 'nowrap' }}>EXAMPLE</span>
-          <span style={{ height: 1, background: 'var(--border)', flex: 1 }} />
-        </div>
-        <div style={{ padding: '0 16px' }}>
-          <EventCard event={sample} accent={accent}
-            onTap={() => setSampleOpen(true)}
-            onDelete={() => setSampleGone(true)} />
-        </div>
-        <div style={{ padding: '18px 20px 0', textAlign: 'center' }}>
-          <button onClick={onScan} className="btn-lime"
-            style={{ padding: '15px 32px', fontSize: 18, cursor: 'pointer' }}>
-            📷 Scan your first flyer
-          </button>
-        </div>
-        {sampleOpen && <SampleExplainer accent={accent} onScan={onScan} onClose={() => setSampleOpen(false)} />}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100dvh - 130px)', padding: 40, textAlign: 'center', gap: 16 }}>
+        <div style={{ fontSize: 72, lineHeight: 1 }}>📸</div>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', margin: 0 }}>Nothing pinned yet</h2>
+        <p style={{ fontSize: 17, color: 'var(--text-2)', margin: 0, maxWidth: 260, lineHeight: 1.5 }}>See a flyer? Snap it and it shows up here.</p>
+        <button onClick={onScan} className="btn-lime"
+          style={{ marginTop: 8, padding: '14px 30px', fontSize: 18, cursor: 'pointer' }}>
+          📷 Scan a flyer
+        </button>
       </div>
     )
   }
@@ -469,6 +410,7 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
   let cardIndex = 0
   return (
     <div style={{ padding: '12px 0 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
+      {demo && <DemoBanner accent={accent} onScan={onScan} onDismiss={onDismissDemo} />}
       {onPinSuggested && suggestions.length > 0 && (
         <SuggestedRow items={suggestions} accent={accent} onPin={onPinSuggested} onOpen={onSuggestionTap} />
       )}

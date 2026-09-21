@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { makeSampleEvents, makeSampleSuggestion } from '@/lib/sampleEvents'
 import Calendar from './Calendar'
 import AddFlyerModal from './AddFlyerModal'
 import DayView from './DayView'
@@ -233,6 +234,7 @@ export default function CalendarClient() {
   const [notifEvents, setNotifEvents]   = useState({})
   // 'mine' = just your events; 'shared' = yours + connected friends' together
   const [calFilter, setCalFilter]       = useState('mine')
+  const [samplesDismissed, setSamplesDismissed] = useState(false)
   const swRegRef = useRef(null)
   const router = useRouter()
   const supabase = createClient()
@@ -240,6 +242,20 @@ export default function CalendarClient() {
   const visibleEvents = !user
     ? []
     : calFilter === 'shared' ? events : events.filter(e => e.user_id === user.id)
+
+  // First-run demo: when a signed-in user's feed would otherwise be empty, show
+  // client-only sample events + one sample suggestion so the app looks alive and
+  // teaches the flow. They are NEVER written to Supabase, and disappear the
+  // moment a real event exists or the user clears them.
+  const showSamples = !!user && !eventsLoading && visibleEvents.length === 0 && !samplesDismissed
+  const sampleEvents = useMemo(() => (showSamples ? makeSampleEvents() : []), [showSamples])
+  const sampleSuggestion = useMemo(() => (showSamples ? makeSampleSuggestion() : null), [showSamples])
+  const feedEvents = showSamples ? sampleEvents : visibleEvents
+  const feedSuggestions = showSamples ? [sampleSuggestion] : (calFilter === 'mine' ? suggestions : [])
+  const dismissSamples = () => {
+    setSamplesDismissed(true)
+    try { localStorage.setItem('samplesDismissed', '1') } catch {}
+  }
 
   const disconnectFriend = async (friendId) => {
     const [a, b] = user.id < friendId ? [user.id, friendId] : [friendId, user.id]
@@ -287,6 +303,7 @@ export default function CalendarClient() {
     // Local prefs (no auth needed) — apply immediately so the UI matches the user.
     setNotifEnabled(localStorage.getItem('notificationsEnabled') === 'true')
     try { setNotifEvents(JSON.parse(localStorage.getItem('eventNotifs') || '{}')) } catch {}
+    if (localStorage.getItem('samplesDismissed') === '1') setSamplesDismissed(true)
 
     // URL params (this page is static, so we read them on the client)
     const params = new URLSearchParams(window.location.search)
@@ -590,6 +607,8 @@ export default function CalendarClient() {
   })
 
   const pinSuggestion = async (s) => {
+    // The demo suggestion is a mockup — don't write it to the DB; nudge to scan.
+    if (s?.sample) { showToast("That's a sample — snap a real flyer to pin your own ✨"); setModal(null); return }
     setSuggestions(prev => {
       const next = prev.filter(x => !(x.title === s.title && x.date === s.date))
       if (user) { try { localStorage.setItem(`suggestedCache_${user.id}`, JSON.stringify({ ts: Date.now(), data: next })) } catch {} }
@@ -610,6 +629,8 @@ export default function CalendarClient() {
   // removing one "every Thursday" clears them all. Falls back to single-row
   // delete for one-off events (and when the series_id column doesn't exist yet).
   const deleteEvent = async (id) => {
+    // Sample cards aren't in the DB — removing one clears the whole demo.
+    if (typeof id === 'string' && id.startsWith('__sample')) { dismissSamples(); return }
     const seriesId = events.find(e => e.id === id)?.series_id
     if (seriesId) {
       await supabase.from('events').delete().eq('series_id', seriesId)
@@ -769,7 +790,7 @@ export default function CalendarClient() {
           </div>
         )}
         {activeTab === 'feed' && (
-          <FeedView events={visibleEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} suggestions={calFilter === 'mine' ? suggestions : []} onPinSuggested={pinSuggestion} onSuggestionTap={openSuggestion} suggestMeta={suggestMeta} />
+          <FeedView events={feedEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} suggestions={feedSuggestions} onPinSuggested={pinSuggestion} onSuggestionTap={openSuggestion} suggestMeta={showSamples ? null : suggestMeta} demo={showSamples} onDismissDemo={dismissSamples} />
         )}
         {activeTab === 'calendar' && (
           <div style={{ padding: '16px 12px 8px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
