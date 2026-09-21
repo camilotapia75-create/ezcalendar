@@ -1,5 +1,7 @@
 // Streamed instantly while the server component awaits auth + data, so a
 // home-screen PWA shows a branded shell immediately instead of a blank screen.
+import Wordmark from '@/components/Wordmark'
+
 export default function CalendarLoading() {
   return (
     <div
@@ -14,9 +16,7 @@ export default function CalendarLoading() {
         backgroundImage: 'radial-gradient(120% 55% at 50% -5%, #14170e 0%, #0a0a0b 55%)',
       }}
     >
-      <div style={{ fontFamily: 'var(--font-display), system-ui, sans-serif', fontSize: 30, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
-        📌 ezcalendar
-      </div>
+      <Wordmark size={30} color="#fff" pin />
       <div
         style={{
           width: 34, height: 34, borderRadius: '50%',

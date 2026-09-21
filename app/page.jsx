@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AuthForm from '@/components/AuthForm'
+import Wordmark from '@/components/Wordmark'
 
 // Fanned poster thumbnails pinned at the top of the hero
 const POSTERS = [
@@ -90,9 +91,8 @@ export default async function Home({ searchParams }) {
       </div>
 
       {/* Wordmark */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 4 }}>
-        <span style={{ fontSize: 20 }}>📌</span>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 24, color: '#fff', letterSpacing: '-0.02em' }}>ezcalendar</span>
+      <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
+        <Wordmark size={24} color="#fff" pin />
       </div>
 
       {/* Headline */}

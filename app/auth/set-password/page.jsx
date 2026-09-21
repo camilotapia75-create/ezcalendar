@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import Wordmark from '@/components/Wordmark'
 
 export default function SetPasswordPage() {
   const [password, setPassword] = useState('')
@@ -43,7 +44,7 @@ export default function SetPasswordPage() {
     >
       <div className="w-full max-w-xs">
         <div className="text-center mb-8">
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#fff', fontWeight: 700, marginBottom: 12, letterSpacing: '-0.02em' }}>🔑 ezcalendar</div>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Wordmark size={28} color="#fff" pin /></div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: '#fff', margin: '0 0 6px', letterSpacing: '-0.02em' }}>Set your password</h1>
           <p style={{ fontSize: 16, color: 'var(--text-2)', margin: 0 }}>You'll use this to sign in from now on</p>
         </div>

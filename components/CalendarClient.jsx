@@ -9,6 +9,7 @@ import DayView from './DayView'
 import FeedView from './FeedView'
 import EventDetailModal from './EventDetailModal'
 import Portal from './Portal'
+import Wordmark from './Wordmark'
 
 // The Push API requires applicationServerKey as a Uint8Array, NOT a base64 string.
 // Without this conversion pushManager.subscribe() throws and background push never works.
@@ -694,9 +695,7 @@ export default function CalendarClient() {
         alignItems: 'center', justifyContent: 'center', gap: 18,
         ...buildBg(),
       }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>
-          ezcalendar
-        </div>
+        <Wordmark size={32} accent={theme.accent} />
         <div style={{
           width: 32, height: 32, borderRadius: '50%',
           border: `3px solid ${theme.accent}30`, borderTopColor: theme.accent,
@@ -730,10 +729,7 @@ export default function CalendarClient() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'relative', zIndex: 50,
       }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ fontSize: 17 }}>📌</span>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: navActive, letterSpacing: '-0.02em' }}>ezcalendar</span>
-        </span>
+        <Wordmark size={22} color={navActive} accent={theme.accent} pin />
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button onClick={toggleColorScheme} title={colorScheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center', lineHeight: 1, color: navMuted }}>
