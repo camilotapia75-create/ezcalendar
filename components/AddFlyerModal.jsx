@@ -234,14 +234,24 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
     }
   }
 
-  // Camera-first: open straight into the viewfinder when the modal launches
-  // (unless it was opened to scan a shared link). If the camera can't start,
-  // the option menu shows instead.
+  // Camera-first, but only when we WON'T trigger a permission prompt: if the
+  // camera is already granted (desktop/Android, or iOS within the same session)
+  // we open straight into the viewfinder. Otherwise we leave the option menu up
+  // so merely opening "Add a flyer" never pops the OS permission dialog — the
+  // prompt only appears when the user taps "Use camera".
   useEffect(() => {
     if (initialUrl) return
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-      startCamera({ fallbackToFile: false })
-    }
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const status = await navigator.permissions?.query({ name: 'camera' })
+        if (!cancelled && status?.state === 'granted') startCamera({ fallbackToFile: false })
+      } catch {
+        // Permissions API unavailable (e.g. iOS Safari) — wait for an explicit tap.
+      }
+    })()
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

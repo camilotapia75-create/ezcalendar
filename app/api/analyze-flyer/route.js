@@ -6,7 +6,7 @@ function getPrompt() {
   return `Today is ${today}. Extract event details from this flyer image. Return ONLY one valid JSON object with these exact keys (null for anything not found):
 {
   "title": "event name or title. For a festival/faire/venue/series with a schedule of multiple dates, this is the OVERALL name (e.g. 'NorCal Renaissance Faire'), not one date's sub-theme.",
-  "date": "YYYY-MM-DD start date — when a day-of-week label (MON/TUE/WED/THU/FRI/SAT/SUN) appears with a day number and year but no explicit month name (e.g. 'MON 22, 2026' or 'MON ⚽ 22, 2026'), determine the correct month by finding which month in that year has that weekday on that day number. If the flyer shows a partial date like 'Jul 24' with no year, infer the nearest future year.",
+  "date": "YYYY-MM-DD start date — when a day-of-week label (MON/TUE/WED/THU/FRI/SAT/SUN) appears with a day number and year but no explicit month name (e.g. 'MON 22, 2026' or 'MON ⚽ 22, 2026'), determine the correct month by finding which month in that year has that weekday on that day number. See the YEAR rule below when no year is printed.",
   "end_date": "YYYY-MM-DD end date — ONLY for a CONTINUOUS multi-day run at one place (e.g. 'Jul 4-6'). null otherwise.",
   "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM' or '4-8PM')",
   "location": "venue name and/or city",
@@ -19,6 +19,8 @@ IMPORTANT — first decide the schedule type, then fill accordingly:
 2. CONTINUOUS RANGE (one event, consecutive days, same place, e.g. "Jul 4–6") → "date"=first, "end_date"=last; "occurrences" null.
 3. MULTIPLE DATES → list EVERY date in "occurrences"; set top-level date/time/location to the soonest one; "end_date" null. This covers BOTH the same event on several dates AND a festival/faire/venue/tour whose schedule spans many dates — even when each date has its OWN theme, guest, headliner, or sub-name. Those themed dates all belong to ONE event: put the overall event name in "title" and each date's sub-name in that occurrence's "label". A run of themed weekends (e.g. "Sept 19–20, Sept 26–27, Oct 3–4, …") = one occurrence per DAY (Sept 19, Sept 20, Sept 26, Sept 27, …).
 4. RECURRING (repeats weekly, e.g. "every Thursday") → set "recurrence"; "date" = soonest upcoming matching date; "end_date" and "occurrences" null.
+
+YEAR (when the flyer prints NO year): pick ONE year for the WHOLE flyer and apply it to every date. Choose the earliest year in which the LAST/latest date on the flyer is still today or later — i.e. so the schedule as a whole is upcoming, not already finished. Do NOT roll only the first date into a later year: a schedule running e.g. "Sept 19 – Oct 25", read on Sept 21, is THIS year (Sept 19 just passed but the run is ongoing), NOT next year. Only use next year when EVERY date on the flyer has already passed this year. Never assign different years to dates from the same flyer.
 
 COMPLETENESS: include EVERY date shown on the flyer. Never stop after the first. If the flyer lists N dates or date-ranges, "occurrences" must account for ALL of them (expanding ranges to individual days). Do not summarize or truncate the schedule.
 
