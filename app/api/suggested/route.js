@@ -147,9 +147,26 @@ async function fetchSeatgeek(city, sgKey) {
   return out
 }
 
-// Pull the readable text of a page (best-effort, bounded). Search snippets alone
-// almost never carry a concrete date, so the extractor needs real page text.
-async function fetchPageText(url, chars = 3500) {
+// Like stripHtml, but inlines each link's absolute target next to its text as
+// "Label [https://…]" so the extractor can attribute an event to its OWN page
+// (e.g. the specific Eventbrite event), not just the listing page it sat on.
+function htmlToTextWithLinks(html, baseUrl) {
+  let s = String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  s = s.replace(/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_m, href, inner) => {
+    const text = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    if (!text || /^https?:$/i.test(href) || href.startsWith('#') || href.startsWith('javascript:')) return ` ${text} `
+    let abs = href
+    try { abs = new URL(href, baseUrl).href } catch { return ` ${text} ` }
+    return ` ${text} [${abs}] `
+  })
+  return s.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim()
+}
+
+// Pull the readable text (with links) of a page — best-effort, bounded. Search
+// snippets alone almost never carry a concrete date, so we read the real page.
+async function fetchPageText(url, chars = 4000) {
   try {
     const r = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ezcalendar/1.0)', Accept: 'text/html' },
@@ -157,7 +174,7 @@ async function fetchPageText(url, chars = 3500) {
     })
     if (!r.ok) return ''
     if (!(r.headers.get('content-type') || '').includes('text/html')) return ''
-    return stripHtml(await r.text()).slice(0, chars)
+    return htmlToTextWithLinks(await r.text(), url).slice(0, chars)
   } catch { return '' }
 }
 
@@ -188,17 +205,18 @@ async function fetchWebEvents(city, taste, braveKey, aiKey) {
     const digest = pages.filter(Boolean).join('\n\n---\n\n').slice(0, 9000)
     if (!digest.trim()) return out
     const today = dayKey(new Date())
-    const prompt = `Today is ${today}. Below is text scraped from web pages that list local events in ${city}. Extract real, specific events that have a concrete future date you can actually read in the text (a weekday+day, a day+month, or a full date). Convert each to YYYY-MM-DD; if the year is missing use the nearest future occurrence. Do NOT invent events or dates — skip anything whose date isn't clearly in the text. Attribute each event to the SOURCE_URL of the page it came from. Return ONLY JSON: {"events":[{"title":"","date":"YYYY-MM-DD","time":"7:00 PM or null","venue":"or null","url":"source url","genre":"short label or null"}]} with up to 10 events, dates on or after ${today}.\n\n${digest}`
+    const prompt = `Today is ${today}. Below is text scraped from web pages that list local events in ${city}. Links appear inline as "Label [https://…]". Extract real, specific events that have a concrete future date you can actually read in the text (a weekday+day, a day+month, or a full date). Convert each to YYYY-MM-DD; if the year is missing use the nearest future occurrence. Do NOT invent events or dates — skip anything whose date isn't clearly in the text. For each event's "url", use the SPECIFIC link in brackets next to that event's title (its own event page); only fall back to the page's SOURCE_URL if the event has no specific link. Return ONLY JSON: {"events":[{"title":"","date":"YYYY-MM-DD","time":"7:00 PM or null","venue":"or null","url":"the event's own link","genre":"short label or null"}]} with up to 10 events, dates on or after ${today}.\n\n${digest}`
     const parsed = await geminiJson(prompt, aiKey, { timeout: 12000 })
     for (const e of (parsed?.events || [])) {
       if (!e?.title || !/^\d{4}-\d{2}-\d{2}$/.test(e.date || '') || e.date < today) continue
+      const url = /^https?:\/\//i.test(e.url || '') ? e.url : null
       out.push({
         title: String(e.title).slice(0, 140),
         date: e.date,
         time_str: e.time && e.time !== 'null' ? e.time : null,
         venue: e.venue && e.venue !== 'null' ? e.venue : null,
         city,
-        url: e.url || null,
+        url,
         image: null,
         genre: e.genre && e.genre !== 'null' ? e.genre : 'Around town',
         source: 'Web',
