@@ -174,7 +174,9 @@ async function fetchPageText(url, chars = 4000) {
     })
     if (!r.ok) return ''
     if (!(r.headers.get('content-type') || '').includes('text/html')) return ''
-    return htmlToTextWithLinks(await r.text(), url).slice(0, chars)
+    // Cap raw HTML before regex work so a giant page can't stall the request.
+    const html = (await r.text()).slice(0, 150000)
+    return htmlToTextWithLinks(html, url).slice(0, chars)
   } catch { return '' }
 }
 
@@ -293,11 +295,17 @@ export async function GET(request) {
   })()
 
   // ── Real listings from every source, in parallel ──
+  // The web lane does live page fetches + AI extraction, so cap it hard: if it
+  // isn't done in 14s it yields [] and never delays or fails the core sources.
+  const webLane = Promise.race([
+    fetchWebEvents(city, taste, process.env.BRAVE_SEARCH_API_KEY, aiKey),
+    new Promise(resolve => setTimeout(() => resolve([]), 14000)),
+  ]).catch(() => [])
   const [communityEvents, tmEvents, sgEvents, webEvents] = await Promise.all([
     community,
     fetchTicketmaster(city, process.env.TICKETMASTER_API_KEY),
     fetchSeatgeek(city, process.env.SEATGEEK_CLIENT_ID || process.env.SEATGEEK_API_KEY),
-    fetchWebEvents(city, taste, process.env.BRAVE_SEARCH_API_KEY, aiKey),
+    webLane,
   ])
   // Community first so it wins de-dupe ties (keeps the "🔥 N pinned" badge)
   for (const e of communityEvents) add(e)

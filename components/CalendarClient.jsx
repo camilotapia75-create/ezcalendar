@@ -657,21 +657,24 @@ export default function CalendarClient() {
       if (Array.isArray(d)) setDismissedSugg(d)
     } catch {}
     const cacheKey = `suggestedCache_${user.id}`
-    try {
-      const c = JSON.parse(localStorage.getItem(cacheKey) || 'null')
-      // Only trust a cached result that actually had suggestions — an empty cache
-      // keeps refetching (so newly-added sources like a TM key show up next open).
-      // Short TTL (4h) so the rotation refreshes through the day.
-      if (c && c.data?.length && Date.now() - c.ts < 4 * 3600 * 1000) { setSuggestions(c.data); return }
-    } catch {}
+    let cached = null
+    try { cached = JSON.parse(localStorage.getItem(cacheKey) || 'null') } catch {}
+    // Paint from cache immediately if it's fresh (short 4h TTL so rotation
+    // refreshes through the day) — but keep it around as a fallback either way.
+    if (cached?.data?.length) {
+      setSuggestions(cached.data)
+      if (Date.now() - cached.ts < 4 * 3600 * 1000) return
+    }
     fetch('/api/suggested').then(async r => {
-      if (!r.ok) { setSuggestMeta({ reason: `http_${r.status}` }); return }
+      if (!r.ok) { setSuggestMeta({ reason: `http_${r.status}` }); return }  // keep any cached data on screen
       const d = await r.json()
       const s = d.suggestions || []
-      setSuggestions(s)
+      // Never blank an existing list on a transient empty/failed refresh — only
+      // replace when we actually got results (or there was nothing cached).
+      if (s.length || !cached?.data?.length) setSuggestions(s)
       setSuggestMeta({ reason: d.reason || (s.length ? 'ok' : 'empty'), city: d.city || null })
       if (s.length) { try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: s })) } catch {} }
-    }).catch(() => setSuggestMeta({ reason: 'fetch_error' }))
+    }).catch(() => setSuggestMeta({ reason: 'fetch_error' }))  // keep any cached data on screen
   }, [user])
 
   // Open a suggestion in the same detail popup as a pinned event (details, link,
