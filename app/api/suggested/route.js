@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getGeminiUrls } from '@/lib/geminiModels'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 30
+export const maxDuration = 60
 
 // ── Location inference ──────────────────────────────────────────────────────
 // Pull a city out of a freeform flyer location ("Bloc15, Oakland, CA" → Oakland)
@@ -147,33 +147,49 @@ async function fetchSeatgeek(city, sgKey) {
   return out
 }
 
+// Pull the readable text of a page (best-effort, bounded). Search snippets alone
+// almost never carry a concrete date, so the extractor needs real page text.
+async function fetchPageText(url, chars = 3500) {
+  try {
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ezcalendar/1.0)', Accept: 'text/html' },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!r.ok) return ''
+    if (!(r.headers.get('content-type') || '').includes('text/html')) return ''
+    return stripHtml(await r.text()).slice(0, chars)
+  } catch { return '' }
+}
+
 // ── Source: open web (Brave Search + AI extraction) ─────────────────────────
 // The long-tail lane: warehouse parties, gallery openings, pop-ups that never
-// touch a ticketing API. We search, pull a few result pages, and have Gemini
-// EXTRACT events that are literally on the page — never invent. Anything without
-// a concrete future date in the text is dropped, so it can't hallucinate.
+// touch a ticketing API. We search, FETCH the top result pages, and have Gemini
+// EXTRACT events literally present in the page text — never invent. Anything
+// without a concrete future date in the text is dropped, so it can't hallucinate.
 async function fetchWebEvents(city, taste, braveKey, aiKey) {
   const out = []
   if (!braveKey || !aiKey) return out
   try {
-    const interests = taste.slice(0, 6).join(', ')
-    const q = `${city} events this week ${interests}`.trim()
+    const interests = taste.slice(0, 5).join(', ')
+    const q = `${city} events calendar this month ${interests}`.trim()
     const r = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=8&freshness=pw`,
-      { headers: { Accept: 'application/json', 'X-Subscription-Token': braveKey }, signal: AbortSignal.timeout(8000) }
+      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=10`,
+      { headers: { Accept: 'application/json', 'X-Subscription-Token': braveKey }, signal: AbortSignal.timeout(6000) }
     )
     if (!r.ok) return out
     const data = await r.json()
-    const results = (data?.web?.results || []).slice(0, 6)
-    // Feed Brave's own descriptions to the model first (cheap, no extra fetches)
-    const digest = results
-      .map(x => `URL: ${x.url}\nTITLE: ${stripHtml(x.title)}\nTEXT: ${stripHtml(x.description)}`)
-      .join('\n\n')
-      .slice(0, 6000)
+    const results = (data?.web?.results || []).slice(0, 3)
+    if (!results.length) return out
+    // Fetch the actual pages in parallel — this is where the real dates live.
+    const pages = await Promise.all(results.map(async (x) => {
+      const text = await fetchPageText(x.url)
+      return text ? `SOURCE_URL: ${x.url}\nPAGE: ${stripHtml(x.title)}\n${text}` : ''
+    }))
+    const digest = pages.filter(Boolean).join('\n\n---\n\n').slice(0, 9000)
     if (!digest.trim()) return out
     const today = dayKey(new Date())
-    const prompt = `Today is ${today}. Below are web search results about events in ${city}. Extract ONLY real, specific events that have a concrete future date stated in the text. Do NOT invent events, dates, or details — if a date isn't clearly present, skip it. Return ONLY JSON: {"events":[{"title":"","date":"YYYY-MM-DD","time":"7:00 PM or null","venue":"or null","url":"the source URL","genre":"short label or null"}]} with up to 8 events, dates on or after ${today}.\n\n${digest}`
-    const parsed = await geminiJson(prompt, aiKey, { timeout: 15000 })
+    const prompt = `Today is ${today}. Below is text scraped from web pages that list local events in ${city}. Extract real, specific events that have a concrete future date you can actually read in the text (a weekday+day, a day+month, or a full date). Convert each to YYYY-MM-DD; if the year is missing use the nearest future occurrence. Do NOT invent events or dates — skip anything whose date isn't clearly in the text. Attribute each event to the SOURCE_URL of the page it came from. Return ONLY JSON: {"events":[{"title":"","date":"YYYY-MM-DD","time":"7:00 PM or null","venue":"or null","url":"source url","genre":"short label or null"}]} with up to 10 events, dates on or after ${today}.\n\n${digest}`
+    const parsed = await geminiJson(prompt, aiKey, { timeout: 12000 })
     for (const e of (parsed?.events || [])) {
       if (!e?.title || !/^\d{4}-\d{2}-\d{2}$/.test(e.date || '') || e.date < today) continue
       out.push({
