@@ -195,7 +195,8 @@ async function fetchWebEvents(city, taste, braveKey, aiKey) {
 const dayKey = (d) => d.toISOString().split('T')[0]
 const normKey = (title, date) => `${String(title || '').toLowerCase().trim()}|${date}`
 
-export async function GET() {
+export async function GET(request) {
+  const debug = new URL(request.url).searchParams.get('debug')
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ suggestions: [] }, { status: 401 })
@@ -286,5 +287,25 @@ export async function GET() {
   }
 
   // Return a deep pool; the client rotates/dedupes/dismisses within it.
-  return NextResponse.json({ suggestions: suggestions.slice(0, 30), city })
+  const payload = { suggestions: suggestions.slice(0, 30), city }
+  if (debug) {
+    payload._debug = {
+      city,
+      keys: {
+        ticketmaster: !!process.env.TICKETMASTER_API_KEY,
+        seatgeek: !!(process.env.SEATGEEK_CLIENT_ID || process.env.SEATGEEK_API_KEY),
+        brave: !!process.env.BRAVE_SEARCH_API_KEY,
+        gemini: !!aiKey,
+      },
+      counts: {
+        community: communityEvents.length,
+        ticketmaster: tmEvents.length,
+        seatgeek: sgEvents.length,
+        web: webEvents.length,
+        candidates: candidates.length,
+      },
+      webSample: webEvents.slice(0, 5).map(e => `${e.date} · ${e.title}`),
+    }
+  }
+  return NextResponse.json(payload)
 }
