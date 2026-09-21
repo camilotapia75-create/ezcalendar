@@ -13,12 +13,28 @@ function Pin() {
 const PEN_COLORS = ['#ffffff', '#c6f24e', '#dc2626', '#2563eb', '#f59e0b', '#16a34a', '#db2777', '#1a1a2e']
 const rots = [-4, 4, -3, 3, -2, 2, -3, 3, -2]
 
+// Canvas can't read a CSS variable, so resolve the app's real (next/font)
+// family off the body once and reuse it — keeps typed notes in the app font
+// instead of a cursive fallback.
+let _appFontStack = null
+function appFontStack() {
+  if (_appFontStack) return _appFontStack
+  let stack = "'Plus Jakarta Sans', system-ui, sans-serif"
+  try {
+    const f = getComputedStyle(document.body).fontFamily
+    if (f && f.trim()) stack = f
+  } catch {}
+  _appFontStack = stack
+  return stack
+}
+const noteFont = (fontSize) => `700 ${fontSize}px ${appFontStack()}`
+
 // Replay vector ops onto a 2D context. Coordinates are fractions (0–1) of w/h.
 function replayOps(ctx, ops, w, h) {
   for (const op of (ops || [])) {
     if (op.type === 'text') {
       const fontSize = op.size * 9
-      ctx.font = `bold ${fontSize}px Caveat, cursive`
+      ctx.font = noteFont(fontSize)
       ctx.fillStyle = op.color
       ctx.fillText(op.text, op.x * w, op.y * h)
     } else {
@@ -269,7 +285,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const fontSize = penSizeRef.current * 9
-    ctx.font = `bold ${fontSize}px Caveat, cursive`
+    ctx.font = noteFont(fontSize)
     ctx.fillStyle = penColorRef.current
     const drawY = pt.y + fontSize * 0.8
     ctx.fillText(text, pt.x, drawY)
