@@ -463,7 +463,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         const events = chosenOccs.map(o => ({
           date: o.date,
           end_date: null,
-          title,
+          // Preserve each date's sub-theme when the flyer gave one
+          // (e.g. "NorCal Renaissance Faire — Pirate Invasion").
+          title: o.label ? (title ? `${title} — ${o.label}` : o.label) : title,
           location: o.location || location,
           time_str: o.time_str || timeStr,
           image_url,
@@ -551,11 +553,11 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-50 p-4 anim-backdrop" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-[20px] overflow-hidden anim-modal"
-        style={{ background: '#131316', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 12px 48px rgba(0,0,0,0.7)' }}
+        className="w-full max-w-md rounded-[20px] overflow-hidden anim-modal flex flex-col"
+        style={{ background: '#131316', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 12px 48px rgba(0,0,0,0.7)', maxHeight: '90dvh' }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center justify-between px-5 py-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <span className="text-[15px] font-semibold text-white">
             {!showForm
               ? (linkMode ? 'Paste a link' : 'Add a flyer')
@@ -573,7 +575,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
           </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-4 overflow-y-auto flex-1 min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
           {!showForm && !linkMode && (
             <div className="space-y-2">
               <button type="button" onClick={startCamera}
@@ -778,6 +780,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                             </span>
                             <span style={{ minWidth: 0, flex: 1 }}>
                               <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#fff' }}>{o.date ? formatNice(o.date) : 'Date?'}</span>
+                              {o.label && (
+                                <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#c6f24e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.label}</span>
+                              )}
                               <span style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {[o.time_str, o.location].filter(Boolean).join(' · ') || '—'}
                               </span>
@@ -836,7 +841,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                   </div>
                   <button type="submit" disabled={!canSubmit || uploading}
                     className="w-full py-3.5 rounded-2xl text-[15px] font-bold transition-all disabled:opacity-25 disabled:cursor-not-allowed active:scale-[0.98]"
-                    style={{ background: '#c6f24e', color: '#0a0a0b', fontFamily: 'var(--font-display)' }}
+                    style={{ background: '#c6f24e', color: '#0a0a0b', fontFamily: 'var(--font-display)', position: 'sticky', bottom: 0, zIndex: 2, boxShadow: '0 -8px 16px rgba(19,19,22,0.9)' }}
                   >
                     {uploading ? 'Saving…'
                       : recurring ? `Pin ${recurrenceLabel(recurrence.weekdays)}`

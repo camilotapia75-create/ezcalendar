@@ -3,24 +3,26 @@ import { getGeminiUrls } from '@/lib/geminiModels'
 
 function getPrompt() {
   const today = new Date().toISOString().split('T')[0]
-  return `Today is ${today}. Extract event details from this flyer image. Return ONLY valid JSON with these exact keys (null for anything not found):
+  return `Today is ${today}. Extract event details from this flyer image. Return ONLY one valid JSON object with these exact keys (null for anything not found):
 {
-  "title": "event name or title",
+  "title": "event name or title. For a festival/faire/venue/series with a schedule of multiple dates, this is the OVERALL name (e.g. 'NorCal Renaissance Faire'), not one date's sub-theme.",
   "date": "YYYY-MM-DD start date — when a day-of-week label (MON/TUE/WED/THU/FRI/SAT/SUN) appears with a day number and year but no explicit month name (e.g. 'MON 22, 2026' or 'MON ⚽ 22, 2026'), determine the correct month by finding which month in that year has that weekday on that day number. If the flyer shows a partial date like 'Jul 24' with no year, infer the nearest future year.",
   "end_date": "YYYY-MM-DD end date — ONLY for a CONTINUOUS multi-day run at one place (e.g. 'Jul 4-6'). null otherwise.",
   "time_str": "time range exactly as shown on the flyer (e.g. '7:30 PM' or '4-8PM')",
   "location": "venue name and/or city",
-  "occurrences": "null for single/continuous events. For SEPARATE occurrences (same event on multiple distinct dates, e.g. Jul 12 at one venue and Jul 17 at another), an array like [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\"}, ...] — one per date with its OWN time and venue.",
+  "occurrences": "null for single/continuous events. Otherwise an array of EVERY date the event happens: [{\\"date\\":\\"YYYY-MM-DD\\",\\"time_str\\":\\"...\\",\\"location\\":\\"...\\",\\"label\\":\\"that date's sub-theme/guest/name or null\\"}, ...]. One entry per calendar day — expand each listed weekend or 'Fri–Sun' range into its individual days.",
   "recurrence": "null unless the event REPEATS weekly (e.g. 'every Thursday', 'Thursdays'). If it does, {\\"frequency\\":\\"weekly\\",\\"weekdays\\":[\\"thursday\\"]} — lowercase full weekday names, include every weekday it repeats on."
 }
 
 IMPORTANT — first decide the schedule type, then fill accordingly:
 1. SINGLE date → set "date"; "end_date" null; "occurrences" null; "recurrence" null.
-2. CONTINUOUS RANGE (same event, consecutive days, same place) → "date"=first, "end_date"=last; "occurrences" null; "recurrence" null.
-3. SEPARATE OCCURRENCES (multiple non-consecutive dates and/or different venues per date) → DO NOT set end_date; list each in "occurrences"; set top-level date/time/location to the soonest one. Never turn separate occurrences into a date range.
-4. RECURRING (repeats weekly, e.g. "every Thursday") → set "recurrence" {"frequency":"weekly","weekdays":["thursday"]}; "date" = soonest upcoming matching date; "end_date" null; "occurrences" null.
+2. CONTINUOUS RANGE (one event, consecutive days, same place, e.g. "Jul 4–6") → "date"=first, "end_date"=last; "occurrences" null.
+3. MULTIPLE DATES → list EVERY date in "occurrences"; set top-level date/time/location to the soonest one; "end_date" null. This covers BOTH the same event on several dates AND a festival/faire/venue/tour whose schedule spans many dates — even when each date has its OWN theme, guest, headliner, or sub-name. Those themed dates all belong to ONE event: put the overall event name in "title" and each date's sub-name in that occurrence's "label". A run of themed weekends (e.g. "Sept 19–20, Sept 26–27, Oct 3–4, …") = one occurrence per DAY (Sept 19, Sept 20, Sept 26, Sept 27, …).
+4. RECURRING (repeats weekly, e.g. "every Thursday") → set "recurrence"; "date" = soonest upcoming matching date; "end_date" and "occurrences" null.
 
-If the flyer lists genuinely DIFFERENT events (not the same event on different dates), extract only the FIRST event.`
+COMPLETENESS: include EVERY date shown on the flyer. Never stop after the first. If the flyer lists N dates or date-ranges, "occurrences" must account for ALL of them (expanding ranges to individual days). Do not summarize or truncate the schedule.
+
+Only when the image combines clearly UNRELATED events with no shared umbrella (different organizers, no common festival/venue name) should you extract just the first event.`
 }
 
 // Extract the first syntactically complete JSON object using brace-depth tracking.
@@ -65,6 +67,15 @@ export async function POST(request) {
       { inlineData: { mimeType, data: base64 } },
       { text: getPrompt() },
     ]}],
+    // Deterministic extraction: temperature 0 removes the run-to-run variance
+    // that made multi-date flyers scan correctly only "sometimes". Forcing JSON
+    // output keeps the response a single object, and the big token ceiling gives
+    // long schedules (12+ dates) room so they aren't truncated.
+    generationConfig: {
+      temperature: 0,
+      responseMimeType: 'application/json',
+      maxOutputTokens: 8192,
+    },
   })
 
   const errors = []
