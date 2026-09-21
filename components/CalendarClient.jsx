@@ -518,7 +518,7 @@ export default function CalendarClient() {
   const getDayEvents = (date) => {
     if (!date) return []
     const key = [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-')
-    return visibleEvents.filter(e => e.end_date ? e.date <= key && e.end_date >= key : e.date === key)
+    return feedEvents.filter(e => e.end_date ? e.date <= key && e.end_date >= key : e.date === key)
   }
 
   // Insert one event, with graceful fallback when older DB schemas lack optional
@@ -797,7 +797,7 @@ export default function CalendarClient() {
             <Calendar
               currentDate={currentDate}
               setCurrentDate={setCurrentDate}
-              events={visibleEvents}
+              events={feedEvents}
               onDayClick={d => setModal({ type: 'dayview', date: d })}
               onEventClick={d => setModal({ type: 'dayview', date: d })}
               theme={theme}
