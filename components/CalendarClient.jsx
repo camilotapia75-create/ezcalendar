@@ -233,6 +233,7 @@ export default function CalendarClient() {
   const [notes, setNotes]               = useState({})
   const [activeTab, setActiveTab]       = useState('feed')
   const [colorScheme, setColorScheme]   = useState('dark')
+  const [buildV, setBuildV]             = useState('?')  // debug: shows the live build id
   const [notifEvents, setNotifEvents]   = useState({})
   // 'mine' = just your events; 'shared' = yours + connected friends' together
   const [calFilter, setCalFilter]       = useState('mine')
@@ -411,6 +412,7 @@ export default function CalendarClient() {
       try {
         const res = await fetch('/api/version', { cache: 'no-store' })
         const { v } = await res.json()
+        if (v) setBuildV(String(v).slice(0, 7))
         if (!v || v === 'dev') return
         if (baseline === null) { baseline = v; return }
         if (v === baseline) return
@@ -781,6 +783,11 @@ export default function CalendarClient() {
           </button>
         </div>
       </header>
+
+      {/* ── Debug badge (temporary) — screenshot this to report state ── */}
+      <div style={{ position: 'fixed', left: 6, bottom: 'calc(env(safe-area-inset-bottom) + 84px)', zIndex: 9998, fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.55)', padding: '2px 6px', borderRadius: 6, pointerEvents: 'none', letterSpacing: '0.02em' }}>
+        b:{buildV} · {events.length}ev{showSamples ? ' · demo' : ''} · {activeTab}
+      </div>
 
       {/* ── Toast ── */}
       {notifToast && (
