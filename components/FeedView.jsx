@@ -343,7 +343,7 @@ const SLIDESHOW_GROUPS = new Set(['Today', 'This Week'])
 
 // "Suggested for you" — real local events (Ticketmaster + popular community pins)
 // ranked by taste. A horizontal row above the feed with a one-tap Pin.
-function SuggestedRow({ items, accent, onPin, onOpen }) {
+function SuggestedRow({ items, accent, onPin, onOpen, onDismiss }) {
   const [pinning, setPinning] = React.useState(null)
   const [dt] = React.useState(() => (dateStr) => {
     try { return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) } catch { return dateStr }
@@ -357,19 +357,25 @@ function SuggestedRow({ items, accent, onPin, onOpen }) {
       </div>
       <div className="hide-scroll" style={{ display: 'flex', gap: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 4px' }}>
         {items.map((s, i) => (
-          <div key={i} onClick={() => onOpen?.(s)} style={{ flexShrink: 0, width: 148, borderRadius: 13, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
-            <div style={{ position: 'relative', paddingTop: '66%', background: s.image ? '#000' : 'linear-gradient(150deg, #d4f560, #8fbf2e)' }}>
-              {s.image && <img src={thumb(s.image, 340)} onError={thumbFallback(s.image)} decoding="async" loading="lazy" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+          <div key={i} onClick={() => onOpen?.(s)} style={{ flexShrink: 0, width: 124, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
+            <div style={{ position: 'relative', paddingTop: '64%', background: s.image ? '#000' : 'linear-gradient(150deg, #d4f560, #8fbf2e)' }}>
+              {s.image && <img src={thumb(s.image, 300)} onError={thumbFallback(s.image)} decoding="async" loading="lazy" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
               {s.community && (
-                <span className="mono-label" style={{ position: 'absolute', top: 6, left: 6, fontSize: 8, letterSpacing: '0.04em', color: '#0a0a0b', background: accent, borderRadius: 999, padding: '2px 6px', fontWeight: 800 }}>🔥 {s.count}</span>
+                <span className="mono-label" style={{ position: 'absolute', bottom: 5, left: 5, fontSize: 8, letterSpacing: '0.04em', color: '#0a0a0b', background: accent, borderRadius: 999, padding: '2px 6px', fontWeight: 800 }}>🔥 {s.count}</span>
+              )}
+              {onDismiss && (
+                <button onClick={(e) => { e.stopPropagation(); onDismiss(s) }} title="Not interested"
+                  style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 11, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                  ✕
+                </button>
               )}
             </div>
-            <div style={{ padding: '8px 9px 9px', display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
-              <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.18, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{s.title}</p>
-              <p className="mono-label" style={{ margin: 0, fontSize: 9, color: 'var(--text-3)', letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dt(s.date)}{s.venue ? ` · ${s.venue}` : ''}</p>
-              {s.reason && <p style={{ margin: '1px 0 0', fontSize: 10.5, color: accent, fontWeight: 600, lineHeight: 1.25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{s.reason}</p>}
+            <div style={{ padding: '7px 8px 8px', display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+              <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700, color: 'var(--text)', lineHeight: 1.16, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{s.title}</p>
+              <p className="mono-label" style={{ margin: 0, fontSize: 8.5, color: 'var(--text-3)', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dt(s.date)}{s.venue ? ` · ${s.venue}` : ''}</p>
+              {s.reason && <p style={{ margin: 0, fontSize: 10, color: accent, fontWeight: 600, lineHeight: 1.2, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{s.reason}</p>}
               <button onClick={(e) => { e.stopPropagation(); setPinning(i); Promise.resolve(onPin(s)).catch(() => setPinning(null)) }} disabled={pinning === i}
-                className="btn-lime" style={{ marginTop: 'auto', padding: '7px', fontSize: 11.5, borderRadius: 9, opacity: pinning === i ? 0.6 : 1 }}>
+                className="btn-lime" style={{ marginTop: 'auto', padding: '6px', fontSize: 11, borderRadius: 8, opacity: pinning === i ? 0.6 : 1 }}>
                 {pinning === i ? 'Pinning…' : '📌 Pin'}
               </button>
             </div>
@@ -380,7 +386,7 @@ function SuggestedRow({ items, accent, onPin, onOpen }) {
   )
 }
 
-export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading, suggestions = [], onPinSuggested, onSuggestionTap, suggestMeta, demo = false, onDismissDemo }) {
+export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading, suggestions = [], onPinSuggested, onSuggestionTap, onDismissSuggested, suggestMeta, demo = false, onDismissDemo }) {
   const groups = getGroups(events)
   const [showPast, setShowPast] = React.useState(false)
   // "Coming Up" (14+ days out) can be huge for heavy users — show a page at a
@@ -419,7 +425,7 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
     <div style={{ padding: '12px 0 20px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
       {demo && <DemoBanner accent={accent} onScan={onScan} onDismiss={onDismissDemo} />}
       {onPinSuggested && suggestions.length > 0 && (
-        <SuggestedRow items={suggestions} accent={accent} onPin={onPinSuggested} onOpen={onSuggestionTap} />
+        <SuggestedRow items={suggestions} accent={accent} onPin={onPinSuggested} onOpen={onSuggestionTap} onDismiss={onDismissSuggested} />
       )}
       {onPinSuggested && suggestions.length === 0 && suggestMeta && suggestMeta.reason !== 'no_pins' && (
         <div style={{ margin: '0 16px 26px', padding: '14px 16px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border)' }}>

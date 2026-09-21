@@ -58,6 +58,22 @@ const THEME = {
   dark: true,
 }
 
+// Stable identity for a suggested event (for dedupe / dismiss / already-pinned).
+const suggKey = (s) => `${String(s?.title || '').toLowerCase().trim()}|${s?.date || ''}`
+
+// Deterministic shuffle so the "Suggested" order changes day-to-day (rotation)
+// but stays stable within a day (no reshuffling on every render).
+function seededShuffle(arr, seed) {
+  const a = [...arr]
+  let s = seed % 233280 || 1
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (s * 9301 + 49297) % 233280
+    const j = Math.floor((s / 233280) * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 function buildBg() {
   return {
     background: 'var(--app-bg)',
@@ -217,6 +233,7 @@ export default function CalendarClient() {
   const [inviteCode, setInviteCode]   = useState('')
   const [feedToken, setFeedToken]     = useState('')
   const [suggestions, setSuggestions] = useState([])
+  const [dismissedSugg, setDismissedSugg] = useState([])  // persisted keys of suggestions the user hid
   const [suggestMeta, setSuggestMeta] = useState(null)  // { reason, city } for diagnostics/empty-state
   const [connectedCount, setConnectedCount] = useState(0)
   const [connectedFriends, setConnectedFriends] = useState([])
@@ -256,7 +273,30 @@ export default function CalendarClient() {
   const sampleEvents = useMemo(() => (showSamples ? makeSampleEvents() : []), [showSamples])
   const sampleSuggestion = useMemo(() => (showSamples ? makeSampleSuggestion() : null), [showSamples])
   const feedEvents = showSamples ? sampleEvents : visibleEvents
-  const feedSuggestions = showSamples ? [sampleSuggestion] : (calFilter === 'mine' ? suggestions : [])
+  // What the Suggested row actually shows: drop events the user already pinned
+  // or dismissed, rotate the pool by day for freshness, and cap the DOM.
+  const feedSuggestions = useMemo(() => {
+    if (showSamples) return [sampleSuggestion]
+    if (calFilter !== 'mine') return []
+    const dismissed = new Set(dismissedSugg)
+    const mine = new Set((user ? events.filter(e => e.user_id === user.id) : []).map(suggKey))
+    const pool = suggestions.filter(s => !dismissed.has(suggKey(s)) && !mine.has(suggKey(s)))
+    const daySeed = Math.floor(Date.now() / 86400000)
+    const KEEP_TOP = 3  // keep the AI's strongest picks pinned; rotate the rest
+    const rotated = [...pool.slice(0, KEEP_TOP), ...seededShuffle(pool.slice(KEEP_TOP), daySeed)]
+    return rotated.slice(0, 15)
+  }, [showSamples, sampleSuggestion, calFilter, suggestions, dismissedSugg, events, user])
+
+  const dismissSuggestion = (s) => {
+    if (!s || s.sample) return
+    const k = suggKey(s)
+    setDismissedSugg(prev => {
+      if (prev.includes(k)) return prev
+      const next = [...prev, k].slice(-400)
+      if (user) { try { localStorage.setItem(`dismissedSuggestions_${user.id}`, JSON.stringify(next)) } catch {} }
+      return next
+    })
+  }
   const dismissSamples = () => {
     setSamplesDismissed(true)
     try { localStorage.setItem('samplesDismissed', '1') } catch {}
@@ -611,12 +651,18 @@ export default function CalendarClient() {
   // ranked by taste. Cached ~12h per user so we don't recompute on every open.
   useEffect(() => {
     if (!user) return
+    // Restore the user's dismissed suggestions so hidden events stay hidden.
+    try {
+      const d = JSON.parse(localStorage.getItem(`dismissedSuggestions_${user.id}`) || '[]')
+      if (Array.isArray(d)) setDismissedSugg(d)
+    } catch {}
     const cacheKey = `suggestedCache_${user.id}`
     try {
       const c = JSON.parse(localStorage.getItem(cacheKey) || 'null')
       // Only trust a cached result that actually had suggestions — an empty cache
       // keeps refetching (so newly-added sources like a TM key show up next open).
-      if (c && c.data?.length && Date.now() - c.ts < 12 * 3600 * 1000) { setSuggestions(c.data); return }
+      // Short TTL (4h) so the rotation refreshes through the day.
+      if (c && c.data?.length && Date.now() - c.ts < 4 * 3600 * 1000) { setSuggestions(c.data); return }
     } catch {}
     fetch('/api/suggested').then(async r => {
       if (!r.ok) { setSuggestMeta({ reason: `http_${r.status}` }); return }
@@ -824,7 +870,7 @@ export default function CalendarClient() {
           </div>
         )}
         {activeTab === 'feed' && (
-          <FeedView events={feedEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} suggestions={feedSuggestions} onPinSuggested={pinSuggestion} onSuggestionTap={openSuggestion} suggestMeta={showSamples ? null : suggestMeta} demo={showSamples} onDismissDemo={dismissSamples} />
+          <FeedView events={feedEvents} accent={theme.accent} onEventTap={evt => setModal({ type: 'event', event: evt })} onDeleteEvent={deleteEvent} onScan={() => setModal({ type: 'add', date: null })} dark={dk} loading={eventsLoading} suggestions={feedSuggestions} onPinSuggested={pinSuggestion} onSuggestionTap={openSuggestion} onDismissSuggested={showSamples ? null : dismissSuggestion} suggestMeta={showSamples ? null : suggestMeta} demo={showSamples} onDismissDemo={dismissSamples} />
         )}
         {activeTab === 'calendar' && (
           <div style={{ padding: '16px 12px 8px', maxWidth: 900, margin: '0 auto', width: '100%' }}>

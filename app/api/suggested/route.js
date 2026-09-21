@@ -84,7 +84,7 @@ async function geminiJson(prompt, apiKey, { open = '{', close = '}', timeout = 1
 async function aiRank(taste, candidates, apiKey) {
   if (!apiKey || !taste.length) return null
   const list = candidates.map((c, i) => `${i}. ${c.title}${c.genre ? ` [${c.genre}]` : ''}${c.venue ? ` @ ${c.venue}` : ''}`).join('\n')
-  const prompt = `A user saves these local events to their calendar (their taste):\n${taste.join(', ')}\n\nHere are upcoming REAL local events:\n${list}\n\nPick the ones this user is MOST likely to want to attend, best first. Only genuinely relevant picks — fewer is better than padding, and skip anything that doesn't match their taste. Return ONLY JSON: {"picks":[{"i":<index number>,"reason":"<max 5 words why it fits>"}]} with up to 6 picks.`
+  const prompt = `A user saves these local events to their calendar (their taste):\n${taste.join(', ')}\n\nHere are upcoming REAL local events:\n${list}\n\nRank the ones this user might want to attend, best first — skip only events that clearly don't match their taste. Return ONLY JSON: {"picks":[{"i":<index number>,"reason":"<max 5 words why it fits>"}]} with up to 16 picks, best first.`
   const parsed = await geminiJson(prompt, apiKey)
   if (parsed && Array.isArray(parsed.picks)) {
     return parsed.picks.filter(p => Number.isInteger(p.i) && p.i >= 0 && p.i < candidates.length)
@@ -275,10 +275,16 @@ export async function GET() {
 
   let suggestions
   if (picks?.length) {
-    suggestions = picks.map(p => ({ ...candidates[p.i], reason: p.reason })).filter(s => s.title)
+    const pickedIdx = new Set(picks.map(p => p.i))
+    const ranked = picks.map(p => ({ ...candidates[p.i], reason: p.reason })).filter(s => s.title)
+    // Append the candidates the AI didn't explicitly pick, so the client has a
+    // deep pool to rotate through and to backfill as the user dismisses cards.
+    const rest = candidates.filter((_, i) => !pickedIdx.has(i))
+    suggestions = [...ranked, ...rest]
   } else {
-    suggestions = candidates.slice(0, 6)
+    suggestions = candidates
   }
 
-  return NextResponse.json({ suggestions: suggestions.slice(0, 8), city })
+  // Return a deep pool; the client rotates/dedupes/dismisses within it.
+  return NextResponse.json({ suggestions: suggestions.slice(0, 30), city })
 }
