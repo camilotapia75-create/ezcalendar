@@ -396,10 +396,17 @@ export default function CalendarClient() {
   }, [])
 
   // Auto-update: home-screen PWAs cache the old bundle aggressively. Compare
-  // the deployed commit SHA on focus and reload once when a new deploy ships.
+  // the deployed commit SHA on focus and reload ONCE when a new deploy ships.
+  // Guard against a reload loop: right after a deploy, Vercel's edge can briefly
+  // serve /api/version from different instances, so the SHA flip-flops. Without
+  // a cap, every flip fired window.location.reload() → Safari's "a problem
+  // repeatedly occurred". Reload at most once per tab session.
   useEffect(() => {
     let baseline = null
     let lastCheck = 0
+    const alreadyReloaded = () => {
+      try { return sessionStorage.getItem('ezcal_update_reloaded') === '1' } catch { return false }
+    }
     const check = async () => {
       if (Date.now() - lastCheck < 60000) return
       lastCheck = Date.now()
@@ -408,7 +415,10 @@ export default function CalendarClient() {
         const { v } = await res.json()
         if (!v || v === 'dev') return
         if (baseline === null) { baseline = v; return }
-        if (v !== baseline) window.location.reload()
+        if (v !== baseline && !alreadyReloaded()) {
+          try { sessionStorage.setItem('ezcal_update_reloaded', '1') } catch {}
+          window.location.reload()
+        }
       } catch {}
     }
     check()

@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'ezcal-static-v2'
+const STATIC_CACHE = 'ezcal-static-v3'
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', e => {
