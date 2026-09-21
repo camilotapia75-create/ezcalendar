@@ -233,7 +233,6 @@ export default function CalendarClient() {
   const [notes, setNotes]               = useState({})
   const [activeTab, setActiveTab]       = useState('feed')
   const [colorScheme, setColorScheme]   = useState('dark')
-  const [buildV, setBuildV]             = useState('?')  // debug: shows the live build id
   const [notifEvents, setNotifEvents]   = useState({})
   // 'mine' = just your events; 'shared' = yours + connected friends' together
   const [calFilter, setCalFilter]       = useState('mine')
@@ -412,7 +411,6 @@ export default function CalendarClient() {
       try {
         const res = await fetch('/api/version', { cache: 'no-store' })
         const { v } = await res.json()
-        if (v) setBuildV(String(v).slice(0, 7))
         if (!v || v === 'dev') return
         if (baseline === null) { baseline = v; return }
         if (v === baseline) return
@@ -420,15 +418,12 @@ export default function CalendarClient() {
         // loop: never reload for the SAME target version twice, and never reload
         // more than once every 2 minutes (covers the post-deploy window where
         // Vercel's edge briefly flip-flops the SHA between instances).
-        // TEMPORARILY DISABLED while diagnosing the tab-toggle glitch: do NOT
-        // auto-reload, so we can tell whether the glitch is the reload or a
-        // render error (surfaced by the ErrorBoundary). Re-enable once fixed.
-        // let last = null
-        // try { last = JSON.parse(localStorage.getItem('ezcal_last_reload') || 'null') } catch {}
-        // const now = Date.now()
-        // if (last && (last.v === v || now - last.t < 120000)) return
-        // try { localStorage.setItem('ezcal_last_reload', JSON.stringify({ v, t: now })) } catch {}
-        // window.location.reload()
+        let last = null
+        try { last = JSON.parse(localStorage.getItem('ezcal_last_reload') || 'null') } catch {}
+        const now = Date.now()
+        if (last && (last.v === v || now - last.t < 120000)) return
+        try { localStorage.setItem('ezcal_last_reload', JSON.stringify({ v, t: now })) } catch {}
+        window.location.reload()
       } catch {}
     }
     check()
@@ -783,11 +778,6 @@ export default function CalendarClient() {
           </button>
         </div>
       </header>
-
-      {/* ── Debug badge (temporary) — screenshot this to report state ── */}
-      <div style={{ position: 'fixed', left: 6, bottom: 'calc(env(safe-area-inset-bottom) + 84px)', zIndex: 9998, fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.55)', padding: '2px 6px', borderRadius: 6, pointerEvents: 'none', letterSpacing: '0.02em' }}>
-        b:{buildV} · {events.length}ev{showSamples ? ' · demo' : ''} · {activeTab}
-      </div>
 
       {/* ── Toast ── */}
       {notifToast && (

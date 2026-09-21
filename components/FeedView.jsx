@@ -383,6 +383,10 @@ function SuggestedRow({ items, accent, onPin, onOpen }) {
 export default function FeedView({ events, accent, onEventTap, onDeleteEvent, onScan, dark, loading, suggestions = [], onPinSuggested, onSuggestionTap, suggestMeta, demo = false, onDismissDemo }) {
   const groups = getGroups(events)
   const [showPast, setShowPast] = React.useState(false)
+  // "Coming Up" (14+ days out) can be huge for heavy users — show a page at a
+  // time so the feed stays light. Everything is still reachable via "Show more".
+  const COMING_UP_PAGE = 20
+  const [comingUpShown, setComingUpShown] = React.useState(COMING_UP_PAGE)
 
   const headingColor = dark ? '#e2e8f0' : '#1a1a2e'
   const dividerColor = dark ? 'rgba(255,255,255,0.18)' : '#1a1a2e'
@@ -461,17 +465,29 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
                 onEventTap={onEventTap}
                 onDeleteEvent={onDeleteEvent}
               />
-            ) : (
-              <div style={{ padding: '0 16px' }}>
-                {group.items.map(event => (
-                  <EventCard key={event.id} event={event} accent={accent} faded={group.past}
-                    animIndex={cardIndex++}
-                    onTap={() => onEventTap(event)}
-                    onDelete={onDeleteEvent}
-                  />
-                ))}
-              </div>
-            )}
+            ) : (() => {
+              // Cap the (potentially huge) "Coming Up" list; other groups render whole.
+              const capped = group.label === 'Coming Up'
+              const shownItems = capped ? group.items.slice(0, comingUpShown) : group.items
+              const remaining = capped ? group.items.length - shownItems.length : 0
+              return (
+                <div style={{ padding: '0 16px' }}>
+                  {shownItems.map(event => (
+                    <EventCard key={event.id} event={event} accent={accent} faded={group.past}
+                      animIndex={cardIndex++}
+                      onTap={() => onEventTap(event)}
+                      onDelete={onDeleteEvent}
+                    />
+                  ))}
+                  {remaining > 0 && (
+                    <button onClick={() => setComingUpShown(n => n + COMING_UP_PAGE)} className="mono-label"
+                      style={{ width: '100%', marginTop: 2, padding: '13px', borderRadius: 14, cursor: 'pointer', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-2)', fontSize: 11, letterSpacing: '0.14em' }}>
+                      SHOW {Math.min(remaining, COMING_UP_PAGE)} MORE ({remaining} LEFT)
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         )
       })}
