@@ -106,18 +106,33 @@ const CamIcon = () => (
 )
 
 // ── Friends tab ────────────────────────────────────────────────────────────
-function FriendsTab({ inviteCode, feedToken, connectedCount, connectedFriends = [], accent, dark, onDisconnect }) {
+function FriendsTab({ inviteCode, feedToken, connectedCount, connectedFriends = [], accent, dark, onDisconnect, onFeedTokenChange }) {
   const [inviteUrl, setInviteUrl] = useState('')
   const [origin, setOrigin]       = useState('')
   const [copied, setCopied]     = useState(false)
   const [feedCopied, setFeedCopied] = useState(false)
   const [confirmId, setConfirmId] = useState(null)
   const [leaving, setLeaving] = useState(null)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [resetDone, setResetDone] = useState(false)
 
   useEffect(() => { setInviteUrl(`${window.location.origin}/join/${inviteCode}`); setOrigin(window.location.origin) }, [inviteCode])
 
   const feedHttps = feedToken ? `${origin}/api/calendar/${feedToken}.ics` : ''
   const feedWebcal = feedToken ? feedHttps.replace(/^https?:/, 'webcal:') : ''
+  const googleAddUrl = feedHttps ? `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(feedHttps)}` : ''
+
+  const resetFeed = async () => {
+    setResetting(true)
+    try {
+      const r = await fetch('/api/calendar/reset-feed', { method: 'POST' })
+      const d = await r.json()
+      if (r.ok && d.feedToken) { onFeedTokenChange?.(d.feedToken); setResetDone(true) }
+    } catch {}
+    setResetting(false)
+    setConfirmReset(false)
+  }
 
   const copyText = async (text, setter) => {
     try { await navigator.clipboard.writeText(text) } catch {
@@ -213,9 +228,40 @@ function FriendsTab({ inviteCode, feedToken, connectedCount, connectedFriends = 
           <a href={feedWebcal} className="btn-lime" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px', fontSize: 16, textDecoration: 'none', marginBottom: 8 }}>
             📆 Add to Apple Calendar
           </a>
-          <button onClick={() => copyText(feedHttps, setFeedCopied)} className="btn-dark" style={{ width: '100%', padding: '13px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-            {feedCopied ? '✓ Copied — paste in Google Calendar → “From URL”' : '📋 Copy link for Google Calendar'}
+          <a href={googleAddUrl} target="_blank" rel="noopener noreferrer" className="btn-dark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px', fontSize: 16, textDecoration: 'none' }}>
+            📆 Add to Google Calendar
+          </a>
+          <button onClick={() => copyText(feedHttps, setFeedCopied)} style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 12, textDecoration: 'underline' }}>
+            {feedCopied ? '✓ Link copied' : 'or copy the link manually'}
           </button>
+
+          {/* Unsubscribe — rotate the token so the old feed stops updating */}
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            {resetDone ? (
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                ✓ Syncing stopped. Your old link no longer updates — to finish, delete the <b>FLYRLY</b> calendar in your phone's Calendar app. Re-add it above anytime.
+              </p>
+            ) : !confirmReset ? (
+              <button onClick={() => setConfirmReset(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 12.5 }}>
+                Stop syncing / reset link
+              </button>
+            ) : (
+              <div>
+                <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                  This disables your current sync link everywhere it's subscribed. You'll need to re-add the calendar to keep syncing. Continue?
+                </p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={resetFeed} disabled={resetting}
+                    style={{ flex: 1, padding: '10px', borderRadius: 12, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.10)', color: '#f87171', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: resetting ? 0.6 : 1 }}>
+                    {resetting ? 'Stopping…' : 'Stop syncing'}
+                  </button>
+                  <button onClick={() => setConfirmReset(false)} className="btn-dark" style={{ flex: 1, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -253,6 +299,7 @@ export default function CalendarClient() {
   const [notifEvents, setNotifEvents]   = useState({})
   // 'mine' = just your events; 'shared' = yours + connected friends' together
   const [calFilter, setCalFilter]       = useState('mine')
+  const [filterOpen, setFilterOpen]     = useState(false)  // My/Shared picker collapsed by default
   const [samplesDismissed, setSamplesDismissed] = useState(false)
   const swRegRef = useRef(null)
   // True once the user has added events this session. Guards against a slow
@@ -864,23 +911,34 @@ export default function CalendarClient() {
         <div className="anim-tab">
         {/* Calendar filter — only meaningful once friends are connected */}
         {connectedFriends.length > 0 && (activeTab === 'feed' || activeTab === 'calendar') && (
-          <div style={{ display: 'flex', gap: 8, padding: '14px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            {[
-              { id: 'mine',   label: 'My calendar' },
-              { id: 'shared', label: 'Shared' },
-            ].map(c => (
-              <button key={c.id} onClick={() => setCalFilter(c.id)} className="mono-label"
-                style={{
-                  flexShrink: 0, padding: '7px 15px', borderRadius: 999, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer',
-                  background: calFilter === c.id ? theme.accent : 'rgba(255,255,255,0.05)',
-                  color: calFilter === c.id ? theme.ink : 'var(--text-3)',
-                  border: calFilter === c.id ? `1.5px solid ${theme.accent}` : '1.5px solid rgba(255,255,255,0.09)',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {c.label}
+          <div style={{ padding: '14px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%' }}>
+            {!filterOpen ? (
+              // Collapsed: just show the active view; tap to reveal the options.
+              <button onClick={() => setFilterOpen(true)} className="mono-label"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '7px 14px', borderRadius: 999, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', color: 'var(--text-2)', border: '1.5px solid rgba(255,255,255,0.09)' }}>
+                {calFilter === 'shared' ? 'Shared' : 'My calendar'}
+                <span style={{ fontSize: 8 }}>▾</span>
               </button>
-            ))}
+            ) : (
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                {[
+                  { id: 'mine',   label: 'My calendar' },
+                  { id: 'shared', label: 'Shared' },
+                ].map(c => (
+                  <button key={c.id} onClick={() => { setCalFilter(c.id); setFilterOpen(false) }} className="mono-label"
+                    style={{
+                      flexShrink: 0, padding: '7px 15px', borderRadius: 999, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer',
+                      background: calFilter === c.id ? theme.accent : 'rgba(255,255,255,0.05)',
+                      color: calFilter === c.id ? theme.ink : 'var(--text-3)',
+                      border: calFilter === c.id ? `1.5px solid ${theme.accent}` : '1.5px solid rgba(255,255,255,0.09)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {activeTab === 'feed' && (
@@ -900,7 +958,7 @@ export default function CalendarClient() {
           </div>
         )}
         {activeTab === 'friends' && (
-          <FriendsTab inviteCode={inviteCode} feedToken={feedToken} connectedCount={connectedCount} connectedFriends={connectedFriends} accent={theme.accent} dark={theme.dark} onDisconnect={disconnectFriend} />
+          <FriendsTab inviteCode={inviteCode} feedToken={feedToken} connectedCount={connectedCount} connectedFriends={connectedFriends} accent={theme.accent} dark={theme.dark} onDisconnect={disconnectFriend} onFeedTokenChange={setFeedToken} />
         )}
         </div>
         </ErrorBoundary>

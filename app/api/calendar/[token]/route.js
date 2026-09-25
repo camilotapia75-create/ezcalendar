@@ -33,7 +33,7 @@ export async function GET(_request, { params }) {
     return new NextResponse(ics, {
       headers: {
         'Content-Type': 'text/calendar; charset=utf-8',
-        'Content-Disposition': 'inline; filename="ezcalendar.ics"',
+        'Content-Disposition': 'inline; filename="flyrly.ics"',
         // Calendar clients re-poll on their own cadence; a modest cache is fine
         'Cache-Control': 'public, max-age=1800',
       },
