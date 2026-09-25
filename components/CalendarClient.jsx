@@ -121,7 +121,14 @@ function FriendsTab({ inviteCode, feedToken, connectedCount, connectedFriends = 
 
   const feedHttps = feedToken ? `${origin}/api/calendar/${feedToken}.ics` : ''
   const feedWebcal = feedToken ? feedHttps.replace(/^https?:/, 'webcal:') : ''
-  const googleAddUrl = feedHttps ? `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(feedHttps)}` : ''
+
+  // Google Calendar has no reliable one-tap subscribe link for an external ICS
+  // (render?cid= only works for Google-hosted calendars). So copy the link and
+  // open Google's "Add by URL" page, where the user pastes and taps Add.
+  const addToGoogle = async () => {
+    await copyText(feedHttps, setFeedCopied)
+    try { window.open('https://calendar.google.com/calendar/u/0/r/settings/addbyurl', '_blank', 'noopener') } catch {}
+  }
 
   const resetFeed = async () => {
     setResetting(true)
@@ -228,12 +235,14 @@ function FriendsTab({ inviteCode, feedToken, connectedCount, connectedFriends = 
           <a href={feedWebcal} className="btn-lime" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px', fontSize: 16, textDecoration: 'none', marginBottom: 8 }}>
             📆 Add to Apple Calendar
           </a>
-          <a href={googleAddUrl} target="_blank" rel="noopener noreferrer" className="btn-dark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px', fontSize: 16, textDecoration: 'none' }}>
+          <button onClick={addToGoogle} className="btn-dark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px', fontSize: 16, cursor: 'pointer' }}>
             📆 Add to Google Calendar
-          </a>
-          <button onClick={() => copyText(feedHttps, setFeedCopied)} style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 12, textDecoration: 'underline' }}>
-            {feedCopied ? '✓ Link copied' : 'or copy the link manually'}
           </button>
+          <p style={{ margin: '8px 2px 0', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5, textAlign: 'center' }}>
+            {feedCopied
+              ? '✓ Link copied — paste it into Google\'s box and tap “Add calendar”.'
+              : 'Copies your link and opens Google\'s “From URL” page — just paste and tap Add.'}
+          </p>
 
           {/* Unsubscribe — rotate the token so the old feed stops updating */}
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
