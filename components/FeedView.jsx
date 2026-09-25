@@ -357,8 +357,8 @@ function SuggestedRow({ items, accent, onPin, onOpen, onDismiss }) {
       </div>
       <div className="hide-scroll" style={{ display: 'flex', gap: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 4px' }}>
         {items.map((s, i) => (
-          <div key={i} onClick={() => onOpen?.(s)} style={{ flexShrink: 0, width: 124, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
-            <div style={{ position: 'relative', paddingTop: '64%', background: s.image ? '#000' : 'linear-gradient(150deg, #d4f560, #8fbf2e)' }}>
+          <div key={i} onClick={() => onOpen?.(s)} style={{ flexShrink: 0, width: 134, minHeight: 190, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
+            <div style={{ position: 'relative', paddingTop: '82%', background: s.image ? '#000' : 'linear-gradient(150deg, #d4f560, #8fbf2e)' }}>
               {s.image && <img src={thumb(s.image, 300)} onError={thumbFallback(s.image)} decoding="async" loading="lazy" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
               {s.community && (
                 <span className="mono-label" style={{ position: 'absolute', bottom: 5, left: 5, fontSize: 8, letterSpacing: '0.04em', color: '#0a0a0b', background: accent, borderRadius: 999, padding: '2px 6px', fontWeight: 800 }}>🔥 {s.count}</span>
