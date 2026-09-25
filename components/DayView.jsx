@@ -348,7 +348,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
             <button onClick={() => writeMode ? exitWriteMode() : setWriteMode(true)} title={writeMode ? 'Done writing' : 'Add note'}
               style={{ height: 34, padding: '0 14px', borderRadius: 17, background: writeMode ? '#c6f24e' : 'rgba(255,255,255,0.06)', border: writeMode ? 'none' : '1px solid var(--border-2)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: writeMode ? '#0a0a0b' : 'var(--text-2)', whiteSpace: 'nowrap' }}>
-              {writeMode ? '✓ Done' : notes.length > 0 ? '✎ Note' : 'Add note'}
+              {writeMode ? '✓ Done' : notes.length > 0 ? 'Note' : 'Add note'}
             </button>
             <button onClick={writeMode ? exitWriteMode : onClose}
               style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✕</button>
@@ -421,7 +421,6 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           {/* Flyer cards */}
           {shown.length === 0 && !writeMode ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 32 }}>
-              <span style={{ fontSize: 52 }}>📌</span>
               <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)', margin: 0 }}>Nothing pinned yet</p>
               <p style={{ fontSize: 13, color: 'var(--text-3)', margin: 0 }}>Tap Scan to add a flyer</p>
             </div>
@@ -438,8 +437,8 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
                   <div style={{ flexShrink: 0, padding: '5px 7px 7px', background: '#fff', borderTop: '1px solid #f0ece0' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {event.title && event.image_url && <p style={{ margin: '0 0 3px', fontSize: 11, fontWeight: 700, color: '#1a1a2e', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</p>}
-                      {event.time_str && <p style={{ margin: '0 0 1px', fontSize: 11, fontWeight: 600, color: '#374151', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>🕐 {event.time_str}</p>}
-                      {event.location && <p style={{ margin: 0, fontSize: 10, fontWeight: 500, color: '#6b7280', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {event.location}</p>}
+                      {event.time_str && <p style={{ margin: '0 0 1px', fontSize: 11, fontWeight: 600, color: '#374151', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{event.time_str}</p>}
+                      {event.location && <p style={{ margin: 0, fontSize: 10, fontWeight: 500, color: '#6b7280', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.location}</p>}
                     </div>
                   </div>
                   {!writeMode && (
@@ -467,7 +466,7 @@ export default function DayView({ date, events, notes = [], onClose, onAdd, onDe
           <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', background: 'var(--surface-2)', padding: '8px 12px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
             <div style={{ display: 'flex', borderRadius: 20, overflow: 'hidden', border: '1px solid var(--border-2)', flexShrink: 0 }}>
               <button onClick={() => { setWriteTool('draw'); setPendingText(null) }}
-                style={{ padding: '5px 11px', fontSize: 12, border: 'none', cursor: 'pointer', background: writeTool === 'draw' ? '#c6f24e' : 'transparent', color: writeTool === 'draw' ? '#0a0a0b' : 'var(--text-2)', fontWeight: 700 }}>✏️ Draw</button>
+                style={{ padding: '5px 11px', fontSize: 12, border: 'none', cursor: 'pointer', background: writeTool === 'draw' ? '#c6f24e' : 'transparent', color: writeTool === 'draw' ? '#0a0a0b' : 'var(--text-2)', fontWeight: 700 }}>Draw</button>
               <button onClick={() => setWriteTool('text')}
                 style={{ padding: '5px 11px', fontSize: 12, border: 'none', cursor: 'pointer', background: writeTool === 'text' ? '#c6f24e' : 'transparent', color: writeTool === 'text' ? '#0a0a0b' : 'var(--text-2)', fontWeight: 700 }}>Aa Text</button>
             </div>

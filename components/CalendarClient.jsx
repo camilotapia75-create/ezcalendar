@@ -211,14 +211,14 @@ function FriendsTab({ inviteCode, feedToken, connectedCount, connectedFriends = 
       )}
       {connectedCount > 0 && connectedFriends.length === 0 && (
         <div style={{ background: 'rgba(34,197,94,0.08)', border: '1.5px solid rgba(34,197,94,0.28)', borderRadius: 4, padding: '11px 16px', marginBottom: 20, fontSize: 15, color: '#166534' }}>
-          🎉 {connectedCount} friend{connectedCount > 1 ? 's' : ''} connected!
+          {connectedCount} friend{connectedCount > 1 ? 's' : ''} connected!
         </div>
       )}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '22px 20px 20px' }}>
         <p className="mono-label" style={{ margin: '0 0 8px', fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.12em' }}>Your invite link</p>
         <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-2)', wordBreak: 'break-all', fontFamily: 'var(--font-mono-stack)', lineHeight: 1.5 }}>{inviteUrl || `…/${inviteCode}`}</p>
         <button onClick={copyLink} className={copied ? 'btn-dark' : 'btn-lime'} style={{ width: '100%', padding: '14px', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, ...(copied ? { color: 'var(--lime)', borderColor: 'rgba(198,242,78,0.4)' } : {}) }}>
-          {copied ? '✓ Copied!' : '📋 Copy invite link'}
+          {copied ? '✓ Copied!' : 'Copy invite link'}
         </button>
       </div>
       <p style={{ marginTop: 20, fontSize: 15, color: 'var(--text-3)', lineHeight: 1.6, textAlign: 'center' }}>
@@ -233,10 +233,10 @@ function FriendsTab({ inviteCode, feedToken, connectedCount, connectedFriends = 
             Subscribe once and every event you pin shows up in your phone's calendar automatically.
           </p>
           <a href={feedWebcal} className="btn-lime" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px', fontSize: 16, textDecoration: 'none', marginBottom: 8 }}>
-            📆 Add to Apple Calendar
+            Add to Apple Calendar
           </a>
           <button onClick={addToGoogle} className="btn-dark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px', fontSize: 16, cursor: 'pointer' }}>
-            📆 Add to Google Calendar
+            Add to Google Calendar
           </button>
           <p style={{ margin: '8px 2px 0', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5, textAlign: 'center' }}>
             {feedCopied
@@ -428,7 +428,7 @@ export default function CalendarClient() {
     const joined  = params.get('joined') === '1'
     const joinErr = params.get('join_err')
     const scanUrl = params.get('scan')
-    if (joined)                      showToast('🎉 Connected! You now see your friend\'s events too.')
+    if (joined)                      showToast('Connected! You now see your friend\'s events too.')
     else if (joinErr === 'self')     showToast("That's your own invite link!")
     else if (joinErr === 'notfound') showToast('Invite link not found — ask your friend for a new one.')
 
@@ -704,9 +704,9 @@ export default function CalendarClient() {
       clearTimeout(undoTimer.current)
       undoTimer.current = setTimeout(() => setUndoData(null), 7000)
     } else if (inserted.length > 1) {
-      showToast(`✅ Added ${inserted.length} dates — they're all here in your feed`)
+      showToast(`Added ${inserted.length} dates — they're all here in your feed`)
     } else if (inserted.length === 1) {
-      showToast('✅ Added to your calendar')
+      showToast('Added to your calendar')
     }
   }
 
@@ -768,7 +768,7 @@ export default function CalendarClient() {
 
   const pinSuggestion = async (s) => {
     // The demo suggestion is a mockup — don't write it to the DB; nudge to scan.
-    if (s?.sample) { showToast("That's a sample — snap a real flyer to pin your own ✨"); setModal(null); return }
+    if (s?.sample) { showToast("That's a sample — snap a real flyer to pin your own"); setModal(null); return }
     setSuggestions(prev => {
       const next = prev.filter(x => !(x.title === s.title && x.date === s.date))
       if (user) { try { localStorage.setItem(`suggestedCache_${user.id}`, JSON.stringify({ ts: Date.now(), data: next })) } catch {} }

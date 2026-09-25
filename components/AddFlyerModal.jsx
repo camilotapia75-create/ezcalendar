@@ -558,7 +558,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
             <button type="button" onClick={() => { stopCamera(); setManualMode(true) }}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-white/70"
               style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)' }}>
-              ⌨ Type
+              Type
             </button>
           </div>
         </div>
@@ -642,8 +642,8 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                 className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all active:scale-[0.98]"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
               >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 flex-shrink-0 text-lg" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                  ✏️
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)', fontWeight: 800, fontSize: 15 }}>
+                  Aa
                 </div>
                 <div>
                   <p className="text-sm font-medium text-white/70">Type it in</p>
@@ -777,7 +777,7 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
                       /* Weekly recurring event — materialised as a series on save */
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 12, background: 'rgba(198,242,78,0.10)', border: '1px solid rgba(198,242,78,0.4)' }}>
                         <p className="mono-label" style={{ fontSize: 10, color: '#c6f24e', letterSpacing: '0.1em', margin: 0 }}>
-                          🔁 REPEATS {recurrenceLabel(recurrence.weekdays).toUpperCase()}
+                          REPEATS {recurrenceLabel(recurrence.weekdays).toUpperCase()}
                         </p>
                         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: 0, lineHeight: 1.4 }}>
                           Adds the next ~6 months — {weeklyDates(recurrence.weekdays, eventDate || null).length} dates. Remove any one later and they all go.

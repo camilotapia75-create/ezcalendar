@@ -150,7 +150,7 @@ export default function DayNoteModal({ dateStr, existingNote, onSave, onDelete, 
 
         {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '2px solid #e9e0cc', background: '#fff8e0', flexShrink: 0 }}>
-          {[{ id: 'write', label: '⌨️ Type' }, { id: 'draw', label: '✏️ Draw' }].map(t => (
+          {[{ id: 'write', label: 'Type' }, { id: 'draw', label: 'Draw' }].map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
               flex: 1, padding: '9px 0', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
               background: tab === t.id ? '#fffef0' : 'transparent',

@@ -20,11 +20,11 @@ function formatDate(str) {
   return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
 }
 
-// Icon rows use a small monospace uppercase label above the value
-function MetaRow({ icon, label, children }) {
+// A small monospace uppercase label above the value, with a lime rule to the left.
+function MetaRow({ label, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-      <span style={{ fontSize: 17, flexShrink: 0, marginTop: 2, opacity: 0.9 }}>{icon}</span>
+      <span style={{ width: 3, alignSelf: 'stretch', flexShrink: 0, borderRadius: 2, background: 'var(--border)' }} />
       <div style={{ minWidth: 0 }}>
         <div className="mono-label" style={{ fontSize: 9, color: 'var(--text-3)', letterSpacing: '0.12em', marginBottom: 2 }}>{label}</div>
         <div style={{ fontSize: 16, color: 'var(--text)', fontWeight: 600, lineHeight: 1.35 }}>{children}</div>
@@ -104,17 +104,17 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <MetaRow icon="📅" label="WHEN">
+              <MetaRow label="WHEN">
                 {formatDate(event.date)}
                 {isMulti && <span style={{ display: 'block', fontSize: 13, color: 'var(--text-3)', fontWeight: 500, marginTop: 2 }}>through {formatDate(event.end_date)}</span>}
-                {isSeries && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 12, fontWeight: 700, color: accent, background: 'rgba(198,242,78,0.12)', border: '1px solid rgba(198,242,78,0.35)', borderRadius: 999, padding: '3px 10px' }}>🔁 Repeats weekly</span>}
+                {isSeries && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 12, fontWeight: 700, color: accent, background: 'rgba(198,242,78,0.12)', border: '1px solid rgba(198,242,78,0.35)', borderRadius: 999, padding: '3px 10px' }}>Repeats weekly</span>}
               </MetaRow>
 
-              {event.time_str && <MetaRow icon="🕐" label="TIME">{event.time_str}</MetaRow>}
-              {event.location && <MetaRow icon="📍" label="WHERE">{event.location}</MetaRow>}
+              {event.time_str && <MetaRow label="TIME">{event.time_str}</MetaRow>}
+              {event.location && <MetaRow label="WHERE">{event.location}</MetaRow>}
 
               {event.source_url && (
-                <MetaRow icon="🔗" label="SOURCE">
+                <MetaRow label="SOURCE">
                   <a href={event.source_url} target="_blank" rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
                     style={{ fontSize: 15, color: accent, fontWeight: 700, textDecoration: 'none' }}>
@@ -132,7 +132,7 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
           {!showCal ? (
             <button onClick={() => setShowCal(true)} className="btn-dark"
               style={{ width: '100%', padding: '14px', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              📆 Add to Calendar
+              Add to Calendar
             </button>
           ) : (
             <div style={{ display: 'flex', gap: 8 }}>
@@ -150,13 +150,13 @@ export default function EventDetailModal({ event, accent = '#c6f24e', onClose, o
           {suggestion && onPin && (
             <button onClick={() => { onPin(); onClose() }} className="btn-lime"
               style={{ width: '100%', padding: '14px', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              📌 Pin to my calendar
+              Pin to my calendar
             </button>
           )}
           {onToggleReminder !== undefined && (
             <button onClick={onToggleReminder} className={reminderOn ? 'btn-lime' : 'btn-dark'}
               style={{ width: '100%', padding: '14px', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              {reminderOn ? '🔔 Reminder on' : '🔕 Reminder off'}
+              {reminderOn ? 'Reminder on' : 'Reminder off'}
             </button>
           )}
           {/* Recurring: offer removing just this date or the whole series */}

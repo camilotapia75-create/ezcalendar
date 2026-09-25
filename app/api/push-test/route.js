@@ -58,14 +58,14 @@ export async function POST() {
 
   let title, body
   if (todayEvts.length > 0) {
-    title = `${todayEvts.length} event${todayEvts.length > 1 ? 's' : ''} today! 📌`
+    title = `${todayEvts.length} event${todayEvts.length > 1 ? 's' : ''} today`
     body  = todayEvts.map(e => e.title || 'Event').join(' • ')
   } else if (tomorrowEvts.length > 0) {
-    title = `${tomorrowEvts.length} event${tomorrowEvts.length > 1 ? 's' : ''} tomorrow 📌`
+    title = `${tomorrowEvts.length} event${tomorrowEvts.length > 1 ? 's' : ''} tomorrow`
     body  = tomorrowEvts.map(e => e.title || 'Event').join(' • ')
   } else {
     // No events — still confirm the pipeline works with a diagnostic message
-    title = 'FLYRLY 📌'
+    title = 'FLYRLY'
     body  = 'No events today or tomorrow — pipeline is working!'
   }
 

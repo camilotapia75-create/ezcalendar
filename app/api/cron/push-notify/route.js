@@ -124,10 +124,10 @@ export async function GET(request) {
 
     let title = null, body = null
     if (todayEvts.length > 0) {
-      title = `${todayEvts.length} event${todayEvts.length > 1 ? 's' : ''} today! 📌`
+      title = `${todayEvts.length} event${todayEvts.length > 1 ? 's' : ''} today`
       body  = todayEvts.map(e => e.title || 'Event').join(' • ')
     } else if (tomorrowEvts.length > 0) {
-      title = `${tomorrowEvts.length} event${tomorrowEvts.length > 1 ? 's' : ''} tomorrow 📌`
+      title = `${tomorrowEvts.length} event${tomorrowEvts.length > 1 ? 's' : ''} tomorrow`
       body  = tomorrowEvts.map(e => e.title || 'Event').join(' • ')
     }
 

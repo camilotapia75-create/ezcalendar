@@ -16,13 +16,13 @@ function parseLocalDate(str) {
 function DemoBanner({ accent, onScan, onDismiss }) {
   return (
     <div style={{ margin: '4px 16px 20px', padding: '14px 16px', borderRadius: 16, background: 'var(--surface)', border: `1px solid ${accent}44` }}>
-      <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>👋 These are sample events</p>
+      <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>These are sample events</p>
       <p style={{ margin: '0 0 12px', fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.5 }}>
         So your calendar isn&apos;t empty. Tap one to see how it works — then snap your own flyer to replace them.
       </p>
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onScan} className="btn-lime" style={{ flex: 1, padding: '11px', fontSize: 14, cursor: 'pointer' }}>
-          📷 Scan a flyer
+          Scan a flyer
         </button>
         <button onClick={onDismiss} className="btn-dark" style={{ padding: '11px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
           Clear samples
@@ -166,12 +166,12 @@ function EventCard({ event, accent, onTap, onDelete, faded, animIndex = 0, inSli
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: hasImg ? 2 : 0 }}>
             {event.time_str && (
               <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontSize: 12 }}>🕐</span> {event.time_str}
+                {event.time_str}
               </span>
             )}
             {event.location && (
               <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                <span style={{ fontSize: 12 }}>📍</span> {event.location}
+                {event.location}
               </span>
             )}
             {!hasImg && !event.time_str && !event.location && (
@@ -352,16 +352,16 @@ function SuggestedRow({ items, accent, onPin, onOpen, onDismiss }) {
   return (
     <div style={{ marginBottom: 26 }}>
       <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <span className="mono-label" style={{ fontSize: 11, letterSpacing: '0.16em', color: accent, whiteSpace: 'nowrap' }}>✨ SUGGESTED FOR YOU</span>
+        <span className="mono-label" style={{ fontSize: 11, letterSpacing: '0.16em', color: accent, whiteSpace: 'nowrap' }}>SUGGESTED FOR YOU</span>
         <div style={{ height: 1, background: 'var(--border)', flex: 1 }} />
       </div>
       <div className="hide-scroll" style={{ display: 'flex', gap: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 4px' }}>
         {items.map((s, i) => (
           <div key={i} onClick={() => onOpen?.(s)} style={{ flexShrink: 0, width: 134, minHeight: 190, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
-            <div style={{ position: 'relative', paddingTop: '82%', background: s.image ? '#000' : 'linear-gradient(150deg, #d4f560, #8fbf2e)' }}>
+            <div style={{ position: 'relative', paddingTop: '58%', background: s.image ? '#000' : 'linear-gradient(150deg, #d4f560, #8fbf2e)' }}>
               {s.image && <img src={thumb(s.image, 300)} onError={thumbFallback(s.image)} decoding="async" loading="lazy" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
               {s.community && (
-                <span className="mono-label" style={{ position: 'absolute', bottom: 5, left: 5, fontSize: 8, letterSpacing: '0.04em', color: '#0a0a0b', background: accent, borderRadius: 999, padding: '2px 6px', fontWeight: 800 }}>🔥 {s.count}</span>
+                <span className="mono-label" style={{ position: 'absolute', bottom: 5, left: 5, fontSize: 8, letterSpacing: '0.04em', color: '#0a0a0b', background: accent, borderRadius: 999, padding: '2px 6px', fontWeight: 800 }}>{s.count} PINNED</span>
               )}
               {onDismiss && (
                 <button onClick={(e) => { e.stopPropagation(); onDismiss(s) }} title="Not interested"
@@ -376,7 +376,7 @@ function SuggestedRow({ items, accent, onPin, onOpen, onDismiss }) {
               {s.reason && <p style={{ margin: 0, fontSize: 10, color: accent, fontWeight: 600, lineHeight: 1.2, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{s.reason}</p>}
               <button onClick={(e) => { e.stopPropagation(); setPinning(i); Promise.resolve(onPin(s)).catch(() => setPinning(null)) }} disabled={pinning === i}
                 className="btn-lime" style={{ marginTop: 'auto', padding: '6px', fontSize: 11, borderRadius: 8, opacity: pinning === i ? 0.6 : 1 }}>
-                {pinning === i ? 'Pinning…' : '📌 Pin'}
+                {pinning === i ? 'Pinning…' : 'Pin'}
               </button>
             </div>
           </div>
@@ -409,12 +409,11 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
   if (events.length === 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100dvh - 130px)', padding: 40, textAlign: 'center', gap: 16 }}>
-        <div style={{ fontSize: 72, lineHeight: 1 }}>📸</div>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', margin: 0 }}>Nothing pinned yet</h2>
         <p style={{ fontSize: 17, color: 'var(--text-2)', margin: 0, maxWidth: 260, lineHeight: 1.5 }}>See a flyer? Snap it and it shows up here.</p>
         <button onClick={onScan} className="btn-lime"
           style={{ marginTop: 8, padding: '14px 30px', fontSize: 18, cursor: 'pointer' }}>
-          📷 Scan a flyer
+          Scan a flyer
         </button>
       </div>
     )
@@ -429,7 +428,7 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
       )}
       {onPinSuggested && suggestions.length === 0 && suggestMeta && suggestMeta.reason !== 'no_pins' && (
         <div style={{ margin: '0 16px 26px', padding: '14px 16px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="mono-label" style={{ margin: '0 0 6px', fontSize: 11, letterSpacing: '0.16em', color: accent }}>✨ SUGGESTED FOR YOU</p>
+          <p className="mono-label" style={{ margin: '0 0 6px', fontSize: 11, letterSpacing: '0.16em', color: accent }}>SUGGESTED FOR YOU</p>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
             {suggestMeta.reason === 'no_city'
               ? "Pin an event with a city in its location (like “Oakland, CA”) and we'll suggest local events."

@@ -84,7 +84,7 @@ export default function ShareModal({ inviteCode, connectedCount, onClose }) {
               fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif',
             }}
           >
-            {copied ? '✓ Copied!' : '📋 Copy invite link'}
+            {copied ? '✓ Copied!' : 'Copy invite link'}
           </button>
         </div>
 
