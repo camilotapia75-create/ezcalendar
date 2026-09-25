@@ -84,7 +84,7 @@ async function geminiJson(prompt, apiKey, { open = '{', close = '}', timeout = 1
 async function aiRank(taste, candidates, apiKey) {
   if (!apiKey || !taste.length) return null
   const list = candidates.map((c, i) => `${i}. ${c.title}${c.genre ? ` [${c.genre}]` : ''}${c.venue ? ` @ ${c.venue}` : ''}`).join('\n')
-  const prompt = `A user saves these local events to their calendar (their taste):\n${taste.join(', ')}\n\nHere are upcoming REAL local events:\n${list}\n\nRank the ones this user might want to attend, best first — skip only events that clearly don't match their taste. Return ONLY JSON: {"picks":[{"i":<index number>,"reason":"<max 5 words why it fits>"}]} with up to 16 picks, best first.`
+  const prompt = `A user saves these local events to their calendar (their taste):\n${taste.join(', ')}\n\nHere are upcoming REAL local events:\n${list}\n\nRank the ones this user might want to attend, best first. Return a DIVERSE mix, not all one genre: lead with strong taste matches, but deliberately include several different KINDS of events too (comedy, markets, classes/workshops, meetups, open mics, food, art, sports, community) that a curious person would enjoy trying. Avoid returning many near-identical events. Return ONLY JSON: {"picks":[{"i":<index number>,"reason":"<max 5 words why it fits>"}]} with up to 16 picks, best first.`
   const parsed = await geminiJson(prompt, apiKey)
   if (parsed && Array.isArray(parsed.picks)) {
     return parsed.picks.filter(p => Number.isInteger(p.i) && p.i >= 0 && p.i < candidates.length)
@@ -189,25 +189,36 @@ async function fetchWebEvents(city, taste, braveKey, aiKey) {
   const out = []
   if (!braveKey || !aiKey) return out
   try {
-    const interests = taste.slice(0, 5).join(', ')
-    const q = `${city} events calendar this month ${interests}`.trim()
-    const r = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=10`,
-      { headers: { Accept: 'application/json', 'X-Subscription-Token': braveKey }, signal: AbortSignal.timeout(6000) }
-    )
-    if (!r.ok) return out
-    const data = await r.json()
-    const results = (data?.web?.results || []).slice(0, 3)
+    // Deliberately DIVERSE queries (not the user's music taste) so the web lane
+    // surfaces the long tail the ticketing APIs miss: meetups, classes, open
+    // mics, markets, comedy, community stuff.
+    const queries = [
+      `things to do in ${city} this week`,
+      `${city} open mic OR pottery OR workshop OR class OR meetup OR market this month`,
+    ]
+    const searches = await Promise.all(queries.map(q =>
+      fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=8`,
+        { headers: { Accept: 'application/json', 'X-Subscription-Token': braveKey }, signal: AbortSignal.timeout(6000) })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+    ))
+    const seenUrl = new Set()
+    const results = []
+    for (const data of searches) {
+      for (const x of (data?.web?.results || [])) {
+        if (results.length >= 4) break
+        if (x?.url && !seenUrl.has(x.url)) { seenUrl.add(x.url); results.push(x) }
+      }
+    }
     if (!results.length) return out
     // Fetch the actual pages in parallel — this is where the real dates live.
     const pages = await Promise.all(results.map(async (x) => {
       const text = await fetchPageText(x.url)
       return text ? `SOURCE_URL: ${x.url}\nPAGE: ${stripHtml(x.title)}\n${text}` : ''
     }))
-    const digest = pages.filter(Boolean).join('\n\n---\n\n').slice(0, 9000)
+    const digest = pages.filter(Boolean).join('\n\n---\n\n').slice(0, 11000)
     if (!digest.trim()) return out
     const today = dayKey(new Date())
-    const prompt = `Today is ${today}. Below is text scraped from web pages that list local events in ${city}. Links appear inline as "Label [https://…]". Extract real, specific events that have a concrete future date you can actually read in the text (a weekday+day, a day+month, or a full date). Convert each to YYYY-MM-DD; if the year is missing use the nearest future occurrence. Do NOT invent events or dates — skip anything whose date isn't clearly in the text. For each event's "url", use the SPECIFIC link in brackets next to that event's title (its own event page); only fall back to the page's SOURCE_URL if the event has no specific link. Return ONLY JSON: {"events":[{"title":"","date":"YYYY-MM-DD","time":"7:00 PM or null","venue":"or null","url":"the event's own link","genre":"short label or null"}]} with up to 10 events, dates on or after ${today}.\n\n${digest}`
+    const prompt = `Today is ${today}. Below is text scraped from web pages that list local events in ${city}. Links appear inline as "Label [https://…]". Extract real, specific events that have a concrete future date you can actually read in the text (a weekday+day, a day+month, or a full date). Convert each to YYYY-MM-DD; if the year is missing use the nearest future occurrence. Do NOT invent events or dates — skip anything whose date isn't clearly in the text. Prefer a VARIETY of event types — comedy, markets, classes & workshops, meetups, open mics, food, art, community events — not just concerts. For each event's "url", use the SPECIFIC link in brackets next to that event's title (its own event page); only fall back to the page's SOURCE_URL if the event has no specific link. Return ONLY JSON: {"events":[{"title":"","date":"YYYY-MM-DD","time":"7:00 PM or null","venue":"or null","url":"the event's own link","genre":"short label or null"}]} with up to 12 events, dates on or after ${today}.\n\n${digest}`
     const parsed = await geminiJson(prompt, aiKey, { timeout: 12000 })
     for (const e of (parsed?.events || [])) {
       if (!e?.title || !/^\d{4}-\d{2}-\d{2}$/.test(e.date || '') || e.date < today) continue
@@ -299,7 +310,7 @@ export async function GET(request) {
   // isn't done in 14s it yields [] and never delays or fails the core sources.
   const webLane = Promise.race([
     fetchWebEvents(city, taste, process.env.BRAVE_SEARCH_API_KEY, aiKey),
-    new Promise(resolve => setTimeout(() => resolve([]), 14000)),
+    new Promise(resolve => setTimeout(() => resolve([]), 22000)),
   ]).catch(() => [])
   const [communityEvents, tmEvents, sgEvents, webEvents] = await Promise.all([
     community,

@@ -60,6 +60,9 @@ const THEME = {
 
 // Stable identity for a suggested event (for dedupe / dismiss / already-pinned).
 const suggKey = (s) => `${String(s?.title || '').toLowerCase().trim()}|${s?.date || ''}`
+// Loose identity by title alone (ignores date) — used to dedupe multi-date runs
+// AND to dismiss an event across ALL its dates so it can't return on another day.
+const titleKey = (s) => String(s?.title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b(tickets?|2 day|two day|valid both days|the \d+.. anniversary tour|world tour|tour)\b/g, '').replace(/\s+/g, ' ').trim()
 
 // Deterministic shuffle so the "Suggested" order changes day-to-day (rotation)
 // but stays stable within a day (no reshuffling on every render).
@@ -340,13 +343,13 @@ export default function CalendarClient() {
   const feedSuggestions = useMemo(() => {
     if (showSamples) return [sampleSuggestion]
     if (calFilter !== 'mine') return []
+    // Dismissals are stored by title so an event stays gone on ALL its dates.
     const dismissed = new Set(dismissedSugg)
     const mine = new Set((user ? events.filter(e => e.user_id === user.id) : []).map(suggKey))
-    const filtered = suggestions.filter(s => !dismissed.has(suggKey(s)) && !mine.has(suggKey(s)))
+    const filtered = suggestions.filter(s => !dismissed.has(titleKey(s)) && !mine.has(suggKey(s)))
     // Collapse the same event across dates/listings (a 2-night run, "2-day
     // ticket" variants, etc.) to ONE card — the soonest date — keyed by a
     // loose title. Prevents "Billy Strings" showing up two or three times.
-    const titleKey = (s) => String(s?.title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b(tickets?|2 day|two day|valid both days|the \d+.. anniversary tour|world tour|tour)\b/g, '').replace(/\s+/g, ' ').trim()
     const byTitle = new Map()
     for (const s of filtered) {
       const k = titleKey(s) || suggKey(s)
@@ -362,7 +365,7 @@ export default function CalendarClient() {
 
   const dismissSuggestion = (s) => {
     if (!s || s.sample) return
-    const k = suggKey(s)
+    const k = titleKey(s)  // dismiss by title so it can't return on a different date
     setDismissedSugg(prev => {
       if (prev.includes(k)) return prev
       const next = [...prev, k].slice(-400)
