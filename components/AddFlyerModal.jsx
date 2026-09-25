@@ -102,6 +102,12 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   const [aiDetail, setAiDetail] = useState(null)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraStream, setCameraStream] = useState(null)
+  // While we decide whether to auto-open the camera (permission check), show a
+  // neutral loader instead of the option menu, so a granted-camera open doesn't
+  // flash the menu and then pivot to the viewfinder.
+  const [deciding, setDeciding] = useState(() =>
+    typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && !initialUrl
+  )
   const [linkMode, setLinkMode] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkScanning, setLinkScanning] = useState(false)
@@ -227,7 +233,9 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
       })
       setCameraStream(stream)
       setCameraActive(true)
+      setDeciding(false)
     } catch {
+      setDeciding(false)  // reveal the option menu instead of the loader
       // On explicit taps, fall back to the file picker; on the auto-open at
       // launch, just leave the option menu visible instead.
       if (fallbackToFile) fileRef.current?.click()
@@ -240,16 +248,17 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
   // so merely opening "Add a flyer" never pops the OS permission dialog — the
   // prompt only appears when the user taps "Use camera".
   useEffect(() => {
-    if (initialUrl) return
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return
+    if (initialUrl) { setDeciding(false); return }
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) { setDeciding(false); return }
     let cancelled = false
     ;(async () => {
       try {
         const status = await navigator.permissions?.query({ name: 'camera' })
-        if (!cancelled && status?.state === 'granted') startCamera({ fallbackToFile: false })
+        if (!cancelled && status?.state === 'granted') { startCamera({ fallbackToFile: false }); return }
       } catch {
-        // Permissions API unavailable (e.g. iOS Safari) — wait for an explicit tap.
+        // Permissions API unavailable (e.g. iOS Safari) — fall through to the menu.
       }
+      if (!cancelled) setDeciding(false)  // not auto-opening → reveal the option menu
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -586,7 +595,12 @@ export default function AddFlyerModal({ date, onAdd, onClose, userId, initialUrl
         </div>
 
         <div className="p-4 overflow-y-auto flex-1 min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {!showForm && !linkMode && (
+          {!showForm && !linkMode && deciding && (
+            <div className="flex items-center justify-center" style={{ minHeight: 220 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(198,242,78,0.25)', borderTopColor: '#c6f24e', animation: 'calLoadSpin 0.7s linear infinite' }} />
+            </div>
+          )}
+          {!showForm && !linkMode && !deciding && (
             <div className="space-y-2">
               <button type="button" onClick={startCamera}
                 className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all active:scale-[0.98]"
