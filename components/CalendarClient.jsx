@@ -925,7 +925,7 @@ export default function CalendarClient() {
         <ErrorBoundary key={activeTab}>
         <div className="anim-tab">
         {/* Calendar filter — only meaningful once friends are connected */}
-        {connectedFriends.length > 0 && (activeTab === 'feed' || activeTab === 'calendar') && (
+        {connectedFriends.length > 0 && activeTab === 'calendar' && (
           <div style={{ padding: '14px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%' }}>
             {!filterOpen ? (
               // Collapsed: just show the active view; tap to reveal the options.
