@@ -65,7 +65,7 @@ export async function POST() {
     body  = tomorrowEvts.map(e => e.title || 'Event').join(' • ')
   } else {
     // No events — still confirm the pipeline works with a diagnostic message
-    title = 'ezcalendar 📌'
+    title = 'FLYRLY 📌'
     body  = 'No events today or tomorrow — pipeline is working!'
   }
 

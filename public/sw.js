@@ -28,7 +28,7 @@ self.addEventListener('fetch', e => {
 })
 
 self.addEventListener('push', e => {
-  let title = 'ezcalendar'
+  let title = 'FLYRLY'
   let body  = 'You have upcoming events!'
   try {
     const data = e.data?.json()

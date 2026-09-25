@@ -92,7 +92,7 @@ export default async function Home({ searchParams }) {
 
       {/* Wordmark */}
       <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
-        <Wordmark size={24} color="#fff" pin />
+        <Wordmark size={24} color="#fff" />
       </div>
 
       {/* Headline */}

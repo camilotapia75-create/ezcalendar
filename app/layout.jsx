@@ -34,13 +34,13 @@ export const viewport = {
 }
 
 export const metadata = {
-  title: 'ezcalendar',
+  title: 'FLYRLY',
   description: 'Snap a flyer. It lands on the right date.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'ezcalendar',
+    title: 'FLYRLY',
   },
 }
 

@@ -804,7 +804,7 @@ export default function CalendarClient() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'relative', zIndex: 50,
       }}>
-        <Wordmark size={22} color={navActive} accent={theme.accent} pin />
+        <Wordmark size={22} color={navActive} accent={theme.accent} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button onClick={toggleColorScheme} title={colorScheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center', lineHeight: 1, color: navMuted }}>

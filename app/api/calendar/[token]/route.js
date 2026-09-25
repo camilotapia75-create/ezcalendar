@@ -29,7 +29,7 @@ export async function GET(_request, { params }) {
       .eq('user_id', inv.owner_id)
       .order('date', { ascending: true })
 
-    const ics = vcalendar(events || [], 'ezcalendar')
+    const ics = vcalendar(events || [], 'FLYRLY')
     return new NextResponse(ics, {
       headers: {
         'Content-Type': 'text/calendar; charset=utf-8',

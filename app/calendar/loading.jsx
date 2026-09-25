@@ -16,7 +16,7 @@ export default function CalendarLoading() {
         backgroundImage: 'radial-gradient(120% 55% at 50% -5%, #14170e 0%, #0a0a0b 55%)',
       }}
     >
-      <Wordmark size={30} color="#fff" pin />
+      <Wordmark size={30} color="#fff" />
       <div
         style={{
           width: 34, height: 34, borderRadius: '50%',

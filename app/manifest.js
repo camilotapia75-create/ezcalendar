@@ -1,7 +1,7 @@
 export default function manifest() {
   return {
-    name: 'ezcalendar',
-    short_name: 'ezcalendar',
+    name: 'FLYRLY',
+    short_name: 'FLYRLY',
     description: 'Snap a flyer. It lands on the right date.',
     // Open straight into the app — /calendar is static (instant from CDN) and
     // resolves auth client-side, skipping the landing page's serverless
