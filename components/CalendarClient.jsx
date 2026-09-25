@@ -243,6 +243,12 @@ function FriendsTab({ inviteCode, feedToken, connectedCount, connectedFriends = 
               ? '✓ Link copied — paste it into Google\'s box and tap “Add calendar”.'
               : 'Copies your link and opens Google\'s “From URL” page — just paste and tap Add.'}
           </p>
+          {feedCopied && (
+            <button onClick={() => copyText(feedHttps, setFeedCopied)} title="Tap to copy again"
+              style={{ display: 'block', width: '100%', marginTop: 8, padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--text-3)', fontSize: 11, fontFamily: 'var(--font-mono-stack)', wordBreak: 'break-all', textAlign: 'left', cursor: 'pointer' }}>
+              {feedHttps}
+            </button>
+          )}
 
           {/* Unsubscribe — rotate the token so the old feed stops updating */}
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
