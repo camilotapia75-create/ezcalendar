@@ -280,7 +280,18 @@ export default function CalendarClient() {
     if (calFilter !== 'mine') return []
     const dismissed = new Set(dismissedSugg)
     const mine = new Set((user ? events.filter(e => e.user_id === user.id) : []).map(suggKey))
-    const pool = suggestions.filter(s => !dismissed.has(suggKey(s)) && !mine.has(suggKey(s)))
+    const filtered = suggestions.filter(s => !dismissed.has(suggKey(s)) && !mine.has(suggKey(s)))
+    // Collapse the same event across dates/listings (a 2-night run, "2-day
+    // ticket" variants, etc.) to ONE card — the soonest date — keyed by a
+    // loose title. Prevents "Billy Strings" showing up two or three times.
+    const titleKey = (s) => String(s?.title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b(tickets?|2 day|two day|valid both days|the \d+.. anniversary tour|world tour|tour)\b/g, '').replace(/\s+/g, ' ').trim()
+    const byTitle = new Map()
+    for (const s of filtered) {
+      const k = titleKey(s) || suggKey(s)
+      const prev = byTitle.get(k)
+      if (!prev || (s.date && prev.date && s.date < prev.date)) byTitle.set(k, s)
+    }
+    const pool = [...byTitle.values()]
     const daySeed = Math.floor(Date.now() / 86400000)
     const KEEP_TOP = 3  // keep the AI's strongest picks pinned; rotate the rest
     const rotated = [...pool.slice(0, KEEP_TOP), ...seededShuffle(pool.slice(KEEP_TOP), daySeed)]
