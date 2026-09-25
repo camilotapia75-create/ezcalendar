@@ -350,7 +350,7 @@ function SuggestedRow({ items, accent, onPin, onOpen, onDismiss }) {
   })
   if (!items?.length) return null
   return (
-    <div style={{ marginBottom: 26 }}>
+    <div style={{ marginBottom: 12 }}>
       <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
         <span className="mono-label" style={{ fontSize: 11, letterSpacing: '0.16em', color: accent, whiteSpace: 'nowrap' }}>SUGGESTED FOR YOU</span>
         <div style={{ height: 1, background: 'var(--border)', flex: 1 }} />
@@ -448,7 +448,7 @@ export default function FeedView({ events, accent, onEventTap, onDeleteEvent, on
         const collapsed = group.past && !showPast
         return (
           <div key={group.label}>
-            <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: collapsed ? 0 : 14, marginTop: gi > 0 ? 26 : 0 }}>
+            <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: collapsed ? 0 : 14, marginTop: gi > 0 ? 14 : 0 }}>
               {group.past ? (
                 <button onClick={() => setShowPast(s => !s)} className="mono-label"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-3)', fontSize: 11, letterSpacing: '0.16em', whiteSpace: 'nowrap' }}>

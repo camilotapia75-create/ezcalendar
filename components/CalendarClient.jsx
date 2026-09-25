@@ -921,7 +921,7 @@ export default function CalendarClient() {
       )}
 
       {/* ── Content ── */}
-      <main style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}>
+      <main style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 116px)' }}>
         <ErrorBoundary key={activeTab}>
         <div className="anim-tab">
         {/* Calendar filter — only meaningful once friends are connected */}
